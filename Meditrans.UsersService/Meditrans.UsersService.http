@@ -1,0 +1,6 @@
+@Meditrans.UsersService_HostAddress = http://localhost:5059
+
+GET {{Meditrans.UsersService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+@Meditrans.Shared_HostAddress = http://localhost:5249
+
+GET {{Meditrans.Shared_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
