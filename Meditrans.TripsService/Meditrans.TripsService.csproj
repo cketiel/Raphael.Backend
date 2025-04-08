@@ -6,4 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <Folder Include="Configurations\" />
+    <Folder Include="Mediators\" />
+    <Folder Include="Services\" />
+  </ItemGroup>
+
 </Project>
