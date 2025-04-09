@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Meditrans.UsersService.Models;
 using Meditrans.UsersService.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Meditrans.UsersService.Controllers
 {
@@ -47,5 +48,33 @@ namespace Meditrans.UsersService.Controllers
             _userService.Delete(id);
             return NoContent();
         }
+
+        // Este método lee los claims directamente del HttpContext.User(que se completa automáticamente si el JWT es válido).
+        [HttpGet("me")]
+        [Authorize]
+        public IActionResult GetCurrentUser()
+        {
+            var userId = User.FindFirst("UserId")?.Value;
+            var username = User.FindFirst("Username")?.Value;
+            var role = User.FindFirst("Role")?.Value;
+
+            if (userId == null || username == null || role == null)
+                return Unauthorized();
+
+            return Ok(new
+            {
+                UserId = userId,
+                Username = username,
+                Role = role
+            });
+        }
+
+        [Authorize]
+        [HttpGet("secure-data")]
+        public IActionResult GetSecureData()
+        {
+            return Ok("You have access to this secured endpoint.");
+        }
+
     }
 }

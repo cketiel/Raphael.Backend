@@ -4,7 +4,8 @@
     {
         Admin,
         Driver,
-        Client
+        Client,
+        User
     }
 
     public class User
@@ -18,6 +19,6 @@
         public string Address { get; set; } = string.Empty;
         public string DriverLicense { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
-        public UserRole Role { get; set; }
+        public UserRole Role { get; set; } = UserRole.User;
     }
 }
