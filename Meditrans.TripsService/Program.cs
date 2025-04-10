@@ -24,4 +24,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// Initialize database
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<TripsDbContext>();
+    Meditrans.TripsService.Data.DbInitializer.Seed(context);
+}
+
 app.Run();

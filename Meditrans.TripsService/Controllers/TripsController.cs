@@ -49,7 +49,11 @@ namespace Meditrans.TripsService.Controllers
             trip.FromTime = updated.FromTime;
             trip.ToTime = updated.ToTime;
             trip.PickupAddress = updated.PickupAddress;
+            trip.PickupLatitude = updated.PickupLatitude;
+            trip.PickupLongitude = updated.PickupLongitude;
             trip.DropoffAddress = updated.DropoffAddress;
+            trip.DropoffLatitude = updated.DropoffLatitude;
+            trip.DropoffLongitude = updated.DropoffLongitude;
             trip.Day = updated.Day;
             trip.SpaceType = updated.SpaceType;
             trip.PickupNote = updated.PickupNote;

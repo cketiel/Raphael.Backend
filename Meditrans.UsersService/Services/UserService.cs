@@ -1,12 +1,17 @@
-﻿using Meditrans.UsersService.Models;
+﻿using Meditrans.UsersService.Data;
+using Meditrans.UsersService.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Meditrans.UsersService.Services
 {
     public class UserService : IUserService
     {
+       
         private readonly List<User> _users = new();
+      
 
         public IEnumerable<User> GetAll() => _users;
+        
 
         public User? GetById(Guid id) => _users.FirstOrDefault(u => u.Id == id);
 

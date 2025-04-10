@@ -8,5 +8,10 @@ namespace Meditrans.TripsService.Data
         public TripsDbContext(DbContextOptions<TripsDbContext> options) : base(options) { }
 
         public DbSet<Trip> Trips { get; set; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+        }
+
     }
 }

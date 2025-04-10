@@ -2,22 +2,37 @@
 using Meditrans.UsersService.Models;
 using Meditrans.UsersService.Services;
 using Microsoft.AspNetCore.Authorization;
+using Meditrans.UsersService.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Meditrans.UsersService.Controllers
 {
     [ApiController]
-    [Route("api/users")]
+    [Route("api/[controller]")]
+
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly UsersDbContext _context;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, UsersDbContext context)
         {
             _userService = userService;
+            _context = context;
+        }
+        // GET: api/users
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
+        {
+            var users = await _context.Users.ToListAsync();
+            return Ok(users);
         }
 
-        [HttpGet]
+        /*[HttpGet]
         public IActionResult GetAll() => Ok(_userService.GetAll());
+
+        [HttpGet("test")]
+        public IActionResult Test() => Ok(_context.Users.ToList());*/
 
         [HttpGet("{id}")]
         public IActionResult GetById(Guid id)

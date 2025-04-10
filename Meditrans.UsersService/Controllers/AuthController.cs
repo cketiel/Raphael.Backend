@@ -84,7 +84,8 @@ public class AuthController : ControllerBase
             token = new JwtSecurityTokenHandler().WriteToken(token),
             userId = user.Id,
             username = user.Username,
-            role = user.Role
+            role = user.Role,
+            isSuccess = true
         });
     }
 
