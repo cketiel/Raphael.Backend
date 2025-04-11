@@ -13,4 +13,8 @@
     <Folder Include="Services\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Meditrans.Shared\Meditrans.Shared.csproj" />
+  </ItemGroup>
+
 </Project>
