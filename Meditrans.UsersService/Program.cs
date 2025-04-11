@@ -27,6 +27,7 @@ app.MapControllers();
 app.Run();*/
 
 using System.Text;
+using Meditrans.Shared.DbContexts;
 using Meditrans.UsersService.Data;
 using Meditrans.UsersService.Services;
 using Meditrans.UsersService.Settings;
@@ -48,7 +49,7 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 });
-builder.Services.AddSingleton<IUserService, UserService>();
+//builder.Services.AddSingleton<IUserService, UserService>();
 
 
 
@@ -80,9 +81,12 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // Entity Framework DB
-builder.Services.AddDbContext<UsersDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<MediTransContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MeditransConnection")));
 
+// Inyectar servicios
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 var app = builder.Build();
 
@@ -92,18 +96,25 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Users Service API v1");
 });
 
+// Swagger (opcional)
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseAuthentication();
 
 app.UseAuthorization();
 app.MapControllers();
 
 // Initialize database
-using (var scope = app.Services.CreateScope())
+/*using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<UsersDbContext>();
     Meditrans.UsersService.Data.DbInitializer.Seed(context);
-}
+}*/
 
 // usuario admin, sin Hash
 //DbInitializer.Seed2(app);
