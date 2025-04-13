@@ -83,6 +83,8 @@ builder.Services.AddAuthorization();
 // Entity Framework DB
 builder.Services.AddDbContext<MediTransContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MeditransConnection")));
+/*builder.Services.AddDbContext<UsersDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));*/
 
 // Inyectar servicios
 builder.Services.AddScoped<IUserService, UserService>();

@@ -11,15 +11,16 @@ using Microsoft.EntityFrameworkCore;
 using Meditrans.UsersService.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using System.Numerics;
+using Meditrans.Shared.DbContexts;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly JwtSettings _jwtSettings;
-    private readonly UsersDbContext _context;
+    private readonly MediTransContext _context;
 
-    public AuthController(IOptions<JwtSettings> jwtOptions, UsersDbContext context)
+    public AuthController(IOptions<JwtSettings> jwtOptions, MediTransContext context)
     {
         _jwtSettings = jwtOptions.Value;
         _context = context;
@@ -55,15 +56,15 @@ public class AuthController : ControllerBase
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim(ClaimTypes.Role, user.RoleId.ToString()),
 
              new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
              new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
-             new Claim(ClaimTypes.Role, user.Role.ToString()),
+            
 
              new Claim("UserId", user.Id.ToString()),
              new Claim("Username", user.Username),
-             new Claim("Role", user.Role.ToString())
+             new Claim("Role", user.RoleId.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
@@ -82,9 +83,9 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             token = new JwtSecurityTokenHandler().WriteToken(token),
-            userId = user.Id,
+            userId = user.Id.ToString(),
             username = user.Username,
-            role = user.Role,
+            role = user.RoleId.ToString(),
             isSuccess = true
         });
     }

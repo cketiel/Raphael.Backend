@@ -3,6 +3,7 @@ using Meditrans.Shared.DTOs;
 using Meditrans.Shared.Entities;
 using Meditrans.UsersService.Data;
 using Meditrans.UsersService.DTOs;
+using Meditrans.UsersService.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,28 +51,93 @@ namespace Meditrans.UsersService.Services
             };
         }
 
-        public async Task<User> CreateAsync(User user)
+        /*public async Task<User> CreateAsync2(UserCreateDto dto)
         {
+            // Check if that username already exists
+            if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
+                throw new Exception("Username already exists.");
+
+            // Create the user
+            var user = new User
+            {
+                FullName = dto.FullName,
+                Username = dto.Username,
+                PasswordHash = PasswordHasher.Hash(dto.Password),
+                Email = dto.Email,
+                PhoneNumber = dto.PhoneNumber,
+                Address = dto.Address,
+                DriverLicense = dto.DriverLicense,
+                RoleId = dto.RoleId,
+                IsActive = true
+            };
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
+
+            return user;
+        }*/
+
+        public async Task<User> CreateAsync(UserCreateDto dto)
+        {
+            try
+            {
+                // Check if that username already exists
+                if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
+                    throw new Exception("Username already exists.");
+
+                // Create the user
+                var user = new User
+                {
+                    FullName = dto.FullName,
+                    Username = dto.Username,
+                    PasswordHash = PasswordHasher.Hash(dto.Password),
+                    RoleId = dto.RoleId,
+                    IsActive = true,
+                    Email = dto.Email,
+                    PhoneNumber = dto.PhoneNumber,
+                    Address = dto.Address,
+                    DriverLicense = dto.DriverLicense
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                return new User
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    Username = user.Username,
+                    Role = user.Role
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error creating user: {ex.Message}", ex);
+            }
+        }
+
+
+        public async Task<User> UpdateAsync(UserUpdateDto dto)
+        {
+            var user = await _context.Users.FindAsync(dto.Id);
+            if (user == null)
+                throw new Exception("User not found.");
+
+            // Update the fields
+            user.FullName = dto.FullName;
+            user.Username = dto.Username;
+            user.RoleId = dto.RoleId;
+            user.Email = dto.Email;
+            user.PhoneNumber = dto.PhoneNumber;
+            user.Address = dto.Address;
+            user.DriverLicense = dto.DriverLicense;
+            user.IsActive = dto.IsActive;
+
+            await _context.SaveChangesAsync();
+
             return user;
         }
 
-        public async Task<User?> UpdateAsync(int id, User user)
-        {
-            var existing = await _context.Users.FindAsync(id);
-            if (existing == null) return null;
-
-            existing.FullName = user.FullName;
-            existing.Username = user.Username;
-            existing.Email = user.Email;
-            existing.PhoneNumber = user.PhoneNumber;
-            existing.Address = user.Address;
-            existing.RoleId = user.RoleId;
-
-            await _context.SaveChangesAsync();
-            return existing;
-        }
 
         public async Task<bool> DeleteAsync(int id)
         {
@@ -83,23 +149,25 @@ namespace Meditrans.UsersService.Services
             return true;
         }
 
-        public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request)
+        public async Task ChangePasswordAsync(ChangePasswordDto dto)
         {
-            var user = await _context.Users.FindAsync(request.UserId);
+            var user = await _context.Users.FindAsync(dto.UserId);
             if (user == null)
-                return false;
+                throw new Exception("User not found.");
 
-            var hasher = new PasswordHasher<User>();
-            var result = hasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword);
+            // Check current password
+            if (!PasswordHasher.Verify(dto.CurrentPassword, user.PasswordHash))
+                throw new Exception("Current password is incorrect.");
 
-            if (result == PasswordVerificationResult.Failed)
-                return false;
+            // Verify that the new password and confirmation match.
+            if (dto.NewPassword != dto.ConfirmPassword)
+                throw new Exception("New password and confirmation do not match.");
 
-            user.PasswordHash = hasher.HashPassword(user, request.NewPassword);
+            // Change password
+            user.PasswordHash = PasswordHasher.Hash(dto.NewPassword);
             await _context.SaveChangesAsync();
-
-            return true;
         }
+
     }
 
     /*public class UserService : IUserService

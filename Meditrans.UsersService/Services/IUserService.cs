@@ -8,10 +8,11 @@ namespace Meditrans.UsersService.Services
     {
         Task<IEnumerable<UserDto>> GetAllAsync();
         Task<UserDto?> GetByIdAsync(int id);
-        Task<User> CreateAsync(User user);
-        Task<User?> UpdateAsync(int id, User user);
+        Task<User> CreateAsync(UserCreateDto user);
+        Task<User> UpdateAsync(UserUpdateDto dto);
         Task<bool> DeleteAsync(int id);
-        Task<bool> ChangePasswordAsync(ChangePasswordRequest request);
+        Task ChangePasswordAsync(ChangePasswordDto dto);
+
     }
 
     /*public interface IUserService

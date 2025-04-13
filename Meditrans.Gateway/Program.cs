@@ -1,4 +1,54 @@
-﻿// default code
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddControllers();
+
+//builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("UsersService", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7151/"); // despues usar archivos de configuracion
+});
+
+var app = builder.Build();
+
+app.UseRouting();
+app.UseAuthentication(); // ← valida JWT
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
+
+
+
+
+
+
+
+
+
+// default code
 /*var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -59,6 +109,10 @@ await app.UseOcelot();
 app.Run();*/
 
 
+
+
+// la ultima version
+/*
 using Meditrans.Gateway.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -116,4 +170,4 @@ app.UseAuthorization();
 
 await app.UseOcelot();
 app.Run();
-
+*/

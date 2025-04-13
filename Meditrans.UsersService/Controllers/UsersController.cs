@@ -2,6 +2,7 @@
 using Meditrans.UsersService.Services;
 using Meditrans.Shared.Entities;
 using Meditrans.Shared.DTOs;
+using Meditrans.UsersService.DTOs;
 
 
 namespace Meditrans.UsersService.Controllers
@@ -28,15 +29,50 @@ namespace Meditrans.UsersService.Controllers
             return user == null ? NotFound() : Ok(user);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create(User user) => Ok(await _service.CreateAsync(user));
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, User user)
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateUser([FromBody] UserCreateDto dto)
         {
-            var updated = await _service.UpdateAsync(id, user);
-            return updated == null ? NotFound() : Ok(updated);
+            try
+            {
+                var createdUser = await _service.CreateAsync(dto);
+
+                return Ok(new
+                {
+                    createdUser.Id,
+                    createdUser.FullName,
+                    createdUser.Username,
+                    createdUser.RoleId,
+                    createdUser.IsActive
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
+
+        [HttpPut("update")]
+        public async Task<IActionResult> UpdateUser([FromBody] UserUpdateDto dto)
+        {
+            try
+            {
+                var updatedUser = await _service.UpdateAsync(dto);
+
+                return Ok(new
+                {
+                    updatedUser.Id,
+                    updatedUser.FullName,
+                    updatedUser.Username,
+                    updatedUser.RoleId,
+                    updatedUser.IsActive
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -45,18 +81,20 @@ namespace Meditrans.UsersService.Controllers
             return deleted ? Ok() : NotFound();
         }
 
-        [HttpPost("{id}/change-password")]
-        public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordRequest request)
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
-            if (id != request.UserId)
-                return BadRequest("User ID mismatch.");
-
-            var success = await _service.ChangePasswordAsync(request);
-            if (!success)
-                return BadRequest("Invalid current password or user not found.");
-
-            return Ok("Password changed successfully.");
+            try
+            {
+                await _service.ChangePasswordAsync(dto);
+                return Ok(new { message = "Password updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
+
 
 
         // GET: api/users
