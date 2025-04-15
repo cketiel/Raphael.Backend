@@ -10,16 +10,17 @@ namespace Meditrans.Shared.Factories
     {
         public MediTransContext CreateDbContext(string[] args)
         {
-            // Asumimos que el archivo appsettings.json está en Meditrans.Shared
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())  // Usamos la ruta de Meditrans.Shared
-                .AddJsonFile("appsettings.json", optional: false) // Asegúrate de que el archivo esté en Meditrans.Shared
+            var optionsBuilder = new DbContextOptionsBuilder<MediTransContext>();
+
+            // Cargar configuración desde appsettings.json
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
                 .Build();
 
-            var optionsBuilder = new DbContextOptionsBuilder<MediTransContext>();
             var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-            optionsBuilder.UseSqlServer(connectionString);  // Aquí se configura la conexión
+            optionsBuilder.UseSqlServer(connectionString);
 
             return new MediTransContext(optionsBuilder.Options);
         }

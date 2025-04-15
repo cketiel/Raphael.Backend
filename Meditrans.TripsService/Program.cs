@@ -1,12 +1,19 @@
 using Meditrans.Shared.DbContexts;
 using Meditrans.TripsService.Data;
+using Meditrans.TripsService.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<FundingSourceService>();
+builder.Services.AddScoped<SpaceTypeService>();
+builder.Services.AddScoped<CapacityTypeService>();
 
 // Entity Framework DB
 builder.Services.AddDbContext<MediTransContext>(options =>
@@ -15,6 +22,12 @@ builder.Services.AddDbContext<MediTransContext>(options =>
 /*var connectionString = builder.Configuration.GetConnectionString("TripsDb");
 builder.Services.AddDbContext<TripsDbContext>(options =>
     options.UseSqlServer(connectionString));*/
+
+
+/*builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+});*/
 
 
 var app = builder.Build();
@@ -28,11 +41,11 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Initialize database
-using (var scope = app.Services.CreateScope())
+/*using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<TripsDbContext>();
     Meditrans.TripsService.Data.DbInitializer.Seed(context);
-}
+}*/
 
 app.Run();

@@ -29,7 +29,7 @@ namespace Meditrans.Shared.DbContexts
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer("Server=localhost;Database=MeditransDB;Trusted_Connection=True;MultipleActiveResultSets=true");
+                optionsBuilder.UseSqlServer("Server=localhost;Database=MeditransDB;Trusted_Connection=True;TrustServerCertificate=True;");
             }
         }
 

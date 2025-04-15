@@ -1,12 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
-
-namespace Meditrans.Shared.Entities
+﻿namespace Meditrans.Shared.Dtos
 {
-    public class FundingSource
+    public class FundingSourceDto
     {
-        public int Id { get; set; }
-        [Required]
         public string Name { get; set; }
         public string? AccountNumber { get; set; }
         public string? Address { get; set; }
@@ -21,10 +16,7 @@ namespace Meditrans.Shared.Entities
         public bool? DriverSignatureDropoff { get; set; }
         public bool? RequireOdometer { get; set; }
         public bool? BarcodeScanRequired { get; set; }
+        public bool IsActive { get; set; }
         public string? VectorcareFacilityId { get; set; }
-        [Required]
-        public bool IsActive { get; set; } = true;
-        public ICollection<Customer> Customers { get; set; }
-        public ICollection<FundingSourceBillingItem> BillingItems { get; set; }
     }
 }
