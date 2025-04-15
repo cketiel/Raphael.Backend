@@ -1,3 +1,4 @@
+using Meditrans.Shared.DbContexts;
 using Meditrans.TripsService.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,11 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// Entity Framework DB
+builder.Services.AddDbContext<MediTransContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MeditransConnection")));
 
-var connectionString = builder.Configuration.GetConnectionString("TripsDb");
-
+/*var connectionString = builder.Configuration.GetConnectionString("TripsDb");
 builder.Services.AddDbContext<TripsDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString));*/
 
 
 var app = builder.Build();

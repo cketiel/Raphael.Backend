@@ -1,5 +1,7 @@
 ﻿using Meditrans.TripsService.Data;
+using Meditrans.TripsService.DTOs;
 using Meditrans.TripsService.Models;
+using Meditrans.TripsService.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,69 +11,47 @@ namespace Meditrans.TripsService.Controllers
     [Route("api/[controller]")]
     public class TripsController : ControllerBase
     {
-        private readonly TripsDbContext _context;
+        private readonly ITripService _tripService;
 
-        public TripsController(TripsDbContext context)
+        public TripsController(ITripService tripService)
         {
-            _context = context;
+            _tripService = tripService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Trip>>> GetAll()
+        public async Task<IActionResult> GetAll()
         {
-            return Ok(await _context.Trips.ToListAsync());
+            var trips = await _tripService.GetAllAsync();
+            return Ok(trips);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Trip>> GetById(Guid id)
+        public async Task<IActionResult> GetById(int id)
         {
-            var trip = await _context.Trips.FindAsync(id);
+            var trip = await _tripService.GetByIdAsync(id);
             return trip == null ? NotFound() : Ok(trip);
         }
 
         [HttpPost]
-        public async Task<ActionResult<Trip>> Create([FromBody] Trip trip)
+        public async Task<IActionResult> Create([FromBody] TripCreateDto dto)
         {
-            trip.Id = Guid.NewGuid();
-            _context.Trips.Add(trip);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = trip.Id }, trip);
+            var result = await _tripService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] Trip updated)
+        public async Task<IActionResult> Update(int id, [FromBody] TripUpdateDto dto)
         {
-            var trip = await _context.Trips.FindAsync(id);
-            if (trip == null) return NotFound();
-
-            trip.PatientName = updated.PatientName;
-            trip.Date = updated.Date;
-            trip.FromTime = updated.FromTime;
-            trip.ToTime = updated.ToTime;
-            trip.PickupAddress = updated.PickupAddress;
-            trip.PickupLatitude = updated.PickupLatitude;
-            trip.PickupLongitude = updated.PickupLongitude;
-            trip.DropoffAddress = updated.DropoffAddress;
-            trip.DropoffLatitude = updated.DropoffLatitude;
-            trip.DropoffLongitude = updated.DropoffLongitude;
-            trip.Day = updated.Day;
-            trip.SpaceType = updated.SpaceType;
-            trip.PickupNote = updated.PickupNote;
-            trip.IsCancelled = updated.IsCancelled;
-
-            await _context.SaveChangesAsync();
-            return NoContent();
+            var updated = await _tripService.UpdateAsync(id, dto);
+            return updated ? NoContent() : NotFound();
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var trip = await _context.Trips.FindAsync(id);
-            if (trip == null) return NotFound();
-
-            _context.Trips.Remove(trip);
-            await _context.SaveChangesAsync();
-            return NoContent();
+            var deleted = await _tripService.DeleteAsync(id);
+            return deleted ? NoContent() : NotFound();
         }
     }
+
 }
