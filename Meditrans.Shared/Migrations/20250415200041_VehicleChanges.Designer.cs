@@ -4,6 +4,7 @@ using Meditrans.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Meditrans.Shared.Migrations
 {
     [DbContext(typeof(MediTransContext))]
-    partial class MediTransContextModelSnapshot : ModelSnapshot
+    [Migration("20250415200041_VehicleChanges")]
+    partial class VehicleChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -79,9 +82,6 @@ namespace Meditrans.Shared.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CapacityDetailTypeId")
-                        .HasColumnType("int");
-
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
@@ -90,31 +90,9 @@ namespace Meditrans.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CapacityDetailTypeId");
-
                     b.HasIndex("SpaceTypeId");
 
                     b.ToTable("CapacityDetails");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.CapacityDetailType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CapacityDetailTypes");
                 });
 
             modelBuilder.Entity("Meditrans.Shared.Entities.CapacityType", b =>
@@ -584,10 +562,7 @@ namespace Meditrans.Shared.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CapacityDetailTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CapacityTypeId")
+                    b.Property<int>("CapacityTypeId")
                         .HasColumnType("int");
 
                     b.Property<string>("Color")
@@ -625,8 +600,6 @@ namespace Meditrans.Shared.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CapacityDetailTypeId");
 
                     b.HasIndex("CapacityTypeId");
 
@@ -726,19 +699,11 @@ namespace Meditrans.Shared.Migrations
 
             modelBuilder.Entity("Meditrans.Shared.Entities.CapacityDetail", b =>
                 {
-                    b.HasOne("Meditrans.Shared.Entities.CapacityDetailType", "CapacityDetailType")
-                        .WithMany()
-                        .HasForeignKey("CapacityDetailTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Meditrans.Shared.Entities.SpaceType", "SpaceType")
                         .WithMany("CapacityDetails")
                         .HasForeignKey("SpaceTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("CapacityDetailType");
 
                     b.Navigation("SpaceType");
                 });
@@ -851,15 +816,11 @@ namespace Meditrans.Shared.Migrations
 
             modelBuilder.Entity("Meditrans.Shared.Entities.Vehicle", b =>
                 {
-                    b.HasOne("Meditrans.Shared.Entities.CapacityDetailType", "CapacityDetailType")
-                        .WithMany()
-                        .HasForeignKey("CapacityDetailTypeId")
+                    b.HasOne("Meditrans.Shared.Entities.CapacityType", "CapacityType")
+                        .WithMany("Vehicles")
+                        .HasForeignKey("CapacityTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Meditrans.Shared.Entities.CapacityType", null)
-                        .WithMany("Vehicles")
-                        .HasForeignKey("CapacityTypeId");
 
                     b.HasOne("Meditrans.Shared.Entities.VehicleGroup", "VehicleGroup")
                         .WithMany("Vehicles")
@@ -873,7 +834,7 @@ namespace Meditrans.Shared.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("CapacityDetailType");
+                    b.Navigation("CapacityType");
 
                     b.Navigation("VehicleGroup");
 

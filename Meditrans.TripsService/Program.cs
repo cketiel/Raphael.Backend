@@ -10,10 +10,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<ITripService, TripService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<FundingSourceService>();
 builder.Services.AddScoped<SpaceTypeService>();
 builder.Services.AddScoped<CapacityTypeService>();
+
+// Vehicle
+builder.Services.AddScoped<IVehicleService, VehicleService>();
+builder.Services.AddScoped<VehicleGroupService>();
+builder.Services.AddScoped<ICapacityDetailTypeService, CapacityDetailTypeService>();
+builder.Services.AddScoped<IRunService, RunService>();
+
+
+
 
 // Entity Framework DB
 builder.Services.AddDbContext<MediTransContext>(options =>

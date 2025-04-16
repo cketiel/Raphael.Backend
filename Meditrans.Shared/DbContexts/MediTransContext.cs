@@ -15,8 +15,10 @@ namespace Meditrans.Shared.DbContexts
         public DbSet<SpaceType> SpaceTypes { get; set; }
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<VehicleGroup> VehicleGroups { get; set; }
+        public DbSet<VehicleGroup> VehicleTypes { get; set; }
         public DbSet<CapacityType> Capacities { get; set; }
         public DbSet<CapacityDetail> CapacityDetails { get; set; }
+        public DbSet<CapacityDetailType> CapacityDetailTypes { get; set; }
         public DbSet<VehicleRoute> VehicleRoutes { get; set; }
         public DbSet<Customer> Customers { get; set; }
         public DbSet<FundingSource> FundingSources { get; set; }
@@ -52,13 +54,13 @@ namespace Meditrans.Shared.DbContexts
 
             modelBuilder.Entity<Vehicle>()
                 .HasOne(v => v.VehicleGroup)
-                .WithMany(g => g.Vehicles)
+                .WithMany()
                 .HasForeignKey(v => v.GroupId);
 
             modelBuilder.Entity<Vehicle>()
-                .HasOne(v => v.CapacityType)
-                .WithMany(c => c.Vehicles)
-                .HasForeignKey(v => v.CapacityTypeId);
+                .HasOne(v => v.CapacityDetailType);
+                //.WithMany(c => c.Vehicles)
+                //.HasForeignKey(v => v.CapacityDetailTypeId);
 
             modelBuilder.Entity<CapacityDetail>()
                 .HasOne(cd => cd.SpaceType)
@@ -68,13 +70,14 @@ namespace Meditrans.Shared.DbContexts
 
             modelBuilder.Entity<VehicleRoute>()
                 .HasOne(vr => vr.Driver)
-                .WithMany(u => u.VehicleRoutes)
+                .WithMany()
+                //.WithMany(u => u.VehicleRoutes)
                 .HasForeignKey(vr => vr.DriverId);
 
             modelBuilder.Entity<VehicleRoute>()
-                .HasOne(vr => vr.Vehicle)
-                .WithMany(v => v.VehicleRoutes)
-                .HasForeignKey(vr => vr.VehicleId);
+                .HasOne(vr => vr.Vehicle);
+                //.WithMany(v => v.VehicleRoutes)
+                //.HasForeignKey(vr => vr.VehicleId);
 
             modelBuilder.Entity<Customer>()
                 .HasOne(c => c.FundingSource)

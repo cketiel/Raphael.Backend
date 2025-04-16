@@ -1,20 +1,30 @@
-﻿namespace Meditrans.Shared.Entities
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Meditrans.Shared.Entities
 {
     public class Vehicle
     {
         public int Id { get; set; }
+        [Required]
         public string Name { get; set; }
-        public string VIN { get; set; }
-        public string Brand { get; set; }
-        public string Model { get; set; }
-        public string Color { get; set; }
-        public int Year { get; set; }
-        public string Plate { get; set; }
+        public string? VIN { get; set; }
+        public string? Make { get; set; }
+        public string? Model { get; set; }
+        public string? Color { get; set; }
+        public int? Year { get; set; }
+        public string? Plate { get; set; } // MAS Requirements
+        public DateTime? ExpirationDate { get; set; } // MAS Requirements
         public bool IsInactive { get; set; }
+        [Required]
         public int GroupId { get; set; }
         public VehicleGroup VehicleGroup { get; set; }
-        public int CapacityTypeId { get; set; }
-        public CapacityType CapacityType { get; set; }
-        public ICollection<VehicleRoute> VehicleRoutes { get; set; }
+        [Required]
+        public int CapacityDetailTypeId { get; set; }
+        public CapacityDetailType CapacityDetailType { get; set; }
+        [Required]
+        public int VehicleTypeId { get; set; }
+        public VehicleType VehicleType { get; set; }
+
+        //public ICollection<VehicleRoute> VehicleRoutes { get; set; }
     }
 }
