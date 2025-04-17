@@ -1,5 +1,6 @@
 ﻿using Meditrans.Shared.DbContexts;
 using Meditrans.Shared.Entities;
+using Meditrans.UsersService.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace Meditrans.UsersService.Services
@@ -13,33 +14,56 @@ namespace Meditrans.UsersService.Services
             _context = context;
         }
 
-        public async Task<IEnumerable<Role>> GetAllAsync()
+        public async Task<IEnumerable<RoleDto>> GetAllAsync()
         {
-            return await _context.Roles.ToListAsync();
+            return await _context.Roles
+                .AsNoTracking()
+                .Select(r => new RoleDto
+                {
+                    Id = r.Id,
+                    RoleName = r.RoleName,
+                    Description = r.Description
+                })
+                .ToListAsync();
         }
 
-        public async Task<Role?> GetByIdAsync(int id)
+        public async Task<RoleDto?> GetByIdAsync(int id)
         {
-            return await _context.Roles.FindAsync(id);
+            var role = await _context.Roles.FindAsync(id);
+            return role == null ? null : new RoleDto
+            {
+                Id = role.Id,
+                RoleName = role.RoleName,
+                Description = role.Description
+            };
         }
 
-        public async Task<Role> CreateAsync(Role role)
+        public async Task<RoleDto> CreateAsync(RoleDto roleDto)
         {
+            var role = new Role
+            {
+                RoleName = roleDto.RoleName,
+                Description = roleDto.Description
+            };
+
             _context.Roles.Add(role);
             await _context.SaveChangesAsync();
-            return role;
+
+            roleDto.Id = role.Id;
+            return roleDto;
         }
 
-        public async Task<Role?> UpdateAsync(int id, Role role)
+        public async Task<bool> UpdateAsync(int id, RoleDto roleDto)
         {
             var existing = await _context.Roles.FindAsync(id);
-            if (existing == null) return null;
+            if (existing == null) return false;
 
-            existing.RoleName = role.RoleName;
-            existing.Description = role.Description;
+            existing.RoleName = roleDto.RoleName;
+            existing.Description = roleDto.Description;
 
+            _context.Roles.Update(existing);
             await _context.SaveChangesAsync();
-            return existing;
+            return true;
         }
 
         public async Task<bool> DeleteAsync(int id)

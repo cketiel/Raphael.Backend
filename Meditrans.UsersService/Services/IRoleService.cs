@@ -1,13 +1,14 @@
 ﻿using Meditrans.Shared.Entities;
+using Meditrans.UsersService.DTOs;
 
 namespace Meditrans.UsersService.Services
 {
     public interface IRoleService
     {
-        Task<IEnumerable<Role>> GetAllAsync();
-        Task<Role?> GetByIdAsync(int id);
-        Task<Role> CreateAsync(Role role);
-        Task<Role?> UpdateAsync(int id, Role role);
+        Task<IEnumerable<RoleDto>> GetAllAsync();
+        Task<RoleDto?> GetByIdAsync(int id);
+        Task<RoleDto> CreateAsync(RoleDto roleDto);
+        Task<bool> UpdateAsync(int id, RoleDto roleDto);
         Task<bool> DeleteAsync(int id);
     }
 }
