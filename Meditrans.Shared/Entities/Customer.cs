@@ -28,6 +28,8 @@ namespace Meditrans.Shared.Entities
         public string? Email { get; set; }
         public DateTime? DOB { get; set; }
         [Required]
+        public string Gender { get; set; }
+        [Required]
         public DateTime Created { get; set; }
         [Required]
         public string CreatedBy { get; set; }
