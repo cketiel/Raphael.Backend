@@ -15,6 +15,7 @@
         public int SpaceTypeId { get; set; }
         public string? Email { get; set; }
         public DateTime? DOB { get; set; }
+        public string Gender { get; set; }
         public DateTime Created { get; set; }
         public string CreatedBy { get; set; }
     }

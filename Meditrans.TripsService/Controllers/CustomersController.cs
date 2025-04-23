@@ -33,8 +33,20 @@ namespace Meditrans.TripsService.Controllers
         [HttpPost]
         public async Task<ActionResult<Customer>> Create(CustomerDto dto)
         {
-            var created = await _service.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            try
+            {               
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var created = await _service.CreateAsync(dto);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            }
+            catch (Exception ex)
+            {               
+                //Console.WriteLine(ex.ToString());
+                return StatusCode(500, $"Error interno: {ex.Message}");
+            }
+               
         }
 
         [HttpPut("{id}")]

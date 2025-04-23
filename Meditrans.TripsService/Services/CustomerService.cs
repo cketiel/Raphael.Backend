@@ -47,6 +47,7 @@ namespace Meditrans.TripsService.Services
                 SpaceTypeId = dto.SpaceTypeId,
                 Email = dto.Email,
                 DOB = dto.DOB,
+                Gender = dto.Gender,
                 Created = dto.Created,
                 CreatedBy = dto.CreatedBy
             };
@@ -74,6 +75,7 @@ namespace Meditrans.TripsService.Services
             customer.SpaceTypeId = dto.SpaceTypeId;
             customer.Email = dto.Email;
             customer.DOB = dto.DOB;
+            customer.Gender = dto.Gender;
             customer.Created = dto.Created;
             customer.CreatedBy = dto.CreatedBy;
 
