@@ -17,16 +17,16 @@ namespace Meditrans.TripsService.Services
         public async Task<List<Customer>> GetAllAsync()
         {
             return await _context.Customers
-                //.Include(c => c.SpaceType)
-                //.Include(c => c.FundingSource)
+                .Include(c => c.SpaceType)
+                .Include(c => c.FundingSource)
                 .ToListAsync();
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
         {
             return await _context.Customers
-                //.Include(c => c.SpaceType)
-                //.Include(c => c.FundingSource)
+                .Include(c => c.SpaceType)
+                .Include(c => c.FundingSource)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 

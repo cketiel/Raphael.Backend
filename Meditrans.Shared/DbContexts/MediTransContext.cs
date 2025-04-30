@@ -81,12 +81,14 @@ namespace Meditrans.Shared.DbContexts
 
             modelBuilder.Entity<Customer>()
                 .HasOne(c => c.FundingSource)
-                .WithMany(fs => fs.Customers)
+                //.WithMany(fs => fs.Customers)
+                .WithMany()
                 .HasForeignKey(c => c.FundingSourceId);
 
             modelBuilder.Entity<Customer>()
                 .HasOne(c => c.SpaceType)
-                .WithMany(st => st.Customers)
+                //.WithMany(st => st.Customers)
+                .WithMany()
                 .HasForeignKey(c => c.SpaceTypeId);
 
             modelBuilder.Entity<BillingItem>()

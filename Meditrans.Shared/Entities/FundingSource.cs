@@ -24,7 +24,8 @@ namespace Meditrans.Shared.Entities
         public string? VectorcareFacilityId { get; set; }
         [Required]
         public bool IsActive { get; set; } = true;
-        public ICollection<Customer> Customers { get; set; }
+
+        //public ICollection<Customer> Customers { get; set; }
         public ICollection<FundingSourceBillingItem> BillingItems { get; set; }
     }
 }

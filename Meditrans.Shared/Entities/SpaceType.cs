@@ -17,7 +17,8 @@ namespace Meditrans.Shared.Entities
         public int CapacityTypeId { get; set; }
         public CapacityType CapacityType { get; set; }
         public bool IsActive { get; set; }
-        public ICollection<Customer> Customers { get; set; }
+
+        //public ICollection<Customer> Customers { get; set; }
         public ICollection<Trip> Trips { get; set; }
         public ICollection<CapacityDetail> CapacityDetails { get; set; }
         public ICollection<FundingSourceBillingItem> FundingSourceBillingItems { get; set; }
