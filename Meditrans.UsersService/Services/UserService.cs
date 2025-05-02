@@ -2,7 +2,7 @@
 using Meditrans.Shared.DTOs;
 using Meditrans.Shared.Entities;
 using Meditrans.UsersService.Data;
-using Meditrans.UsersService.DTOs;
+//using Meditrans.UsersService.DTOs;
 using Meditrans.UsersService.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

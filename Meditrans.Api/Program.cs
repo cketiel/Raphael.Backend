@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using Meditrans.Api.Settings;
 using Meditrans.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
+using Meditrans.Shared.Data;
+using Meditrans.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +55,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<MediTransContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Inject services
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IDbInitializer, DbInitializer>();
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -72,6 +79,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseAuthentication();
+
+
+
 // Configure the HTTP request pipeline.
 
 app.UseHttpsRedirection();
@@ -79,5 +90,23 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Initialize database (Apply migrations and initial data)
+/*using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+    try
+    {
+        var initializer = services.GetRequiredService<IDbInitializer>();
+        initializer.Initialize();
+    }
+    catch (Exception ex)
+    {
+        var logger = loggerFactory.CreateLogger<Program>();
+        logger.LogError(ex, "An error occurred when executing the migration");
+    }
+
+}*/
 
 app.Run();

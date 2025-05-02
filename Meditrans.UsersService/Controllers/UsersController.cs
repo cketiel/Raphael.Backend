@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Meditrans.UsersService.Services;
 using Meditrans.Shared.Entities;
+
 using Meditrans.Shared.DTOs;
-using Meditrans.UsersService.DTOs;
 
 
 namespace Meditrans.UsersService.Controllers

@@ -79,7 +79,7 @@ namespace Meditrans.Api.Controllers
                 token = new JwtSecurityTokenHandler().WriteToken(token),
                 userId = user.Id.ToString(),
                 username = user.Username,
-                userfullname = user.FullName,
+                //userfullname = user.FullName,
                 role = user.RoleId.ToString(),
                 isSuccess = true
             });
