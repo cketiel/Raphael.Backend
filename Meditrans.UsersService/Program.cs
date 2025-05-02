@@ -1,30 +1,3 @@
-// codigo por defecto
-/*var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-
-builder.Services.AddControllers();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();*/
-
-//otra variante
-/*using Meditrans.UsersService.Services;
-
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllers();
-var app = builder.Build();
-app.MapControllers();
-app.Run();*/
 
 using System.Text;
 using Meditrans.Shared.DbContexts;
@@ -86,9 +59,10 @@ builder.Services.AddDbContext<MediTransContext>(options =>
 /*builder.Services.AddDbContext<UsersDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));*/
 
-// Inyectar servicios
+// Inject services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IDbInitializer, DbInitializer>();    
 
 var app = builder.Build();
 
@@ -98,7 +72,7 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Users Service API v1");
 });
 
-// Swagger (opcional)
+// Swagger (optional)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -110,34 +84,53 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Initialize database
-/*using (var scope = app.Services.CreateScope())
+// Initialize database (Apply migrations and initial data)
+using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<UsersDbContext>();
-    Meditrans.UsersService.Data.DbInitializer.Seed(context);
-}*/
-
-// usuario admin, sin Hash
-//DbInitializer.Seed2(app);
-
-// usando clase SeedData
-/*using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-
+    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
     try
     {
-        SeedData.Initialize(services);
+        var initializer = services.GetRequiredService<IDbInitializer>();
+        initializer.Initialize();
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Seeding error: {ex.Message}");
+        var logger = loggerFactory.CreateLogger<Program>();
+        logger.LogError(ex, "An error occurred when executing the migration");
     }
-}*/
+
+}
 
 
-app.Run();
+    // Initialize database
+    /*using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<UsersDbContext>();
+        Meditrans.UsersService.Data.DbInitializer.Seed(context);
+    }*/
+
+    // usuario admin, sin Hash
+    //DbInitializer.Seed2(app);
+
+    // usando clase SeedData
+    /*using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+
+        try
+        {
+            SeedData.Initialize(services);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Seeding error: {ex.Message}");
+        }
+    }*/
+
+
+    app.Run();
 
 
 

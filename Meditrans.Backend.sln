@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35913.81 d17.13
+VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.Gateway", "Meditrans.Gateway\Meditrans.Gateway.csproj", "{AB912F25-C9D5-4588-6BB9-477974CDA7E9}"
 EndProject
@@ -14,6 +14,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.TripsService", "Meditrans.TripsService\Meditrans.TripsService.csproj", "{AEAE5ED7-8AF2-D3CB-A819-F0B290A1C607}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.UsersService", "Meditrans.UsersService\Meditrans.UsersService.csproj", "{7178E2E4-C860-33DC-367C-93269268E9A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.Api", "Meditrans.Api\Meditrans.Api.csproj", "{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{7178E2E4-C860-33DC-367C-93269268E9A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7178E2E4-C860-33DC-367C-93269268E9A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7178E2E4-C860-33DC-367C-93269268E9A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

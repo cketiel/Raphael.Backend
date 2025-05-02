@@ -28,4 +28,5 @@ public class AuthProxyController : ControllerBase
 
         return Content(content, "application/json");
     }
+
 }
