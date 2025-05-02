@@ -55,14 +55,27 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<MediTransContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Inject services
+// Add services to the container.
+
+builder.Services.AddControllers();
+
+// Inject user services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 
-// Add services to the container.
+// Trips
+builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<FundingSourceService>();
+builder.Services.AddScoped<SpaceTypeService>();
+builder.Services.AddScoped<CapacityTypeService>();
 
-builder.Services.AddControllers();
+// Vehicles
+builder.Services.AddScoped<IVehicleService, VehicleService>();
+builder.Services.AddScoped<VehicleGroupService>();
+builder.Services.AddScoped<ICapacityDetailTypeService, CapacityDetailTypeService>();
+builder.Services.AddScoped<IRunService, RunService>();
 
 var app = builder.Build();
 
