@@ -1,0 +1,14 @@
+﻿using Meditrans.Shared.DTOs;
+
+namespace Meditrans.Api.Services
+{
+    public interface ITripService
+    {
+        Task<IEnumerable<TripReadDto>> GetAllAsync();
+        Task<TripReadDto?> GetByIdAsync(int id);
+        Task<TripReadDto> CreateAsync(TripCreateDto dto);
+        Task<bool> UpdateAsync(int id, TripUpdateDto dto);
+        Task<bool> DeleteAsync(int id);
+    }
+
+}
