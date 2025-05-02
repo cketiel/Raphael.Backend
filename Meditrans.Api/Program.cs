@@ -69,7 +69,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Users Service API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Meditrans Backend API v1");
 });
 
 // Swagger (optional)
