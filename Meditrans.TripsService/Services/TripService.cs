@@ -36,7 +36,7 @@ namespace Meditrans.TripsService.Services
                     DropoffLongitude = t.DropoffLongitude,
                     SpaceTypeId = t.SpaceTypeId,
                     SpaceTypeName = t.SpaceType.Name,
-                    PickupNote = t.PickupNote,
+                    //PickupNote = t.PickupNote,
                     IsCancelled = t.IsCancelled
                 })
                 .ToListAsync();
@@ -68,7 +68,7 @@ namespace Meditrans.TripsService.Services
                 DropoffLongitude = t.DropoffLongitude,
                 SpaceTypeId = t.SpaceTypeId,
                 SpaceTypeName = t.SpaceType.Name,
-                PickupNote = t.PickupNote,
+                //PickupNote = t.PickupNote,
                 IsCancelled = t.IsCancelled
             };
         }
@@ -89,7 +89,7 @@ namespace Meditrans.TripsService.Services
                 DropoffLatitude = dto.DropoffLatitude,
                 DropoffLongitude = dto.DropoffLongitude,
                 SpaceTypeId = dto.SpaceTypeId,
-                PickupNote = dto.PickupNote,
+                //PickupNote = dto.PickupNote,
                 IsCancelled = false
             };
 
@@ -116,7 +116,7 @@ namespace Meditrans.TripsService.Services
             trip.DropoffLatitude = dto.DropoffLatitude;
             trip.DropoffLongitude = dto.DropoffLongitude;
             trip.SpaceTypeId = dto.SpaceTypeId;
-            trip.PickupNote = dto.PickupNote;
+            //trip.PickupNote = dto.PickupNote;
             trip.IsCancelled = dto.IsCancelled;
 
             await _context.SaveChangesAsync();

@@ -113,7 +113,8 @@ namespace Meditrans.Shared.DbContexts
 
             modelBuilder.Entity<Schedule>()
                 .HasOne(s => s.Trip)
-                .WithMany(t => t.Schedules)
+                .WithMany()
+                //.WithMany(t => t.Schedules)
                 .HasForeignKey(s => s.TripId);
 
             modelBuilder.Entity<Schedule>()

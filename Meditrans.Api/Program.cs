@@ -92,6 +92,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// app.Environment.IsProduction
+app.UseSwagger();
+app.UseSwaggerUI();
+
 app.UseAuthentication();
 
 
@@ -105,7 +109,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Initialize database (Apply migrations and initial data)
-/*using (var scope = app.Services.CreateScope())
+using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
@@ -120,6 +124,6 @@ app.MapControllers();
         logger.LogError(ex, "An error occurred when executing the migration");
     }
 
-}*/
+}
 
 app.Run();

@@ -14,7 +14,15 @@ namespace Meditrans.Api.Services
             _context = context;
         }
 
-        public async Task<IEnumerable<TripReadDto>> GetAllAsync()
+        public async Task<List<Trip>> GetAllAsync()
+        {
+            return await _context.Trips
+                .Include(t => t.Customer)
+                .Include(t => t.SpaceType)
+                .Include(t => t.Run)
+                .ToListAsync();
+        }
+        /*public async Task<IEnumerable<TripReadDto>> GetAllAsync()
         {
             return await _context.Trips
                 .Include(t => t.Customer)
@@ -36,11 +44,11 @@ namespace Meditrans.Api.Services
                     DropoffLongitude = t.DropoffLongitude,
                     SpaceTypeId = t.SpaceTypeId,
                     SpaceTypeName = t.SpaceType.Name,
-                    PickupNote = t.PickupNote,
+                    //PickupNote = t.PickupNote,
                     IsCancelled = t.IsCancelled
                 })
                 .ToListAsync();
-        }
+        }*/
 
         public async Task<TripReadDto?> GetByIdAsync(int id)
         {
@@ -68,7 +76,7 @@ namespace Meditrans.Api.Services
                 DropoffLongitude = t.DropoffLongitude,
                 SpaceTypeId = t.SpaceTypeId,
                 SpaceTypeName = t.SpaceType.Name,
-                PickupNote = t.PickupNote,
+                //PickupNote = t.PickupNote,
                 IsCancelled = t.IsCancelled
             };
         }
@@ -89,7 +97,7 @@ namespace Meditrans.Api.Services
                 DropoffLatitude = dto.DropoffLatitude,
                 DropoffLongitude = dto.DropoffLongitude,
                 SpaceTypeId = dto.SpaceTypeId,
-                PickupNote = dto.PickupNote,
+                //PickupNote = dto.PickupNote,
                 IsCancelled = false
             };
 
@@ -116,7 +124,7 @@ namespace Meditrans.Api.Services
             trip.DropoffLatitude = dto.DropoffLatitude;
             trip.DropoffLongitude = dto.DropoffLongitude;
             trip.SpaceTypeId = dto.SpaceTypeId;
-            trip.PickupNote = dto.PickupNote;
+            //trip.PickupNote = dto.PickupNote;
             trip.IsCancelled = dto.IsCancelled;
 
             await _context.SaveChangesAsync();

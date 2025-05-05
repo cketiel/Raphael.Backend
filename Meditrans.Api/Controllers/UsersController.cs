@@ -2,6 +2,7 @@
 using Meditrans.Api.Services;
 using Meditrans.Shared.Entities;
 using Meditrans.Shared.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 
 namespace Meditrans.Api.Controllers
@@ -94,75 +95,7 @@ namespace Meditrans.Api.Controllers
             }
         }
 
-
-
-        // GET: api/users
-        /*[HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var users = await _userService.GetAllUsersAsync();
-            return Ok(users);
-        }
-
-        // GET: api/users/5
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (user == null) return NotFound();
-            return Ok(user);
-        }*/
-    }
-
-    /*public class UsersController : ControllerBase
-    {
-        private readonly IUserService _userService;
-        private readonly UsersDbContext _context;
-
-        public UsersController(IUserService userService, UsersDbContext context)
-        {
-            _userService = userService;
-            _context = context;
-        }
-        // GET: api/users
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
-        {
-            var users = await _context.Users.ToListAsync();
-            return Ok(users);
-        }
-
-        [HttpGet("{id}")]
-        public IActionResult GetById(Guid id)
-        {
-            var user = _userService.GetById(id);
-            if (user == null) return NotFound();
-            return Ok(user);
-        }
-
-        [HttpPost]
-        public IActionResult Create(User user)
-        {
-            _userService.Create(user);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-        }
-
-        [HttpPut("{id}")]
-        public IActionResult Update(Guid id, User user)
-        {
-            if (id != user.Id) return BadRequest();
-            _userService.Update(user);
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public IActionResult Delete(Guid id)
-        {
-            _userService.Delete(id);
-            return NoContent();
-        }
-
-        // Este método lee los claims directamente del HttpContext.User(que se completa automáticamente si el JWT es válido).
+        // This method reads the claims directly from the HttpContext.User (which is automatically completed if the JWT is valid).
         [HttpGet("me")]
         [Authorize]
         public IActionResult GetCurrentUser()
@@ -188,6 +121,7 @@ namespace Meditrans.Api.Controllers
         {
             return Ok("You have access to this secured endpoint.");
         }
-
-    }*/
+        
+    }
+  
 }
