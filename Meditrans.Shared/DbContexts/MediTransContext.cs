@@ -8,6 +8,7 @@ namespace Meditrans.Shared.DbContexts
     {
         public MediTransContext(DbContextOptions<MediTransContext> options) : base(options) { }
 
+        public DbSet<TripLog> TripLogs { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Provider> Providers { get; set; }
@@ -37,6 +38,11 @@ namespace Meditrans.Shared.DbContexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<TripLog>()
+                .HasOne(tl => tl.Trip)
+                .WithMany(t => t.TripLogs)
+                .HasForeignKey(tl => tl.TripId);
+
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Role)
                 .WithMany(r => r.Users)

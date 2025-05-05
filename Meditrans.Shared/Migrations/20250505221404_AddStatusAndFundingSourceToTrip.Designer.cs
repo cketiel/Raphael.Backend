@@ -4,6 +4,7 @@ using Meditrans.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Meditrans.Shared.Migrations
 {
     [DbContext(typeof(MediTransContext))]
-    partial class MediTransContextModelSnapshot : ModelSnapshot
+    [Migration("20250505221404_AddStatusAndFundingSourceToTrip")]
+    partial class AddStatusAndFundingSourceToTrip
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -570,34 +573,6 @@ namespace Meditrans.Shared.Migrations
                     b.ToTable("Trips");
                 });
 
-            modelBuilder.Entity("Meditrans.Shared.Entities.TripLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<TimeSpan>("Time")
-                        .HasColumnType("time");
-
-                    b.Property<int>("TripId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("TripLogs");
-                });
-
             modelBuilder.Entity("Meditrans.Shared.Entities.Unit", b =>
                 {
                     b.Property<int>("Id")
@@ -938,17 +913,6 @@ namespace Meditrans.Shared.Migrations
                     b.Navigation("SpaceType");
                 });
 
-            modelBuilder.Entity("Meditrans.Shared.Entities.TripLog", b =>
-                {
-                    b.HasOne("Meditrans.Shared.Entities.Trip", "Trip")
-                        .WithMany("TripLogs")
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Trip");
-                });
-
             modelBuilder.Entity("Meditrans.Shared.Entities.User", b =>
                 {
                     b.HasOne("Meditrans.Shared.Entities.Role", "Role")
@@ -1042,11 +1006,6 @@ namespace Meditrans.Shared.Migrations
                     b.Navigation("FundingSourceBillingItems");
 
                     b.Navigation("Trips");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.Trip", b =>
-                {
-                    b.Navigation("TripLogs");
                 });
 
             modelBuilder.Entity("Meditrans.Shared.Entities.Unit", b =>
