@@ -18,6 +18,8 @@ namespace Meditrans.Shared.Entities
         public static string InProgress = "InProgress"; // The Driver selects to start the trip and heads from the pick-up address to the drop-off address location. Dispatcher is notified.
         public static string Finished = "Finished";     // The Driver selects to end the trip. The Driver finishes the trip, leaving the Member at their destination. Dispatcher is notified. The Broker is notified.
         public static string Canceled = "Canceled";     // The Broker cancels the trip. All those involved in the process are alerted: the Provider, the Router, the Dispatcher, the Driver.
+        public static string Billed = "Billed";         // Is when the FUNDING SOURCE was invoiced.
+        public static string Payed = "Payed";          // Is when the FUNDING SOURCE paid.       
     }
     public class Trip
     {
