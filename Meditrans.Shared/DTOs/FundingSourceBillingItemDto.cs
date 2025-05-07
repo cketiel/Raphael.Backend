@@ -1,14 +1,13 @@
-﻿namespace Meditrans.Shared.Entities
+﻿using Meditrans.Shared.Entities;
+
+namespace Meditrans.Shared.DTOs
 {
-    public class FundingSourceBillingItem
-    {
+    public class FundingSourceBillingItemDto
+    {   
         public int Id { get; set; }
         public int FundingSourceId { get; set; }
-        public FundingSource FundingSource { get; set; } = new FundingSource();
         public int BillingItemId { get; set; }
-        public BillingItem BillingItem { get; set; } = new BillingItem();
         public int SpaceTypeId { get; set; }
-        public SpaceType SpaceType { get; set; } = new SpaceType();
         public decimal Rate { get; set; }
         public string? Per { get; set; }
         public bool IsDefault { get; set; }

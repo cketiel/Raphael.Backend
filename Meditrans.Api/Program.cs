@@ -9,6 +9,7 @@ using Meditrans.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Meditrans.Shared.Data;
 using Meditrans.Api.Services;
+using Meditrans.Shared.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,7 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<FundingSourceService>();
 builder.Services.AddScoped<SpaceTypeService>();
 builder.Services.AddScoped<CapacityTypeService>();
+builder.Services.AddScoped<IFundingSourceBillingItemService, FundingSourceBillingItemService>();
 
 // Vehicles
 builder.Services.AddScoped<IVehicleService, VehicleService>();

@@ -35,6 +35,7 @@ namespace Meditrans.Shared.DTOs
         public string? DropoofPhone { get; set; }
         public string? DropoofComment { get; set; }
         public string? TripId { get; set; } // Funding Sources / Brokers Identifier
+        public string? Authorization { get; set; }
         public double? Distance { get; set; } // Distance in miles, then make unit of measurement converters class.
         public double? ETA { get; set; } // ETA in minutes, then do a class converting units of time to decimal and vice versa.
         public int VehicleRouteId { get; set; }
