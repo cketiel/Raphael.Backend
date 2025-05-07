@@ -19,7 +19,7 @@ namespace Meditrans.Shared.Entities
         public static string Finished = "Finished";     // The Driver selects to end the trip. The Driver finishes the trip, leaving the Member at their destination. Dispatcher is notified. The Broker is notified.
         public static string Canceled = "Canceled";     // The Broker cancels the trip. All those involved in the process are alerted: the Provider, the Router, the Dispatcher, the Driver.
         public static string Billed = "Billed";         // Is when the FUNDING SOURCE was invoiced.
-        public static string Payed = "Payed";          // Is when the FUNDING SOURCE paid.       
+        public static string Payed = "Payed";           // Is when the FUNDING SOURCE paid.       
     }
     public class Trip
     {
@@ -63,6 +63,7 @@ namespace Meditrans.Shared.Entities
         public string? DropoofPhone { get; set; }
         public string? DropoofComment { get; set; }
         public string? TripId { get; set; } // Funding Sources / Brokers Identifier
+        public string? Authorization { get; set; }
         public double? Distance { get; set; } // Distance in miles, then make unit of measurement converters class.
         public double? ETA { get; set; } // ETA in minutes, then do a class converting units of time to decimal and vice versa.
         public int? VehicleRouteId { get; set; }
