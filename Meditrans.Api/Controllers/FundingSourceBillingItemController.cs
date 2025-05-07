@@ -9,9 +9,9 @@ namespace Meditrans.Api.Controllers
     [Route("api/[controller]")]
     public class FundingSourceBillingItemController : ControllerBase
     {
-        private readonly FundingSourceBillingItemService _service;
+        private readonly IFundingSourceBillingItemService _service;
 
-        public FundingSourceBillingItemController(FundingSourceBillingItemService service)
+        public FundingSourceBillingItemController(IFundingSourceBillingItemService service)
         {
             _service = service;
         }
