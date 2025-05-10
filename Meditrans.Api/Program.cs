@@ -10,8 +10,18 @@ using Microsoft.EntityFrameworkCore;
 using Meditrans.Shared.Data;
 using Meditrans.Api.Services;
 using Meditrans.Shared.Entities;
+using FluentValidation.AspNetCore;
+using FluentValidation;
+using Meditrans.Shared.DTOs;
+using Meditrans.Shared.Validators;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// FluentValidation
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddScoped<IValidator<CustomerCreateDto>, CustomerCreateDtoValidator>();
 
 // SwaggerDoc
 builder.Services.AddControllers();
@@ -127,5 +137,26 @@ using (var scope = app.Services.CreateScope())
     }
 
 }
+
+// Middleware (Errors)
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    AllowStatusCode404Response = true,
+    ExceptionHandler = async context =>
+    {
+        var exceptionHandler = context.Features.Get<IExceptionHandlerFeature>();
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+        logger.LogError(exceptionHandler.Error, "Global exception handler caught error");
+
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Title = "Internal Server Error",
+            Status = StatusCodes.Status500InternalServerError,
+            Instance = context.Request.Path
+        });
+    }
+});
 
 app.Run();
