@@ -22,7 +22,7 @@ namespace Meditrans.Api.Controllers
             return await _service.GetAllAsync();
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<SpaceType>> GetById(int id)
         {
             var spaceType = await _service.GetByIdAsync(id);
@@ -43,6 +43,14 @@ namespace Meditrans.Api.Controllers
             var deleted = await _service.DeleteAsync(id);
             if (!deleted) return NotFound();
             return NoContent();
+        }
+
+        [HttpGet("ByName/{name}")]
+        public async Task<ActionResult<SpaceType>> GetByName(string name)
+        {
+            var spaceType = await _service.GetByNameAsync(name);
+            if (spaceType == null) return NotFound();
+            return spaceType;
         }
     }
 }

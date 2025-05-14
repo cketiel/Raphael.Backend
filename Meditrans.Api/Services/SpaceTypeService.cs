@@ -54,5 +54,12 @@ namespace Meditrans.Api.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<SpaceType?> GetByNameAsync(string name)
+        {
+            return await _context.SpaceTypes
+                 .Include(st => st.CapacityType)
+                 .FirstOrDefaultAsync(st => st.Name.ToLower() == name.ToLower());
+        }
     }
 }
