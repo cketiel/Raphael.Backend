@@ -81,7 +81,67 @@ namespace Meditrans.Api.Services
             };
         }
 
-        public async Task<TripReadDto> CreateAsync(TripCreateDto dto)
+        public async Task<Trip> CreateAsync(TripCreateDto dto)
+        {
+            // Validate required relationships
+            /*var customerExists = await _context.Customers.AnyAsync(c => c.Id == dto.CustomerId);
+            if (!customerExists)
+            {
+                throw new ArgumentException("Invalid Customer ID");
+            }
+
+            var spaceTypeExists = await _context.SpaceTypes.AnyAsync(st => st.Id == dto.SpaceTypeId);
+            if (!spaceTypeExists)
+            {
+                throw new ArgumentException("Invalid SpaceType ID");
+            }*/
+
+            // Map DTO to Entity
+            var trip = new Trip
+            {
+                Day = dto.Day,
+                Date = dto.Date,
+                FromTime = dto.FromTime,
+                ToTime = dto.ToTime,
+                CustomerId = dto.CustomerId,
+                PickupAddress = dto.PickupAddress,
+                PickupLatitude = dto.PickupLatitude,
+                PickupLongitude = dto.PickupLongitude,
+                DropoffAddress = dto.DropoffAddress,
+                DropoffLatitude = dto.DropoffLatitude,
+                DropoffLongitude = dto.DropoffLongitude,
+                SpaceTypeId = dto.SpaceTypeId,
+                Type = dto.Type,
+                Pickup = dto.Pickup,
+                PickupPhone = dto.PickupPhone,
+                PickupComment = dto.PickupComment,
+                Dropoff = dto.Dropoff,
+                DropoffPhone = dto.DropoffPhone,
+                DropoffComment = dto.DropoffComment,
+                TripId = dto.TripId,
+                Authorization = dto.Authorization,
+                Distance = dto.Distance,
+                ETA = dto.ETA,
+                WillCall = dto.WillCall,
+                VehicleRouteId = dto.VehicleRouteId,
+                DriverNoShowReason = dto.DriverNoShowReason,
+                FundingSourceId = dto.FundingSourceId,
+
+                // System-managed properties
+                Status = TripStatus.Assigned,
+                Created = DateTime.UtcNow,
+                IsCancelled = false
+            };
+
+            // Add to context
+            _context.Trips.Add(trip);
+
+            // Save changes
+            await _context.SaveChangesAsync();
+
+            return trip;
+        }
+        public async Task<TripReadDto> CreateAsync2(TripCreateDto dto)
         {
             var trip = new Trip
             {

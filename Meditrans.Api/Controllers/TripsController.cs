@@ -3,6 +3,7 @@ using Meditrans.Shared.DTOs;
 using Meditrans.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Meditrans.Shared.Entities;
 
 namespace Meditrans.Api.Controllers
 {
@@ -32,7 +33,29 @@ namespace Meditrans.Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] TripCreateDto dto)
+        public async Task<ActionResult<Trip>> Create([FromBody] TripCreateDto dto)
+        {
+            try
+            {
+                var createdTrip = await _tripService.CreateAsync(dto);
+                return CreatedAtAction(nameof(GetById), new { id = createdTrip.Id }, createdTrip);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
+            catch (DbUpdateException ex)
+            {
+                return StatusCode(500, "Database error while creating trip");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create2([FromBody] TripCreateDto dto)
         {
             var result = await _tripService.CreateAsync(dto);
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
