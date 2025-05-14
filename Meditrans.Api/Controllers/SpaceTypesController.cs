@@ -2,6 +2,8 @@
 using Meditrans.Shared.Dtos;
 using Meditrans.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace Meditrans.Api.Controllers
 {
@@ -32,9 +34,21 @@ namespace Meditrans.Api.Controllers
 
         [HttpPost]
         public async Task<ActionResult<SpaceType>> Create(SpaceTypeDto dto)
-        {
-            var created = await _service.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        {          
+            try
+            {
+                var created = await _service.CreateAsync(dto);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            }
+            catch (DbUpdateException ex)
+            {
+                // Check if the error is due to duplication of the "Name" field
+                if (ex.InnerException is SqlException sqlEx && sqlEx.Number == 2601)
+                {                  
+                    return Conflict("The name already exists.");
+                }
+                throw;
+            }
         }
 
         [HttpDelete("{id}")]

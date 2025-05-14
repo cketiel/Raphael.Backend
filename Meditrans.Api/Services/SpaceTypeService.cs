@@ -2,6 +2,7 @@
 using Meditrans.Shared.Entities;
 using Meditrans.Shared.Dtos;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace Meditrans.Api.Services
 {
@@ -29,7 +30,7 @@ namespace Meditrans.Api.Services
         }
 
         public async Task<SpaceType> CreateAsync(SpaceTypeDto dto)
-        {
+        {       
             var spaceType = new SpaceType
             {
                 Name = dto.Name,
@@ -42,7 +43,7 @@ namespace Meditrans.Api.Services
 
             _context.SpaceTypes.Add(spaceType);
             await _context.SaveChangesAsync();
-            return spaceType;
+            return spaceType;          
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -60,6 +61,11 @@ namespace Meditrans.Api.Services
             return await _context.SpaceTypes
                  .Include(st => st.CapacityType)
                  .FirstOrDefaultAsync(st => st.Name.ToLower() == name.ToLower());
+        }
+
+        public async Task<bool> NameExists(string name)
+        {
+            return await _context.SpaceTypes.AnyAsync(s => s.Name == name);
         }
     }
 }

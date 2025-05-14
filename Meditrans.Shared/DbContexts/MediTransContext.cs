@@ -38,6 +38,10 @@ namespace Meditrans.Shared.DbContexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<SpaceType>()
+                .HasIndex(st => st.Name)
+                .IsUnique();
+
             modelBuilder.Entity<TripLog>()
                 .HasOne(tl => tl.Trip)
                 .WithMany(t => t.TripLogs)
