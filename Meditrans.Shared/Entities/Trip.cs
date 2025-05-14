@@ -59,9 +59,9 @@ namespace Meditrans.Shared.Entities
         public string? Pickup { get; set; }
         public string? PickupPhone { get; set; }
         public string? PickupComment { get; set; }
-        public string? Dropoof { get; set; }
-        public string? DropoofPhone { get; set; }
-        public string? DropoofComment { get; set; }
+        public string? Dropoff { get; set; }
+        public string? DropoffPhone { get; set; }
+        public string? DropoffComment { get; set; }
         public string? TripId { get; set; } // Funding Sources / Brokers Identifier
         public string? Authorization { get; set; }
         public double? Distance { get; set; } // Distance in miles, then make unit of measurement converters class.
