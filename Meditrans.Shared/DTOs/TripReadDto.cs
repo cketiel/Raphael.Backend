@@ -20,8 +20,7 @@ namespace Meditrans.Shared.DTOs
         public double DropoffLongitude { get; set; }
         public int SpaceTypeId { get; set; }
         public string SpaceTypeName { get; set; }
-
-        // public string? PickupNote { get; set; }
+     
         public bool IsCancelled { get; set; }
 
         // new
@@ -31,19 +30,22 @@ namespace Meditrans.Shared.DTOs
         public string? Pickup { get; set; }
         public string? PickupPhone { get; set; }
         public string? PickupComment { get; set; }
-        public string? Dropoof { get; set; }
-        public string? DropoofPhone { get; set; }
-        public string? DropoofComment { get; set; }
+        public string? Dropoff { get; set; }
+        public string? DropoffPhone { get; set; }
+        public string? DropoffComment { get; set; }
         public string? TripId { get; set; } // Funding Sources / Brokers Identifier
         public string? Authorization { get; set; }
         public double? Distance { get; set; } // Distance in miles, then make unit of measurement converters class.
         public double? ETA { get; set; } // ETA in minutes, then do a class converting units of time to decimal and vice versa.
         public int VehicleRouteId { get; set; }
-        public VehicleRoute Run { get; set; }
+        public string RunName { get; set; }
         public bool WillCall { get; set; }
+        public string Status { get; set; }
         public string? DriverNoShowReason { get; set; }
         [Required]
         public DateTime Created { get; set; }
+        public int? FundingSourceId { get; set; }
+        public string? FundingSourceName { get; set; }
     }
 
 

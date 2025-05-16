@@ -14,19 +14,22 @@ namespace Meditrans.Api.Services
             _context = context;
         }
 
-        public async Task<List<Trip>> GetAllAsync()
+        /*public async Task<List<Trip>> GetAllAsync2()
         {
             return await _context.Trips
-                .Include(t => t.Customer)
-                .Include(t => t.SpaceType)
-                .Include(t => t.Run)
+                //.Include(t => t.Customer)
+                //.Include(t => t.SpaceType)
+                //.Include(t => t.Run)
                 .ToListAsync();
-        }
-        /*public async Task<IEnumerable<TripReadDto>> GetAllAsync()
+        }*/
+        public async Task<List<TripReadDto>> GetAllAsync()
         {
             return await _context.Trips
-                .Include(t => t.Customer)
-                .Include(t => t.SpaceType)
+                .AsNoTracking() // Better performance for read-only operations.
+                .Include(t => t.Customer) 
+                .Include(t => t.SpaceType) 
+                .Include(t => t.Run) 
+                .Include(t => t.FundingSource) 
                 .Select(t => new TripReadDto
                 {
                     Id = t.Id,
@@ -35,7 +38,7 @@ namespace Meditrans.Api.Services
                     FromTime = t.FromTime,
                     ToTime = t.ToTime,
                     CustomerId = t.CustomerId,
-                    CustomerName = t.Customer.FullName,
+                    CustomerName = t.Customer != null ? t.Customer.FullName : null,
                     PickupAddress = t.PickupAddress,
                     PickupLatitude = t.PickupLatitude,
                     PickupLongitude = t.PickupLongitude,
@@ -43,12 +46,93 @@ namespace Meditrans.Api.Services
                     DropoffLatitude = t.DropoffLatitude,
                     DropoffLongitude = t.DropoffLongitude,
                     SpaceTypeId = t.SpaceTypeId,
-                    SpaceTypeName = t.SpaceType.Name,
-                    //PickupNote = t.PickupNote,
-                    IsCancelled = t.IsCancelled
+                    SpaceTypeName = t.SpaceType != null ? t.SpaceType.Name : null,
+                    IsCancelled = t.IsCancelled,
+                    Charge = t.Charge,
+                    Paid = t.Paid,
+                    Type = t.Type,
+                    Pickup = t.Pickup,
+                    PickupPhone = t.PickupPhone,
+                    PickupComment = t.PickupComment,
+                    Dropoff = t.Dropoff,
+                    DropoffPhone = t.DropoffPhone,
+                    DropoffComment = t.DropoffComment,
+                    TripId = t.TripId,
+                    Authorization = t.Authorization,
+                    Distance = t.Distance,
+                    ETA = t.ETA,
+                    VehicleRouteId = t.VehicleRouteId ?? 0, // We use 0 as default value if null
+                    RunName = t.Run != null ? t.Run.Name : null,
+                    WillCall = t.WillCall,
+                    Status = t.Status,
+                    DriverNoShowReason = t.DriverNoShowReason,
+                    Created = t.Created,
+                    FundingSourceId = t.FundingSourceId,
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
                 })
                 .ToListAsync();
-        }*/
+        }
+
+        public async Task<(List<TripReadDto> Trips, int TotalCount)> GetAllAsync(int pageNumber = 1, int pageSize = 20)
+        {
+            var query = _context.Trips
+                .AsNoTracking()
+                .Include(t => t.Customer)
+                .Include(t => t.SpaceType)
+                .Include(t => t.Run)
+                .Include(t => t.FundingSource);
+
+            var totalCount = await query.CountAsync();
+
+            var trips = await query
+                .OrderBy(t => t.Date)
+                .ThenBy(t => t.FromTime)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(t => new TripReadDto
+                {
+                    Id = t.Id,
+                    Day = t.Day,
+                    Date = t.Date,
+                    FromTime = t.FromTime,
+                    ToTime = t.ToTime,
+                    CustomerId = t.CustomerId,
+                    CustomerName = t.Customer != null ? t.Customer.FullName : null,
+                    PickupAddress = t.PickupAddress,
+                    PickupLatitude = t.PickupLatitude,
+                    PickupLongitude = t.PickupLongitude,
+                    DropoffAddress = t.DropoffAddress,
+                    DropoffLatitude = t.DropoffLatitude,
+                    DropoffLongitude = t.DropoffLongitude,
+                    SpaceTypeId = t.SpaceTypeId,
+                    SpaceTypeName = t.SpaceType != null ? t.SpaceType.Name : null,
+                    IsCancelled = t.IsCancelled,
+                    Charge = t.Charge,
+                    Paid = t.Paid,
+                    Type = t.Type,
+                    Pickup = t.Pickup,
+                    PickupPhone = t.PickupPhone,
+                    PickupComment = t.PickupComment,
+                    Dropoff = t.Dropoff,
+                    DropoffPhone = t.DropoffPhone,
+                    DropoffComment = t.DropoffComment,
+                    TripId = t.TripId,
+                    Authorization = t.Authorization,
+                    Distance = t.Distance,
+                    ETA = t.ETA,
+                    VehicleRouteId = t.VehicleRouteId ?? 0, // We use 0 as default value if null
+                    RunName = t.Run != null ? t.Run.Name : null,
+                    WillCall = t.WillCall,
+                    Status = t.Status,
+                    DriverNoShowReason = t.DriverNoShowReason,
+                    Created = t.Created,
+                    FundingSourceId = t.FundingSourceId,
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
+                })
+                .ToListAsync();
+
+            return (trips, totalCount);
+        }
 
         public async Task<TripReadDto?> GetByIdAsync(int id)
         {
@@ -67,7 +151,7 @@ namespace Meditrans.Api.Services
                 FromTime = t.FromTime,
                 ToTime = t.ToTime,
                 CustomerId = t.CustomerId,
-                CustomerName = t.Customer.FullName,
+                CustomerName = t.Customer != null ? t.Customer.FullName : null,
                 PickupAddress = t.PickupAddress,
                 PickupLatitude = t.PickupLatitude,
                 PickupLongitude = t.PickupLongitude,
@@ -75,9 +159,29 @@ namespace Meditrans.Api.Services
                 DropoffLatitude = t.DropoffLatitude,
                 DropoffLongitude = t.DropoffLongitude,
                 SpaceTypeId = t.SpaceTypeId,
-                SpaceTypeName = t.SpaceType.Name,
-                //PickupNote = t.PickupNote,
-                IsCancelled = t.IsCancelled
+                SpaceTypeName = t.SpaceType != null ? t.SpaceType.Name : null,
+                IsCancelled = t.IsCancelled,
+                Charge = t.Charge,
+                Paid = t.Paid,
+                Type = t.Type,
+                Pickup = t.Pickup,
+                PickupPhone = t.PickupPhone,
+                PickupComment = t.PickupComment,
+                Dropoff = t.Dropoff,
+                DropoffPhone = t.DropoffPhone,
+                DropoffComment = t.DropoffComment,
+                TripId = t.TripId,
+                Authorization = t.Authorization,
+                Distance = t.Distance,
+                ETA = t.ETA,
+                VehicleRouteId = t.VehicleRouteId ?? 0, // We use 0 as default value if null
+                RunName = t.Run != null ? t.Run.Name : null,
+                WillCall = t.WillCall,
+                Status = t.Status,
+                DriverNoShowReason = t.DriverNoShowReason,
+                Created = t.Created,
+                FundingSourceId = t.FundingSourceId,
+                FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
             };
         }
 
@@ -141,32 +245,7 @@ namespace Meditrans.Api.Services
 
             return trip;
         }
-        public async Task<TripReadDto> CreateAsync2(TripCreateDto dto)
-        {
-            var trip = new Trip
-            {
-                Date = dto.Date,
-                Day = dto.Date.DayOfWeek.ToString(),
-                FromTime = dto.FromTime,
-                ToTime = dto.ToTime,
-                CustomerId = dto.CustomerId,
-                PickupAddress = dto.PickupAddress,
-                PickupLatitude = dto.PickupLatitude,
-                PickupLongitude = dto.PickupLongitude,
-                DropoffAddress = dto.DropoffAddress,
-                DropoffLatitude = dto.DropoffLatitude,
-                DropoffLongitude = dto.DropoffLongitude,
-                SpaceTypeId = dto.SpaceTypeId,
-                //PickupNote = dto.PickupNote,
-                IsCancelled = false
-            };
-
-            _context.Trips.Add(trip);
-            await _context.SaveChangesAsync();
-
-            return await GetByIdAsync(trip.Id) ?? throw new Exception("Trip creation failed.");
-        }
-
+        
         public async Task<bool> UpdateAsync(int id, TripUpdateDto dto)
         {
             var trip = await _context.Trips.FindAsync(id);

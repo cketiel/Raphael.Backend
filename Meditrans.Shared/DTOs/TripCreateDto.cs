@@ -64,7 +64,7 @@ namespace Meditrans.Shared.DTOs
 
         [Required(ErrorMessage = "WillCall status is required.")]
         public bool WillCall { get; set; }
-
+        public string Status { get; set; }
         public int? VehicleRouteId { get; set; }
         public string? DriverNoShowReason { get; set; }
         public int? FundingSourceId { get; set; }

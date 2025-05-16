@@ -23,6 +23,13 @@ namespace Meditrans.Api.Controllers
         {
             var trips = await _tripService.GetAllAsync();
             return Ok(trips);
+            /*return Ok(new
+            {
+                Success = true,
+                Data = trips,
+                Count = trips.Count
+            });*/
+
         }
 
         [HttpGet("{id}")]
@@ -35,6 +42,18 @@ namespace Meditrans.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Trip>> Create([FromBody] TripCreateDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                // Returns specific validation errors
+                return BadRequest(new
+                {
+                    Message = "Validation errors occurred",
+                    Errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList()
+                });
+            }
             try
             {
                 var createdTrip = await _tripService.CreateAsync(dto);
@@ -50,16 +69,12 @@ namespace Meditrans.Api.Controllers
             }
             catch (DbUpdateException ex)
             {
-                return StatusCode(500, "Database error while creating trip");
+                // Capture the internal error (inner exception) which has more details
+                var innerExceptionMessage = ex.InnerException?.Message;
+                return StatusCode(500, $"Database error while creating trip: {innerExceptionMessage}");                
             }
         }
-
-        [HttpPost]
-        public async Task<IActionResult> Create2([FromBody] TripCreateDto dto)
-        {
-            var result = await _tripService.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
-        }
+      
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] TripUpdateDto dto)

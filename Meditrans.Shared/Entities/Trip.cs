@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.Metrics;
 
 namespace Meditrans.Shared.Entities
@@ -33,7 +34,9 @@ namespace Meditrans.Shared.Entities
         public TimeSpan? ToTime { get; set; }
         [Required]
         public int CustomerId { get; set; }
-        public Customer Customer { get; set; } = new Customer();
+        [ForeignKey("CustomerId")]
+        public virtual Customer Customer { get; set; }
+        //public Customer Customer { get; set; } = new Customer();
         [Required]
         public string PickupAddress { get; set; } = string.Empty;
         [Required]
@@ -48,7 +51,9 @@ namespace Meditrans.Shared.Entities
         public double DropoffLongitude { get; set; }
         [Required]
         public int SpaceTypeId { get; set; }
-        public SpaceType SpaceType { get; set; } = new SpaceType(); 
+        [ForeignKey("SpaceTypeId")]
+        public virtual SpaceType SpaceType { get; set; }
+        //public SpaceType SpaceType { get; set; } = new SpaceType(); 
         public bool IsCancelled { get; set; }
 
         // new
@@ -67,7 +72,9 @@ namespace Meditrans.Shared.Entities
         public double? Distance { get; set; } // Distance in miles, then make unit of measurement converters class.
         public double? ETA { get; set; } // ETA in minutes, then do a class converting units of time to decimal and vice versa.
         public int? VehicleRouteId { get; set; }
-        public VehicleRoute? Run { get; set; }
+        [ForeignKey("VehicleRouteId")]
+        public virtual VehicleRoute Run { get; set; }
+        //public VehicleRoute? Run { get; set; }
         [Required]
         public bool WillCall { get; set; } = false;
         [Required]
@@ -77,7 +84,9 @@ namespace Meditrans.Shared.Entities
         public DateTime Created { get; set; }
 
         public int? FundingSourceId { get; set; } // You have to save the Funding Source for the history. Because the Customer can change the Funding Source and the history is lost. Also to allow the Customer to not be required to have Funding Source and can make payments directly.
-        public FundingSource FundingSource { get; set; } = new FundingSource();
+        [ForeignKey("FundingSourceId")]
+        public virtual FundingSource FundingSource { get; set; }
+       // public FundingSource FundingSource { get; set; } = new FundingSource();
 
         public ICollection<TripLog> TripLogs { get; set; }
 

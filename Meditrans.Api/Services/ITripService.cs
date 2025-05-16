@@ -5,10 +5,11 @@ namespace Meditrans.Api.Services
 {
     public interface ITripService
     {
-        Task<List<Trip>> GetAllAsync();
+        Task<List<TripReadDto>> GetAllAsync();
+        Task<(List<TripReadDto> Trips, int TotalCount)> GetAllAsync(int pageNumber = 1, int pageSize = 20);
         //Task<IEnumerable<TripReadDto>> GetAllAsync();
         Task<TripReadDto?> GetByIdAsync(int id);
-        Task<TripReadDto> CreateAsync(TripCreateDto dto);
+        Task<Trip> CreateAsync(TripCreateDto dto);
         Task<bool> UpdateAsync(int id, TripUpdateDto dto);
         Task<bool> DeleteAsync(int id);
     }
