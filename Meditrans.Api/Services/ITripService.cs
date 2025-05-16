@@ -12,6 +12,7 @@ namespace Meditrans.Api.Services
         Task<Trip> CreateAsync(TripCreateDto dto);
         Task<bool> UpdateAsync(int id, TripUpdateDto dto);
         Task<bool> DeleteAsync(int id);
+        Task<List<TripReadDto>> GetByDateAsync(DateTime date);
     }
 
 }

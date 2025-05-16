@@ -89,6 +89,13 @@ namespace Meditrans.Api.Controllers
             var deleted = await _tripService.DeleteAsync(id);
             return deleted ? NoContent() : NotFound();
         }
+
+        [HttpGet("date/{date}")]
+        public async Task<IActionResult> GetByDate(DateTime date)
+        {
+            var trips = await _tripService.GetByDateAsync(date);
+            return Ok(trips);
+        }
     }
 
 }

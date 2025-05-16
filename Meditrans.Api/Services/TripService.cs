@@ -279,6 +279,58 @@ namespace Meditrans.Api.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<List<TripReadDto>> GetByDateAsync(DateTime date)
+        {
+            return await _context.Trips
+                .AsNoTracking()
+                .Include(t => t.Customer)
+                .Include(t => t.SpaceType)
+                .Include(t => t.Run)
+                .Include(t => t.FundingSource)
+                .Where(t => t.Date.Date == date.Date) // We filter by date (ignoring the time)
+                .Select(t => new TripReadDto
+                {
+                    Id = t.Id,
+                    Day = t.Day,
+                    Date = t.Date,
+                    FromTime = t.FromTime,
+                    ToTime = t.ToTime,
+                    CustomerId = t.CustomerId,
+                    CustomerName = t.Customer != null ? t.Customer.FullName : null,
+                    PickupAddress = t.PickupAddress,
+                    PickupLatitude = t.PickupLatitude,
+                    PickupLongitude = t.PickupLongitude,
+                    DropoffAddress = t.DropoffAddress,
+                    DropoffLatitude = t.DropoffLatitude,
+                    DropoffLongitude = t.DropoffLongitude,
+                    SpaceTypeId = t.SpaceTypeId,
+                    SpaceTypeName = t.SpaceType != null ? t.SpaceType.Name : null,
+                    IsCancelled = t.IsCancelled,
+                    Charge = t.Charge,
+                    Paid = t.Paid,
+                    Type = t.Type,
+                    Pickup = t.Pickup,
+                    PickupPhone = t.PickupPhone,
+                    PickupComment = t.PickupComment,
+                    Dropoff = t.Dropoff,
+                    DropoffPhone = t.DropoffPhone,
+                    DropoffComment = t.DropoffComment,
+                    TripId = t.TripId,
+                    Authorization = t.Authorization,
+                    Distance = t.Distance,
+                    ETA = t.ETA,
+                    VehicleRouteId = t.VehicleRouteId ?? 0,
+                    RunName = t.Run != null ? t.Run.Name : null,
+                    WillCall = t.WillCall,
+                    Status = t.Status,
+                    DriverNoShowReason = t.DriverNoShowReason,
+                    Created = t.Created,
+                    FundingSourceId = t.FundingSourceId,
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
+                })
+                .ToListAsync();
+        }
     }
 
 }
