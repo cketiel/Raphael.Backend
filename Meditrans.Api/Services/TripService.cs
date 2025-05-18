@@ -75,6 +75,13 @@ namespace Meditrans.Api.Services
 
         public async Task<(List<TripReadDto> Trips, int TotalCount)> GetAllAsync(int pageNumber = 1, int pageSize = 20)
         {
+            // Validate parameters
+            if (pageNumber < 1)
+                throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
+
+            if (pageSize < 1 || pageSize > 100)
+                throw new ArgumentException("Page size must be between 1 and 100", nameof(pageSize));
+
             var query = _context.Trips
                 .AsNoTracking()
                 .Include(t => t.Customer)
@@ -396,6 +403,152 @@ namespace Meditrans.Api.Services
                 .ToListAsync();
         }
 
-    }
+        public async Task<(List<TripReadDto> Trips, int TotalCount)> GetByDatePaginatedAsync(DateTime date, int pageNumber = 1, int pageSize = 20)
+        {
+            // Validar parámetros
+            if (pageNumber < 1)
+                throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
+
+            if (pageSize < 1 || pageSize > 100)
+                throw new ArgumentException("Page size must be between 1 and 100", nameof(pageSize));
+
+            var normalizedDate = date.Date;
+
+            var query = _context.Trips
+                .AsNoTracking()
+                .Include(t => t.Customer)
+                .Include(t => t.SpaceType)
+                .Include(t => t.Run)
+                .Include(t => t.FundingSource)
+                .Where(t => t.Date.Date == normalizedDate);
+
+            var totalCount = await query.CountAsync();
+
+            var trips = await query
+                .OrderBy(t => t.FromTime)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(t => new TripReadDto
+                {
+                    Id = t.Id,
+                    Day = t.Day,
+                    Date = t.Date,
+                    FromTime = t.FromTime,
+                    ToTime = t.ToTime,
+                    CustomerId = t.CustomerId,
+                    CustomerName = t.Customer != null ? t.Customer.FullName : null,
+                    PickupAddress = t.PickupAddress,
+                    PickupLatitude = t.PickupLatitude,
+                    PickupLongitude = t.PickupLongitude,
+                    DropoffAddress = t.DropoffAddress,
+                    DropoffLatitude = t.DropoffLatitude,
+                    DropoffLongitude = t.DropoffLongitude,
+                    SpaceTypeId = t.SpaceTypeId,
+                    SpaceTypeName = t.SpaceType != null ? t.SpaceType.Name : null,
+                    IsCancelled = t.IsCancelled,
+                    Charge = t.Charge,
+                    Paid = t.Paid,
+                    Type = t.Type,
+                    Pickup = t.Pickup,
+                    PickupPhone = t.PickupPhone,
+                    PickupComment = t.PickupComment,
+                    Dropoff = t.Dropoff,
+                    DropoffPhone = t.DropoffPhone,
+                    DropoffComment = t.DropoffComment,
+                    TripId = t.TripId,
+                    Authorization = t.Authorization,
+                    Distance = t.Distance,
+                    ETA = t.ETA,
+                    VehicleRouteId = t.VehicleRouteId ?? 0,
+                    RunName = t.Run != null ? t.Run.Name : null,
+                    WillCall = t.WillCall,
+                    Status = t.Status,
+                    DriverNoShowReason = t.DriverNoShowReason,
+                    Created = t.Created,
+                    FundingSourceId = t.FundingSourceId,
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
+                })
+                .ToListAsync();
+
+            return (trips, totalCount);
+        }
+
+        public async Task<(List<TripReadDto> Trips, int TotalCount)> GetByDateRangePaginatedAsync(DateTime startDate, DateTime endDate, int pageNumber = 1, int pageSize = 20)
+        {
+            if (pageNumber < 1)
+                throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
+
+            if (pageSize < 1 || pageSize > 100)
+                throw new ArgumentException("Page size must be between 1 and 100", nameof(pageSize));
+
+            var normalizedStartDate = startDate.Date;
+            var normalizedEndDate = endDate.Date;
+
+            if (normalizedStartDate > normalizedEndDate)
+            {
+                throw new ArgumentException("The start date cannot be greater than the end date");
+            }
+
+            var query = _context.Trips
+                .AsNoTracking()
+                .Include(t => t.Customer)
+                .Include(t => t.SpaceType)
+                .Include(t => t.Run)
+                .Include(t => t.FundingSource)
+                .Where(t => t.Date.Date >= normalizedStartDate && t.Date.Date <= normalizedEndDate);
+
+            var totalCount = await query.CountAsync();
+
+            var trips = await query
+                .OrderBy(t => t.Date)
+                .ThenBy(t => t.FromTime)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(t => new TripReadDto
+                {
+                    Id = t.Id,
+                    Day = t.Day,
+                    Date = t.Date,
+                    FromTime = t.FromTime,
+                    ToTime = t.ToTime,
+                    CustomerId = t.CustomerId,
+                    CustomerName = t.Customer != null ? t.Customer.FullName : null,
+                    PickupAddress = t.PickupAddress,
+                    PickupLatitude = t.PickupLatitude,
+                    PickupLongitude = t.PickupLongitude,
+                    DropoffAddress = t.DropoffAddress,
+                    DropoffLatitude = t.DropoffLatitude,
+                    DropoffLongitude = t.DropoffLongitude,
+                    SpaceTypeId = t.SpaceTypeId,
+                    SpaceTypeName = t.SpaceType != null ? t.SpaceType.Name : null,
+                    IsCancelled = t.IsCancelled,
+                    Charge = t.Charge,
+                    Paid = t.Paid,
+                    Type = t.Type,
+                    Pickup = t.Pickup,
+                    PickupPhone = t.PickupPhone,
+                    PickupComment = t.PickupComment,
+                    Dropoff = t.Dropoff,
+                    DropoffPhone = t.DropoffPhone,
+                    DropoffComment = t.DropoffComment,
+                    TripId = t.TripId,
+                    Authorization = t.Authorization,
+                    Distance = t.Distance,
+                    ETA = t.ETA,
+                    VehicleRouteId = t.VehicleRouteId ?? 0,
+                    RunName = t.Run != null ? t.Run.Name : null,
+                    WillCall = t.WillCall,
+                    Status = t.Status,
+                    DriverNoShowReason = t.DriverNoShowReason,
+                    Created = t.Created,
+                    FundingSourceId = t.FundingSourceId,
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
+                })
+                .ToListAsync();
+
+            return (trips, totalCount);
+        }
+
+    }// end class
 
 }

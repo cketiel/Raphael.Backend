@@ -14,6 +14,8 @@ namespace Meditrans.Api.Services
         Task<bool> DeleteAsync(int id);
         Task<List<TripReadDto>> GetByDateAsync(DateTime date);
         Task<List<TripReadDto>> GetByDateRangeAsync(DateTime startDate, DateTime endDate);
+        Task<(List<TripReadDto> Trips, int TotalCount)> GetByDatePaginatedAsync(DateTime date, int pageNumber = 1, int pageSize = 20);
+        Task<(List<TripReadDto> Trips, int TotalCount)> GetByDateRangePaginatedAsync(DateTime startDate, DateTime endDate, int pageNumber = 1, int pageSize = 20);
     }
 
 }

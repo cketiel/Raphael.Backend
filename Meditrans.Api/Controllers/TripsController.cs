@@ -123,6 +123,169 @@ namespace Meditrans.Api.Controllers
                 return StatusCode(500, "An error occurred while processing the request");
             }
         }
-    }
 
+        [HttpGet("paginated")]
+        public async Task<IActionResult> GetAllPaginated(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            // Basic parameter validation
+            if (pageNumber < 1)
+            {
+                return BadRequest("Page number must be greater than 0");
+            }
+
+            if (pageSize < 1 || pageSize > 100)
+            {
+                return BadRequest("Page size must be between 1 and 100");
+            }
+
+            try
+            {
+                var (trips, totalCount) = await _tripService.GetAllAsync(pageNumber, pageSize);
+
+                // Calculate pagination metadata
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Data = trips,
+                    Pagination = new
+                    {
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = totalCount,
+                        TotalPages = totalPages,
+                        HasPrevious = pageNumber > 1,
+                        HasNext = pageNumber < totalPages
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log the exception 
+                return StatusCode(500, "An error occurred while processing the request");
+            }
+        }
+
+        /// <summary>
+        /// Gets paginated trips for a specific date
+        /// </summary>
+        /// <param name="date">Date of trips to consult (format: YYYY-MM-DD)</param>
+        /// <param name="pageNumber">Page number (default 1)</param>
+        /// <param name="pageSize">Page size (default 20, maximum 100)</param>
+        /// <returns>Paginated list of trips for the specified date</returns>
+        [HttpGet("date/{date}/paginated")]
+        public async Task<IActionResult> GetByDatePaginated(
+            DateTime date,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            // Basic parameter validation
+            if (pageNumber < 1)
+            {
+                return BadRequest("Page number must be greater than 0");
+            }
+
+            if (pageSize < 1 || pageSize > 100)
+            {
+                return BadRequest("Page size must be between 1 and 100");
+            }
+
+            try
+            {
+                var (trips, totalCount) = await _tripService.GetByDatePaginatedAsync(date, pageNumber, pageSize);
+
+                // Calculate pagination metadata
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Data = trips,
+                    Pagination = new
+                    {
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = totalCount,
+                        TotalPages = totalPages,
+                        HasPrevious = pageNumber > 1,
+                        HasNext = pageNumber < totalPages
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception 
+                return StatusCode(500, "An error occurred while processing the request");
+            }
+        }
+
+        /// <summary>
+        /// Gets paginated trips within a date range
+        /// </summary>
+        /// <param name="startDate">Start date (format: YYYY-MM-DD)</param>
+        /// <param name="endDate">End date (format: YYYY-MM-DD)</param>
+        /// <param name="pageNumber">Page number (default 1)</param>
+        /// <param name="pageSize">Page size (default 20, maximum 100)</param>
+        [HttpGet("date-range/paginated")]
+        public async Task<IActionResult> GetByDateRangePaginated(
+            [FromQuery] DateTime startDate,
+            [FromQuery] DateTime endDate,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {           
+            if (pageNumber < 1)
+            {
+                return BadRequest("Page number must be greater than 0");
+            }
+
+            if (pageSize < 1 || pageSize > 100)
+            {
+                return BadRequest("Page size must be between 1 and 100");
+            }
+
+            try
+            {
+                var (trips, totalCount) = await _tripService.GetByDateRangePaginatedAsync(startDate, endDate, pageNumber, pageSize);
+              
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Data = trips,
+                    Pagination = new
+                    {
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = totalCount,
+                        TotalPages = totalPages,
+                        HasPrevious = pageNumber > 1,
+                        HasNext = pageNumber < totalPages
+                    },
+                    DateRange = new
+                    {
+                        StartDate = startDate.ToString("yyyy-MM-dd"),
+                        EndDate = endDate.ToString("yyyy-MM-dd")
+                    }
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception 
+                return StatusCode(500, "An error occurred while processing the request");
+            }
+        }
+
+    }// end class
 }
