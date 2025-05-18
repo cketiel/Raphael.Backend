@@ -96,6 +96,33 @@ namespace Meditrans.Api.Controllers
             var trips = await _tripService.GetByDateAsync(date);
             return Ok(trips);
         }
+
+        [HttpGet("date-range")]
+        public async Task<IActionResult> GetByDateRange(
+            [FromQuery] DateTime startDate,
+            [FromQuery] DateTime endDate)
+        {
+            try
+            {
+                // Basic validation
+                if (startDate > endDate)
+                {
+                    return BadRequest("The start date cannot be greater than the end date");
+                }
+
+                var trips = await _tripService.GetByDateRangeAsync(startDate, endDate);
+                return Ok(trips);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                return StatusCode(500, "An error occurred while processing the request");
+            }
+        }
     }
 
 }

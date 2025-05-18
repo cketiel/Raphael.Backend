@@ -13,6 +13,7 @@ namespace Meditrans.Api.Services
         Task<bool> UpdateAsync(int id, TripUpdateDto dto);
         Task<bool> DeleteAsync(int id);
         Task<List<TripReadDto>> GetByDateAsync(DateTime date);
+        Task<List<TripReadDto>> GetByDateRangeAsync(DateTime startDate, DateTime endDate);
     }
 
 }
