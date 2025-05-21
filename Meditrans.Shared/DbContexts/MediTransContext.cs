@@ -38,6 +38,10 @@ namespace Meditrans.Shared.DbContexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.RiderId)
+                .IsUnique();
+
             modelBuilder.Entity<SpaceType>()
                 .HasIndex(st => st.Name)
                 .IsUnique();
