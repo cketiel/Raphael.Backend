@@ -102,7 +102,8 @@ namespace Meditrans.Api.Services
                 SpaceTypeName = customer.SpaceType?.Name,
                 Gender = customer.Gender,
                 Created = customer.Created,
-                CreatedBy = customer.CreatedBy
+                CreatedBy = customer.CreatedBy,
+                RiderId = customer.RiderId
             };
         }
 
@@ -114,6 +115,16 @@ namespace Meditrans.Api.Services
             _context.Customers.Remove(customer);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<CustomerResponseDto?> GetByRiderIdAsync(string riderId)
+        {
+            var customer = await _context.Customers
+                .Include(c => c.SpaceType)
+                .Include(c => c.FundingSource)
+                .FirstOrDefaultAsync(c => c.RiderId == riderId);
+
+            return customer != null ? MapToResponseDto(customer) : null;
         }
     }
 }

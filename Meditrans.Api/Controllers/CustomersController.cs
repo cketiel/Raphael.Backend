@@ -315,6 +315,49 @@ namespace Meditrans.Api.Controllers
             }
         }
 
+        // GET: api/Customers/rider/{riderId}
+        /// <summary>
+        /// Get customer by Rider ID
+        /// </summary>
+        /// <param name="riderId">Rider identifier</param>
+        /// <response code="200">Customer found</response>
+        /// <response code="404">Customer not found</response>
+        /// <response code="400">Invalid rider ID format</response>
+        /// <response code="500">Internal server error</response>
+        [HttpGet("rider/{riderId}")]
+        [ProducesResponseType(typeof(CustomerResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<CustomerResponseDto>> GetByRiderId(string riderId)
+        {
+            if (string.IsNullOrWhiteSpace(riderId))
+            {
+                _logger.LogWarning("Empty or null RiderId provided");
+                return BadRequest(CreateProblemDetails(
+                    "Invalid Rider ID",
+                    "Rider ID cannot be empty or null",
+                    StatusCodes.Status400BadRequest));
+            }
+
+            try
+            {
+                _logger.LogInformation("Retrieving customer with Rider ID: {RiderId}", riderId);
+                var customer = await _customerService.GetByRiderIdAsync(riderId);
+
+                return customer == null
+                    ? NotFound(CreateProblemDetails("Not Found", $"Customer with Rider ID {riderId} not found", 404))
+                    : Ok(customer);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving customer with Rider ID: {RiderId}", riderId);
+                return Problem(
+                    title: "Server Error",
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+
         #region Helper Methods
 
         private bool IsUniqueConstraintViolation(DbUpdateException ex)
