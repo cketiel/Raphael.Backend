@@ -50,7 +50,8 @@ namespace Meditrans.Api.Services
                 Email = dto.Email,
                 Gender = dto.Gender,
                 Created = DateTime.UtcNow,
-                CreatedBy = dto.CreatedBy
+                CreatedBy = dto.CreatedBy,
+                RiderId = dto.RiderId
             };
 
             _context.Customers.Add(customer);
