@@ -4,6 +4,7 @@ using Meditrans.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Meditrans.Shared.Migrations
 {
     [DbContext(typeof(MediTransContext))]
-    partial class MediTransContextModelSnapshot : ModelSnapshot
+    [Migration("20250523121445_AllowNullFromTimeFieldOfTrip")]
+    partial class AllowNullFromTimeFieldOfTrip
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -514,7 +517,7 @@ namespace Meditrans.Shared.Migrations
                     b.Property<double?>("ETA")
                         .HasColumnType("float");
 
-                    b.Property<TimeSpan?>("FromTime")
+                    b.Property<TimeSpan>("FromTime")
                         .HasColumnType("time");
 
                     b.Property<int?>("FundingSourceId")

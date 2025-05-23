@@ -5,7 +5,7 @@
         public int Id { get; set; }
         public string Day { get; set; }
         public DateTime Date { get; set; }
-        public TimeSpan FromTime { get; set; }
+        public TimeSpan? FromTime { get; set; }
         public TimeSpan? ToTime { get; set; }
         public int CustomerId { get; set; }
         public string CustomerName { get; set; }

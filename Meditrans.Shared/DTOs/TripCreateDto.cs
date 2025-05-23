@@ -10,9 +10,8 @@ namespace Meditrans.Shared.DTOs
 
         [Required(ErrorMessage = "The date is required.")]
         public DateTime Date { get; set; }
-
-        [Required(ErrorMessage = "Start time is required.")]
-        public TimeSpan FromTime { get; set; }
+      
+        public TimeSpan? FromTime { get; set; }
 
         public TimeSpan? ToTime { get; set; }
 
