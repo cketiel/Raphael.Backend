@@ -16,7 +16,7 @@ namespace Meditrans.Shared.DbContexts
         public DbSet<SpaceType> SpaceTypes { get; set; }
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<VehicleGroup> VehicleGroups { get; set; }
-        public DbSet<VehicleGroup> VehicleTypes { get; set; }
+        public DbSet<VehicleType> VehicleTypes { get; set; }
         public DbSet<CapacityType> Capacities { get; set; }
         public DbSet<CapacityDetail> CapacityDetails { get; set; }
         public DbSet<CapacityDetailType> CapacityDetailTypes { get; set; }
@@ -72,7 +72,14 @@ namespace Meditrans.Shared.DbContexts
                 .HasForeignKey(v => v.GroupId);
 
             modelBuilder.Entity<Vehicle>()
-                .HasOne(v => v.CapacityDetailType);
+                .HasOne(v => v.VehicleType)
+                .WithMany()
+                .HasForeignKey(v => v.VehicleTypeId);
+
+            modelBuilder.Entity<Vehicle>()
+                .HasOne(v => v.CapacityDetailType)
+                .WithMany()
+                .HasForeignKey(v => v.CapacityDetailTypeId);
                 //.WithMany(c => c.Vehicles)
                 //.HasForeignKey(v => v.CapacityDetailTypeId);
 
