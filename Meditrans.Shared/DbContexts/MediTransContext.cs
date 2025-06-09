@@ -8,6 +8,9 @@ namespace Meditrans.Shared.DbContexts
     {
         public MediTransContext(DbContextOptions<MediTransContext> options) : base(options) { }
 
+        public DbSet<RouteSuspension> RouteSuspensions { get; set; }
+        public DbSet<RouteAvailability> RouteAvailabilities { get; set; }
+        public DbSet<RouteFundingSource> RouteFundingSources { get; set; }
         public DbSet<TripLog> TripLogs { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
@@ -37,7 +40,51 @@ namespace Meditrans.Shared.DbContexts
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
+        {            
+            modelBuilder.Entity<VehicleRoute>()
+                .HasMany(v => v.Suspensions)
+                .WithOne(s => s.VehicleRoute)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<VehicleRoute>()
+                .HasMany(v => v.Availabilities)
+                .WithOne(a => a.VehicleRoute)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<VehicleRoute>()
+                .HasMany(v => v.FundingSources)
+                .WithOne(f => f.VehicleRoute)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RouteFundingSource>()
+            .HasKey(rfs => new { rfs.VehicleRouteId, rfs.FundingSourceId });
+
+            modelBuilder.Entity<RouteFundingSource>()
+                .HasOne(rfs => rfs.VehicleRoute)
+                .WithMany(vr => vr.FundingSources)
+                .HasForeignKey(rfs => rfs.VehicleRouteId);
+
+            modelBuilder.Entity<RouteFundingSource>()
+                .HasOne(rfs => rfs.FundingSource)
+                .WithMany()
+                .HasForeignKey(rfs => rfs.FundingSourceId);
+
+            modelBuilder.Entity<VehicleRoute>()
+            .Property(v => v.FromTime)
+            .HasColumnType("time");
+
+            modelBuilder.Entity<VehicleRoute>()
+                .Property(v => v.ToTime)
+                .HasColumnType("time");
+
+            modelBuilder.Entity<RouteAvailability>()
+                .Property(ra => ra.StartTime)
+                .HasColumnType("time");
+
+            modelBuilder.Entity<RouteAvailability>()
+                .Property(ra => ra.EndTime)
+                .HasColumnType("time");
+
             modelBuilder.Entity<Customer>()
                 .HasIndex(c => c.RiderId)
                 .IsUnique();

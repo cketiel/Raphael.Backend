@@ -13,7 +13,7 @@ namespace Meditrans.Api.Services
         }
 
         public async Task<List<VehicleType>> GetAllAsync()
-        {
+        {                  
             return await _context.VehicleTypes.ToListAsync();
         }
 

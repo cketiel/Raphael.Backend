@@ -4,6 +4,7 @@ using Meditrans.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Meditrans.Shared.Migrations
 {
     [DbContext(typeof(MediTransContext))]
-    partial class MediTransContextModelSnapshot : ModelSnapshot
+    [Migration("20250608021923_UpdateVehicleTypes")]
+    partial class UpdateVehicleTypes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -392,82 +395,6 @@ namespace Meditrans.Shared.Migrations
                     b.ToTable("Roles");
                 });
 
-            modelBuilder.Entity("Meditrans.Shared.Entities.RouteAvailability", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan>("EndTime")
-                        .HasColumnType("time");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<TimeSpan>("StartTime")
-                        .HasColumnType("time");
-
-                    b.Property<int>("VehicleRouteId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VehicleRouteId");
-
-                    b.ToTable("RouteAvailabilities");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.RouteFundingSource", b =>
-                {
-                    b.Property<int>("VehicleRouteId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("FundingSourceId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.HasKey("VehicleRouteId", "FundingSourceId");
-
-                    b.HasIndex("FundingSourceId");
-
-                    b.ToTable("RouteFundingSources");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.RouteSuspension", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime>("SuspensionEnd")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("SuspensionStart")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("VehicleRouteId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VehicleRouteId");
-
-                    b.ToTable("RouteSuspensions");
-                });
-
             modelBuilder.Entity("Meditrans.Shared.Entities.Schedule", b =>
                 {
                     b.Property<int>("Id")
@@ -844,42 +771,17 @@ namespace Meditrans.Shared.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("DriverId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("FromDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<TimeSpan>("FromTime")
-                        .HasColumnType("time");
-
                     b.Property<string>("Garage")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<double>("GarageLatitude")
-                        .HasColumnType("float");
-
-                    b.Property<double>("GarageLongitude")
-                        .HasColumnType("float");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SmartphoneLogin")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("ToDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<TimeSpan>("ToTime")
-                        .HasColumnType("time");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("VehicleId")
                         .HasColumnType("int");
@@ -987,47 +889,6 @@ namespace Meditrans.Shared.Migrations
                     b.Navigation("FundingSource");
 
                     b.Navigation("SpaceType");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.RouteAvailability", b =>
-                {
-                    b.HasOne("Meditrans.Shared.Entities.VehicleRoute", "VehicleRoute")
-                        .WithMany("Availabilities")
-                        .HasForeignKey("VehicleRouteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VehicleRoute");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.RouteFundingSource", b =>
-                {
-                    b.HasOne("Meditrans.Shared.Entities.FundingSource", "FundingSource")
-                        .WithMany()
-                        .HasForeignKey("FundingSourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Meditrans.Shared.Entities.VehicleRoute", "VehicleRoute")
-                        .WithMany("FundingSources")
-                        .HasForeignKey("VehicleRouteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("FundingSource");
-
-                    b.Navigation("VehicleRoute");
-                });
-
-            modelBuilder.Entity("Meditrans.Shared.Entities.RouteSuspension", b =>
-                {
-                    b.HasOne("Meditrans.Shared.Entities.VehicleRoute", "VehicleRoute")
-                        .WithMany("Suspensions")
-                        .HasForeignKey("VehicleRouteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VehicleRoute");
                 });
 
             modelBuilder.Entity("Meditrans.Shared.Entities.Schedule", b =>
@@ -1209,13 +1070,7 @@ namespace Meditrans.Shared.Migrations
 
             modelBuilder.Entity("Meditrans.Shared.Entities.VehicleRoute", b =>
                 {
-                    b.Navigation("Availabilities");
-
-                    b.Navigation("FundingSources");
-
                     b.Navigation("Schedules");
-
-                    b.Navigation("Suspensions");
                 });
 #pragma warning restore 612, 618
         }

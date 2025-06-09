@@ -100,6 +100,7 @@ builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<VehicleGroupService>();
 builder.Services.AddScoped<ICapacityDetailTypeService, CapacityDetailTypeService>();
 builder.Services.AddScoped<IRunService, RunService>();
+builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 
 var app = builder.Build();
 
