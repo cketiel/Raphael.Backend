@@ -22,5 +22,7 @@
         public DateTime Created { get; set; }
         public string CreatedBy { get; set; }
         public string? RiderId { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
 }

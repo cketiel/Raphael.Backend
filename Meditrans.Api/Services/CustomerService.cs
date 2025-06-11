@@ -51,7 +51,9 @@ namespace Meditrans.Api.Services
                 Gender = dto.Gender,
                 Created = DateTime.UtcNow,
                 CreatedBy = dto.CreatedBy,
-                RiderId = dto.RiderId
+                RiderId = dto.RiderId,
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude
             };
 
             _context.Customers.Add(customer);
@@ -79,6 +81,8 @@ namespace Meditrans.Api.Services
             customer.SpaceTypeId = dto.SpaceTypeId;
             customer.Email = dto.Email;
             customer.Gender = dto.Gender;
+            customer.Latitude = dto.Latitude;
+            customer.Longitude = dto.Longitude;
 
             await _context.SaveChangesAsync();
             return MapToResponseDto(customer);
@@ -104,7 +108,9 @@ namespace Meditrans.Api.Services
                 Gender = customer.Gender,
                 Created = customer.Created,
                 CreatedBy = customer.CreatedBy,
-                RiderId = customer.RiderId
+                RiderId = customer.RiderId,
+                Latitude = customer.Latitude,
+                Longitude = customer.Longitude
             };
         }
 
