@@ -20,7 +20,12 @@ namespace Meditrans.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
+        public async Task<ActionResult<List<User>>> GetAll()
+        {
+            var users = await _service.GetAllAsync();
+            return Ok(users);
+        }
+        //public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)

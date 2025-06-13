@@ -24,8 +24,13 @@ namespace Meditrans.Api.Services
                 {
                     Id = u.Id,
                     Username = u.Username,
+                    FullName = u.FullName,
                     Email = u.Email,
                     PhoneNumber = u.PhoneNumber,
+                    Address = u.Address,
+                    DriverLicense = u.DriverLicense,
+                    IsActive = u.IsActive,
+                    RoleId = u.RoleId,
                     RoleName = u.Role.RoleName
                 })
                 .ToListAsync();
@@ -43,8 +48,13 @@ namespace Meditrans.Api.Services
             {
                 Id = user.Id,
                 Username = user.Username,
+                FullName = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
+                DriverLicense = user.DriverLicense,
+                IsActive = user.IsActive,
+                RoleId = user.RoleId,
                 RoleName = user.Role.RoleName
             };
         }
