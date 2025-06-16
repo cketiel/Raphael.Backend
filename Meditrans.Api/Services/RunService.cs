@@ -2,6 +2,10 @@
 using Meditrans.Shared.Entities;
 using Meditrans.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
+using System;
+using Microsoft.AspNetCore.Http.HttpResults;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Drawing;
 
 namespace Meditrans.Api.Services
 {
@@ -112,15 +116,19 @@ namespace Meditrans.Api.Services
 
             _context.VehicleRoutes.Add(route);
             await _context.SaveChangesAsync();
-            return route; // EF Core automatically updates the ID of the 'route' entity
+            //return route; // EF Core automatically updates the ID of the 'route' entity
+            // The API creates the entity in the database and, by default,
+            // returns the VehicleRoute entity as it has it in memory after saving.
+            // At this point, the navigation properties(Driver and Vehicle) of that object
+            // are null because Entity Framework does not automatically load them after an Add.
+            return await GetByIdAsync(route.Id);
         }
-
         public async Task<bool> UpdateAsync(int id, VehicleRouteDto dto)
         {
             // It is CRUCIAL to include the child collections when searching for the entity to update.
             // If they are not included, EF will think they do not exist and delete them.
             var route = await _context.VehicleRoutes
-                .Include(r => r.Suspensions)
+            .Include(r => r.Suspensions)
                 .Include(r => r.Availabilities)
                 .Include(r => r.FundingSources)
                 .FirstOrDefaultAsync(r => r.Id == id);
