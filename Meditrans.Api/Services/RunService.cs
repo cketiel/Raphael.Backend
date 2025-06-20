@@ -168,6 +168,33 @@ namespace Meditrans.Api.Services
             return true;
         }
 
+        /// <summary>
+        /// Cancels a route by setting its end date (ToDate) to the current date and time.
+        /// </summary>
+        /// <param name="id">The ID of the route to cancel.</param>
+        /// <returns>True if the route was found and canceled, otherwise False.</returns>
+        public async Task<bool> CancelAsync(int id)
+        {
+            // 1. Search the entity by its ID. We use FindAsync which is efficient for primary key searches.
+            var route = await _context.VehicleRoutes.FindAsync(id);
+
+            // 2. Check if the route exists. If not, nothing can be done.
+            if (route == null)
+            {
+                return false;
+            }
+
+            // 3. Apply business logic: set ToDate to the current date and time.
+            // It is good practice to use UtcNow on the server to avoid time zone issues.
+            route.ToDate = DateTime.UtcNow;
+
+            // 4. Save changes to the database.
+            await _context.SaveChangesAsync();
+
+            // 5. Return 'true' to indicate that the operation was successful.
+            return true;
+        }
+
         #region Private methods to organize collection update logic
         private void UpdateSuspensions(VehicleRoute route, List<RouteSuspensionDto>? suspensionDtos)
         {

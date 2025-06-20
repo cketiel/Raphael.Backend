@@ -77,5 +77,25 @@ namespace Meditrans.Api.Controllers
             }
             return NoContent();
         }
+
+        /// <summary>
+        /// Cancels a vehicle route by setting its end date.
+        /// </summary>
+        /// <param name="id">The ID of the route to cancel.</param>
+        /// <returns>NoContent if the cancellation is successful, or NotFound if the route does not exist.</returns>
+        [HttpPatch("{id}/cancel")] // We use PATCH and a descriptive path. Ej: PATCH /api/runs/123/cancel
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var success = await _service.CancelAsync(id);
+            if (!success)
+            {
+                return NotFound($"Could not cancel because route with ID {id} was not found.");
+            }
+
+            // 204 NoContent is the standard response for a successful operation that returns no data.
+            return NoContent();
+        }
     }
 }
