@@ -102,6 +102,8 @@ builder.Services.AddScoped<ICapacityDetailTypeService, CapacityDetailTypeService
 builder.Services.AddScoped<IRunService, RunService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 
+builder.Services.AddScoped<IScheduleService, ScheduleService>();
+
 var app = builder.Build();
 
 app.UseSwagger();
