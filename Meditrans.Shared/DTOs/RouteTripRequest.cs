@@ -2,6 +2,7 @@
 
 namespace Meditrans.Shared.DTOs
 {
+    // For routing request
     public class RouteTripRequest
     {
         [Required]
