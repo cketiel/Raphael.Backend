@@ -11,8 +11,9 @@ namespace Meditrans.Shared.Entities
     {
         public int Id { get; set; }
 
-        [Required]
-        public int TripId { get; set; }
+        // TripId is now nullable to allow non-trip schedules (Pull-out/Pull-in)
+        public int? TripId { get; set; }
+
         [ForeignKey("TripId")]
         public Trip Trip { get; set; }
 

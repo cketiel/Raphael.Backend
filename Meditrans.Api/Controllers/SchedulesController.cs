@@ -34,7 +34,7 @@ namespace Meditrans.Api.Controllers
         {
             try
             {
-                await _scheduleService.RouteTripsAsync(request);
+                await _scheduleService.RouteTripAsync(request);
                 return Ok();
             }
             catch (KeyNotFoundException ex)
