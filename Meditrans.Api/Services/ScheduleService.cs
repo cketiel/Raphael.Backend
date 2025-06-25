@@ -70,7 +70,7 @@ namespace Meditrans.Api.Services
                     PickupLongitude = t.PickupLongitude,
                     DropoffLatitude = t.DropoffLatitude,
                     DropoffLongitude = t.DropoffLongitude,
-
+                    Distance = t.Distance
                 })
                 .ToListAsync();
         }

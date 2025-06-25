@@ -15,6 +15,7 @@
         public double PickupLongitude { get; set; }
         public double DropoffLatitude { get; set; }
         public double DropoffLongitude { get; set; }
+        public double? Distance { get; set; }
 
     }
 }
