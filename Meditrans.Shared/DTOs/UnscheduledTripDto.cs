@@ -11,5 +11,10 @@
         public string DropoffAddress { get; set; }
         public string SpaceType { get; set; }
         public string FundingSource { get; set; }
+        public string? PickupLatitude { get; set; }
+        public string? PickupLongitude { get; set; }
+        public string? DropoffLatitude { get; set; }
+        public string? DropoffLongitude { get; set; }
+
     }
 }

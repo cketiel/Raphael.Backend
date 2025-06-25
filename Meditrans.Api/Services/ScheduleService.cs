@@ -65,7 +65,12 @@ namespace Meditrans.Api.Services
                     PickupAddress = t.PickupAddress,
                     DropoffAddress = t.DropoffAddress,
                     SpaceType = t.SpaceType.Name,
-                    FundingSource = t.FundingSource.Name
+                    FundingSource = t.FundingSource.Name,
+                    PickupLatitude = t.PickupLatitude.ToString(),
+                    PickupLongitude = t.PickupLongitude.ToString(),
+                    DropoffLatitude = t.DropoffLatitude.ToString(),
+                    DropoffLongitude = t.DropoffLongitude.ToString(),
+
                 })
                 .ToListAsync();
         }
