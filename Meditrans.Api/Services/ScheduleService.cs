@@ -149,7 +149,7 @@ namespace Meditrans.Api.Services
                         ETATime = request.DropoffETA + request.DropoffTravelTime, // vehicleRoute.ToTime, 
                         ScheduledPickupTime = TimeSpan.FromHours(23),
                         ScheduledApptTime = TimeSpan.FromHours(23),
-
+                        // TripId is null by default
                     };
 
                     await _context.Schedules.AddRangeAsync(pullOutEvent, pullInEvent);
