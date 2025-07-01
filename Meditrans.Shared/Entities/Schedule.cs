@@ -69,5 +69,6 @@ namespace Meditrans.Shared.Entities
 
         public long? Odometer { get; set; }
         public string? GpsArrive { get; set; } // "lat,lon"
+        public DateTime? Date { get; set; }
     }
 }

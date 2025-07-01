@@ -25,5 +25,6 @@
         public long? Odometer { get; set; }
         public string? AuthNo { get; set; }
         public string? FundingSource { get; set; }
+        public DateTime? Date { get; set; }
     }
 }

@@ -19,7 +19,8 @@ namespace Meditrans.Api.Services
         {
             return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
-                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == date.Date)
+                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date)
+                //.Where(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == date.Date)
                 .OrderBy(s => s.Sequence)
                 .Select(s => new ScheduleDto
                 {
@@ -45,7 +46,8 @@ namespace Meditrans.Api.Services
                     ArriveDist = s.ArriveDistance,
                     PerformDist = s.PerformDistance,
                     GPSArrive = s.GpsArrive,
-                    Odometer = s.Odometer,                 
+                    Odometer = s.Odometer,    
+                    Date = s.Date,
                 })
                 .ToListAsync();
         }
@@ -147,6 +149,7 @@ namespace Meditrans.Api.Services
                         ETATime = tripToRoute.FromTime - (TimeSpan.FromMinutes(20) + request.PickupTravelTime), // vehicleRoute.FromTime, 
                         DistanceToPoint = 0, // Always 0 for the first event
                         TravelTime = TimeSpan.Zero,
+                        Date = tripToRoute.Date,
                         // TripId is null by default
                     };
 
@@ -159,7 +162,8 @@ namespace Meditrans.Api.Services
                         ScheduleLongitude = vehicleRoute.GarageLongitude,
                         ETATime = request.DropoffETA + request.DropoffTravelTime, // vehicleRoute.ToTime, 
                         ScheduledPickupTime = TimeSpan.FromHours(23),
-                        ScheduledApptTime = TimeSpan.FromHours(23), 
+                        ScheduledApptTime = TimeSpan.FromHours(23),
+                        Date = tripToRoute.Date,
                         // TripId is null by default
                     };
 
@@ -187,7 +191,8 @@ namespace Meditrans.Api.Services
                     // --- Data calculated by the client ---
                     DistanceToPoint = request.PickupDistance,
                     TravelTime = request.PickupTravelTime,
-                    ETATime = request.PickupETA,                  
+                    ETATime = request.PickupETA,
+                    Date = tripToRoute.Date,
                 };
 
                 // Dropoff Event
@@ -210,6 +215,7 @@ namespace Meditrans.Api.Services
                     DistanceToPoint = request.DropoffDistance,
                     TravelTime = request.DropoffTravelTime,
                     ETATime = request.DropoffETA,
+                    Date = tripToRoute.Date,
                 };
 
                 await _context.Schedules.AddRangeAsync(pickupSchedule, dropoffSchedule);
