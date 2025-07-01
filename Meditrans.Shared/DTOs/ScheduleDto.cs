@@ -12,6 +12,8 @@
         public double? Travel { get; set; }
         public int On { get; set; } 
         public string Address { get; set; }
+        public double ScheduleLatitude { get; set; }
+        public double ScheduleLongitude { get; set; }
         public string? Comment { get; set; }
         public string? Phone { get; set; }
         public TimeSpan? Arrive { get; set; }

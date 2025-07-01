@@ -35,6 +35,8 @@ namespace Meditrans.Shared.Entities
 
         [MaxLength(200)]
         public string Address { get; set; }
+        public double ScheduleLatitude { get; set; }
+        public double ScheduleLongitude { get; set; }
 
         [MaxLength(20)]
         public string? Phone { get; set; }
