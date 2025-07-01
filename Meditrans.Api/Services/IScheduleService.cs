@@ -8,5 +8,6 @@ namespace Meditrans.Api.Services
         Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date);
         Task RouteTripAsync(RouteTripRequest request);
         Task CancelRouteForTripAsync(int scheduleId);
+        Task<bool> UpdateAsync(int id, ScheduleDto dto);
     }
 }

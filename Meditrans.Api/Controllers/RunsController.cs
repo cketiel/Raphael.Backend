@@ -61,7 +61,7 @@ namespace Meditrans.Api.Controllers
             var success = await _service.UpdateAsync(id, dto);
             if (!success)
             {
-                return NotFound($"No se pudo actualizar porque no se encontró la ruta con ID {id}.");
+                return NotFound($"Could not update because the route with ID {id} was not found.");
             }
             // 204 NoContent is the standard response for a successful PUT that returns no content.
             return NoContent();

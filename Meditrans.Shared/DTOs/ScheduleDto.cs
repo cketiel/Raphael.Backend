@@ -9,7 +9,7 @@
         public TimeSpan? Appt { get; set; }   // Mapped from ScheduledApptTime
         public TimeSpan? ETA { get; set; }
         public double? Distance { get; set; }
-        public double? Travel { get; set; }
+        public TimeSpan? Travel { get; set; }
         public int On { get; set; } 
         public string Address { get; set; }
         public double ScheduleLatitude { get; set; }

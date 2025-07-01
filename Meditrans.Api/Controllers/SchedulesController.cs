@@ -65,5 +65,22 @@ namespace Meditrans.Api.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] ScheduleDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var success = await _scheduleService.UpdateAsync(id, dto);
+            if (!success)
+            {
+                return NotFound($"Could not update because the schedule with ID {id} was not found.");
+            }
+            // 204 NoContent is the standard response for a successful PUT that returns no content.
+            return NoContent();
+        }
     }
 }

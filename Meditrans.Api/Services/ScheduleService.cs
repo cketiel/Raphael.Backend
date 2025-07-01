@@ -316,6 +316,20 @@ namespace Meditrans.Api.Services
             }
         }
 
+        public async Task<bool> UpdateAsync(int id, ScheduleDto dto) 
+        {
+            var schedules = await _context.Schedules.FirstOrDefaultAsync(r => r.Id == id);
+
+            if (schedules == null) return false;
+
+            schedules.DistanceToPoint = dto.Distance;
+            schedules.TravelTime = dto.Travel;
+            schedules.ETATime = dto.ETA;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         /*public async Task RouteTripsListAsync(RouteTripRequest request)
         {
             var vehicleRoute = await _context.VehicleRoutes
