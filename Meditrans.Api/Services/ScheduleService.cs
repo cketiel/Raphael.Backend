@@ -39,7 +39,7 @@ namespace Meditrans.Api.Services
                                                              
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
-                    Travel = s.DistanceToPoint,
+                    Travel = s.TravelTime,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -159,7 +159,7 @@ namespace Meditrans.Api.Services
                         ScheduleLongitude = vehicleRoute.GarageLongitude,
                         ETATime = request.DropoffETA + request.DropoffTravelTime, // vehicleRoute.ToTime, 
                         ScheduledPickupTime = TimeSpan.FromHours(23),
-                        ScheduledApptTime = TimeSpan.FromHours(23),
+                        ScheduledApptTime = TimeSpan.FromHours(23), 
                         // TripId is null by default
                     };
 

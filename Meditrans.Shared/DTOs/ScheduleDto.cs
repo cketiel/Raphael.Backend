@@ -10,7 +10,7 @@
         public TimeSpan? ETA { get; set; }
         public double? Distance { get; set; }
         public TimeSpan? Travel { get; set; }
-        public int On { get; set; } 
+        public int? On { get; set; } 
         public string Address { get; set; }
         public double ScheduleLatitude { get; set; }
         public double ScheduleLongitude { get; set; }
@@ -20,10 +20,10 @@
         public TimeSpan? Perform { get; set; }
         public double? ArriveDist { get; set; }
         public double? PerformDist { get; set; }
-        public string Driver { get; set; }
+        public string? Driver { get; set; }
         public string? GPSArrive { get; set; }
         public long? Odometer { get; set; }
         public string? AuthNo { get; set; }
-        public string FundingSource { get; set; }
+        public string? FundingSource { get; set; }
     }
 }

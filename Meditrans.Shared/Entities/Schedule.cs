@@ -22,11 +22,11 @@ namespace Meditrans.Shared.Entities
         [ForeignKey("VehicleRouteId")]
         public VehicleRoute VehicleRoute { get; set; }
 
-        [Required]
-        public ScheduleEventType EventType { get; set; } // Pickup or Dropoff
+        //[Required]
+        public ScheduleEventType? EventType { get; set; } // Pickup or Dropoff
 
-        [Required]
-        public int Sequence { get; set; } // To order the events of a route. Ex: 1, 2, 3...
+        //[Required]
+        public int? Sequence { get; set; } // To order the events of a route. Ex: 1, 2, 3...
 
         // --- Pre-calculated data for the grid (denormalization for performance) ---
         [Required]
@@ -44,13 +44,13 @@ namespace Meditrans.Shared.Entities
         public string? Comment { get; set; }
 
         [MaxLength(100)]
-        public string FundingSourceName { get; set; }
+        public string? FundingSourceName { get; set; }
 
         [MaxLength(100)]
         public string? AuthNo { get; set; }
 
         [MaxLength(50)]
-        public string SpaceTypeName { get; set; }
+        public string? SpaceTypeName { get; set; }
 
         // --- Times ---
         public TimeSpan? ScheduledPickupTime { get; set; } // Corresponds to the FromTime of the Trip (only for Pickup event)
