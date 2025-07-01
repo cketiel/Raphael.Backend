@@ -74,7 +74,21 @@ namespace Meditrans.Api.Services
                     PickupLongitude = t.PickupLongitude,
                     DropoffLatitude = t.DropoffLatitude,
                     DropoffLongitude = t.DropoffLongitude,
-                    Distance = t.Distance
+                    Distance = t.Distance,
+                    Charge = t.Charge,
+                    Paid = t.Paid,
+                    Type = t.Type,
+                    Pickup = t.Pickup,
+                    PickupPhone = t.PickupPhone,
+                    PickupComment = t.PickupComment,
+                    Dropoff = t.Dropoff,
+                    DropoffPhone = t.DropoffPhone,
+                    DropoffComment = t.DropoffComment,
+                    TripId = t.TripId,
+                    Authorization = t.Authorization,
+                    WillCall = t.WillCall,
+                    Status = t.Status,
+                    FundingSourceId = t.FundingSourceId,
                 })
                 .ToListAsync();
         }
