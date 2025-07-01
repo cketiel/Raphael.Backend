@@ -148,6 +148,8 @@ namespace Meditrans.Api.Services
                         ScheduleLongitude = vehicleRoute.GarageLongitude,
                         ETATime = tripToRoute.FromTime - (TimeSpan.FromMinutes(20) + request.PickupTravelTime), // vehicleRoute.FromTime, 
                         DistanceToPoint = 0, // Always 0 for the first event
+                        ScheduledPickupTime = TimeSpan.FromHours(0),
+                        ScheduledApptTime = TimeSpan.FromHours(0),
                         TravelTime = TimeSpan.Zero,
                         Date = tripToRoute.Date,
                         // TripId is null by default
