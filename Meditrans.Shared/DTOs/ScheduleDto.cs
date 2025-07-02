@@ -1,4 +1,6 @@
-﻿namespace Meditrans.Shared.DTOs
+﻿using Meditrans.Shared.Entities;
+
+namespace Meditrans.Shared.DTOs
 {
     public class ScheduleDto
     {
@@ -27,5 +29,6 @@
         public string? FundingSource { get; set; }
         public DateTime? Date { get; set; }
         public int? Sequence { get; set; }
+        public ScheduleEventType? EventType { get; set; }
     }
 }
