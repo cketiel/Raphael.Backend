@@ -48,6 +48,8 @@ namespace Meditrans.Api.Services
                     GPSArrive = s.GpsArrive,
                     Odometer = s.Odometer,    
                     Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType
                 })
                 .ToListAsync();
         }
