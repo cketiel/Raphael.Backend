@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Meditrans.Api.Services
 {
-    // ScheduleService.cs
     public class ScheduleService : IScheduleService
     {
         private readonly MediTransContext _context;
@@ -210,7 +209,7 @@ namespace Meditrans.Api.Services
                     DistanceToPoint = request.PickupDistance,
                     TravelTime = request.PickupTravelTime,
                     ETATime = request.PickupETA,
-                    Date = tripToRoute.Date,
+                    Date = tripToRoute.Date,                    
                 };
 
                 // Dropoff Event
