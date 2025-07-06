@@ -15,6 +15,13 @@ namespace Meditrans.Api.Controllers
             _scheduleService = scheduleService;
         }
 
+        [HttpGet("by-run-login")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetSchedulesByRunLogin([FromQuery] string runLogin, [FromQuery] DateTime date)
+        {
+            var schedules = await _scheduleService.GetSchedulesByRunLoginAndDateAsync(runLogin, date);
+            return Ok(schedules);
+        }
+
         [HttpGet("by-route")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetSchedules([FromQuery] int vehicleRouteId, [FromQuery] DateTime date)
         {

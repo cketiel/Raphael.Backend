@@ -4,6 +4,7 @@ namespace Meditrans.Api.Services
 {
     public interface IScheduleService
     {
+        Task<IEnumerable<ScheduleDto>> GetSchedulesByRunLoginAndDateAsync(string runLogin, DateTime date);
         Task<IEnumerable<ScheduleDto>> GetSchedulesByRouteAndDateAsync(int vehicleRouteId, DateTime date);
         Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date);
         Task RouteTripAsync(RouteTripRequest request);
