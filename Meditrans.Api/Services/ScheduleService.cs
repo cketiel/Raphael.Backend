@@ -18,7 +18,7 @@ namespace Meditrans.Api.Services
         {
             return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
-                .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin && s.Date == date.Date)
+                .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin && s.Date == date.Date && s.Performed == false)
                 //.Where(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == date.Date)
                 .OrderBy(s => s.Sequence)
                 .Select(s => new ScheduleDto
@@ -50,7 +50,8 @@ namespace Meditrans.Api.Services
                     Sequence = s.Sequence,
                     EventType = s.EventType, // Pickup or Dropoff
                     SpaceType = s.SpaceTypeName,
-                    TripType = s.Trip.Type // (Appointment, Return)
+                    TripType = s.Trip.Type, // (Appointment, Return)
+                    Performed = s.Performed
                 })
                 .ToListAsync();
         }
@@ -59,7 +60,7 @@ namespace Meditrans.Api.Services
         {
             return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
-                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date)
+                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date && s.Performed == false)
                 //.Where(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == date.Date)
                 .OrderBy(s => s.Sequence)
                 .Select(s => new ScheduleDto
@@ -89,7 +90,8 @@ namespace Meditrans.Api.Services
                     Odometer = s.Odometer,    
                     Date = s.Date,
                     Sequence = s.Sequence,
-                    EventType = s.EventType
+                    EventType = s.EventType,
+                    Performed = s.Performed,
                 })
                 .ToListAsync();
         }
@@ -130,7 +132,7 @@ namespace Meditrans.Api.Services
                     Authorization = t.Authorization,
                     WillCall = t.WillCall,
                     Status = t.Status,
-                    FundingSourceId = t.FundingSourceId,
+                    FundingSourceId = t.FundingSourceId,                
                 })
                 .ToListAsync();
         }
@@ -208,6 +210,7 @@ namespace Meditrans.Api.Services
                         ScheduledApptTime = TimeSpan.FromHours(0),
                         TravelTime = TimeSpan.Zero,
                         Date = tripToRoute.Date,
+                        Performed = false, // Not performed by default
                         // TripId is null by default
                     };
 
@@ -222,6 +225,7 @@ namespace Meditrans.Api.Services
                         ScheduledPickupTime = TimeSpan.FromHours(23),
                         ScheduledApptTime = TimeSpan.FromHours(23),
                         Date = tripToRoute.Date,
+                        Performed = false, // Not performed by default
                         // TripId is null by default
                     };
 
@@ -250,7 +254,8 @@ namespace Meditrans.Api.Services
                     DistanceToPoint = request.PickupDistance,
                     TravelTime = request.PickupTravelTime,
                     ETATime = request.PickupETA,
-                    Date = tripToRoute.Date,                    
+                    Date = tripToRoute.Date,
+                    Performed = false, // Not performed by default
                 };
 
                 // Dropoff Event
@@ -274,6 +279,7 @@ namespace Meditrans.Api.Services
                     TravelTime = request.DropoffTravelTime,
                     ETATime = request.DropoffETA,
                     Date = tripToRoute.Date,
+                    Performed = false, // Not performed by default
                 };
 
                 await _context.Schedules.AddRangeAsync(pickupSchedule, dropoffSchedule);
