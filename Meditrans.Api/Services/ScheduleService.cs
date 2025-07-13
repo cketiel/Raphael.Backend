@@ -395,6 +395,7 @@ namespace Meditrans.Api.Services
             schedules.DistanceToPoint = dto.Distance;
             schedules.TravelTime = dto.Travel;
             schedules.ETATime = dto.ETA;
+            schedules.Odometer = dto.Odometer;
 
             await _context.SaveChangesAsync();
             return true;
