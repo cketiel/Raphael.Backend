@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.Dtos
+namespace Raphael.Shared.Dtos
 {
     public class SpaceTypeDto
     {
@@ -10,3 +10,4 @@
         public bool IsActive { get; set; }
     }
 }
+

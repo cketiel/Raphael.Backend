@@ -1,4 +1,4 @@
-namespace Meditrans.Shared
+namespace Raphael.Shared
 {
     public class WeatherForecast
     {
@@ -11,3 +11,4 @@ namespace Meditrans.Shared
         public string? Summary { get; set; }
     }
 }
+

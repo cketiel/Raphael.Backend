@@ -1,4 +1,4 @@
-namespace Meditrans.UsersService
+namespace Raphael.UsersService
 {
     public class WeatherForecast
     {
@@ -11,3 +11,4 @@ namespace Meditrans.UsersService
         public string? Summary { get; set; }
     }
 }
+

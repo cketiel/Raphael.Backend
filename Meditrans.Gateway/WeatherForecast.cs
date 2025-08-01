@@ -1,4 +1,4 @@
-namespace Meditrans.Gateway
+namespace Raphael.Gateway
 {
     public class WeatherForecast
     {
@@ -11,3 +11,4 @@ namespace Meditrans.Gateway
         public string? Summary { get; set; }
     }
 }
+

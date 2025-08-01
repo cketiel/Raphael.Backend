@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class UnscheduledTripDto
     {
@@ -33,3 +33,4 @@
 
     }
 }
+

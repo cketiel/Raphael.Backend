@@ -1,4 +1,4 @@
-﻿namespace Raphael.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class Provider
     {
@@ -10,3 +10,4 @@
         public string Logo { get; set; }
     }
 }
+

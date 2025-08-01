@@ -1,15 +1,15 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.TripsService.DTOs;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.TripsService.DTOs;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.TripsService.Services
+namespace Raphael.TripsService.Services
 {
     public class TripService : ITripService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public TripService(MediTransContext context)
+        public TripService(RaphaelContext context)
         {
             _context = context;
         }
@@ -135,3 +135,4 @@ namespace Meditrans.TripsService.Services
     }
 
 }
+

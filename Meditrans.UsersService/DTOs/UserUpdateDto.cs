@@ -1,4 +1,4 @@
-﻿namespace Meditrans.UsersService.DTOs
+namespace Raphael.UsersService.DTOs
 {
     public class UserUpdateDto
     {
@@ -16,3 +16,4 @@
         public bool IsActive { get; set; }
     }
 }
+

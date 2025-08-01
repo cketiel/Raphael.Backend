@@ -1,11 +1,11 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.DTOs;
-using Meditrans.Shared.Entities;
-using Meditrans.Shared.Helpers;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.Shared.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class UserService : IUserService
     {
@@ -151,3 +151,4 @@ namespace Meditrans.Api.Services
     }
     
 }
+

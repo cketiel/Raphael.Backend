@@ -1,6 +1,6 @@
-﻿using Meditrans.Shared.Entities;
+using Raphael.Shared.Entities;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public interface IVehicleTypeService
     {
@@ -11,3 +11,4 @@ namespace Meditrans.Api.Services
         Task<bool> DeleteAsync(int id);
     }
 }
+

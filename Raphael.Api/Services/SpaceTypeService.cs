@@ -1,10 +1,10 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.Shared.Dtos;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.Shared.Dtos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class SpaceTypeService
     {
@@ -69,3 +69,4 @@ namespace Meditrans.Api.Services
         }
     }
 }
+

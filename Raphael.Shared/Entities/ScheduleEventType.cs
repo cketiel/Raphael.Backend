@@ -1,4 +1,4 @@
-﻿namespace Raphael.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public enum ScheduleEventType
     {
@@ -6,3 +6,4 @@
         Dropoff = 2
     }
 }
+

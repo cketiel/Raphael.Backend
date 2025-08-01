@@ -1,6 +1,6 @@
-﻿using Meditrans.TripsService.DTOs;
+using Raphael.TripsService.DTOs;
 
-namespace Meditrans.TripsService.Services
+namespace Raphael.TripsService.Services
 {
     public interface ITripService
     {
@@ -12,3 +12,4 @@ namespace Meditrans.TripsService.Services
     }
 
 }
+

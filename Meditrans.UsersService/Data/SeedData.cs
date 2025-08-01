@@ -1,11 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Meditrans.UsersService.Models;
+using Raphael.UsersService.Models;
 using System;
 using System.Linq;
-using Meditrans.UsersService.Helpers;
+using Raphael.UsersService.Helpers;
 
-namespace Meditrans.UsersService.Data
+namespace Raphael.UsersService.Data
 {
     public static class SeedData
     {
@@ -25,7 +25,7 @@ namespace Meditrans.UsersService.Data
                 {
                     FullName = "John Doe",
                     Username = "johndoe",
-                    PasswordHash = PasswordHasher.Hash("123456"), // hashed! // ⚠️ En producción debe estar hasheado
+                    PasswordHash = PasswordHasher.Hash("123456"), // hashed! // ?? En producci�n debe estar hasheado
                     Email = "john@example.com",
                     Phone = "1234567890",
                     Address = "123 Main St",
@@ -37,7 +37,7 @@ namespace Meditrans.UsersService.Data
                     FullName = "Admin User",
                     Username = "admin",
                     PasswordHash = PasswordHasher.Hash("adminpass"),
-                    Email = "admin@meditrans.com",
+                    Email = "admin@Raphael.com",
                     Phone = "9876543210",
                     Address = "456 Admin Rd",
                     DriverLicense = "B654321",
@@ -49,3 +49,4 @@ namespace Meditrans.UsersService.Data
         }
     }
 }
+

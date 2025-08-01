@@ -1,6 +1,6 @@
-﻿using Meditrans.Shared.Entities;
+using Raphael.Shared.Entities;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class FundingSourceBillingItemDto
     {   
@@ -21,3 +21,4 @@ namespace Meditrans.Shared.DTOs
         public DateTime ToDate { get; set; }
     }
 }
+

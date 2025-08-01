@@ -1,6 +1,6 @@
-﻿using Meditrans.Shared.DTOs;
+using Raphael.Shared.DTOs;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public interface IScheduleService
     {
@@ -12,3 +12,4 @@ namespace Meditrans.Api.Services
         Task<bool> UpdateAsync(int id, ScheduleDto dto);
     }
 }
+

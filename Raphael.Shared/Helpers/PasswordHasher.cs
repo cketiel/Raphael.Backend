@@ -1,7 +1,7 @@
-﻿using System.Text;
+using System.Text;
 using System.Security.Cryptography;
 
-namespace Meditrans.Shared.Helpers
+namespace Raphael.Shared.Helpers
 {
     public static class PasswordHasher
     {
@@ -19,3 +19,4 @@ namespace Meditrans.Shared.Helpers
         }
     }
 }
+

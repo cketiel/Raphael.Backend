@@ -1,26 +1,26 @@
-ï»¿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Meditrans.UsersService.Settings;
-using Meditrans.UsersService.Data;
-using Meditrans.UsersService.Models;
+using Raphael.UsersService.Settings;
+using Raphael.UsersService.Data;
+using Raphael.UsersService.Models;
 using Microsoft.EntityFrameworkCore;
-using Meditrans.UsersService.Helpers;
+using Raphael.UsersService.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using System.Numerics;
-using Meditrans.Shared.DbContexts;
+using Raphael.Shared.DbContexts;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly JwtSettings _jwtSettings;
-    private readonly MediTransContext _context;
+    private readonly RaphaelContext _context;
 
-    public AuthController(IOptions<JwtSettings> jwtOptions, MediTransContext context)
+    public AuthController(IOptions<JwtSettings> jwtOptions, RaphaelContext context)
     {
         _jwtSettings = jwtOptions.Value;
         _context = context;
@@ -49,8 +49,8 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid username or password.");
         }
 
-        // AquÃ­ se genera el JWT y se devuelve
-        /*var token = _jwtService.GenerateToken(user); // segÃºn tu implementaciÃ³n
+        // Aquí se genera el JWT y se devuelve
+        /*var token = _jwtService.GenerateToken(user); // según tu implementación
         return Ok(new { token });*/
 
         var claims = new[]
@@ -97,3 +97,4 @@ public class LoginRequest
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
 }
+

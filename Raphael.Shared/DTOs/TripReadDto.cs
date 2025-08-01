@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.Entities;
+using Raphael.Shared.Entities;
 using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class TripReadDto
     {
@@ -50,3 +50,4 @@ namespace Meditrans.Shared.DTOs
 
 
 }
+

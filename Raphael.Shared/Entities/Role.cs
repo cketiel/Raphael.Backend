@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.Entities
 {
@@ -11,3 +11,4 @@ namespace Raphael.Shared.Entities
         public ICollection<User> Users { get; set; }
     }
 }
+

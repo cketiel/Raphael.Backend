@@ -1,4 +1,4 @@
-﻿namespace Meditrans.UsersService.Models
+namespace Raphael.UsersService.Models
 {
     public enum UserRole
     {
@@ -22,3 +22,4 @@
         public UserRole Role { get; set; } = UserRole.User;
     }
 }
+

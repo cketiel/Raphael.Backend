@@ -1,4 +1,4 @@
-using Meditrans.Shared.DbContexts;
+using Raphael.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using FluentValidation;
 
@@ -25,3 +25,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+

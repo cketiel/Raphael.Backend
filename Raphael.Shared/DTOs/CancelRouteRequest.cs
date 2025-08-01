@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     // For cancellation request
     public class CancelRouteRequest
@@ -9,3 +9,4 @@ namespace Meditrans.Shared.DTOs
         public int ScheduleId { get; set; }
     }
 }
+

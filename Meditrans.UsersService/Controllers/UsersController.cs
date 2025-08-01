@@ -1,11 +1,11 @@
-Ôªøusing Microsoft.AspNetCore.Mvc;
-using Meditrans.UsersService.Services;
-using Meditrans.Shared.Entities;
+using Microsoft.AspNetCore.Mvc;
+using Raphael.UsersService.Services;
+using Raphael.Shared.Entities;
 
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.DTOs;
 
 
-namespace Meditrans.UsersService.Controllers
+namespace Raphael.UsersService.Controllers
 {
     [ApiController]
     //[Route("api/[controller]")]
@@ -163,7 +163,7 @@ namespace Meditrans.UsersService.Controllers
             return NoContent();
         }
 
-        // Este m√©todo lee los claims directamente del HttpContext.User(que se completa autom√°ticamente si el JWT es v√°lido).
+        // Este mÈtodo lee los claims directamente del HttpContext.User(que se completa autom·ticamente si el JWT es v·lido).
         [HttpGet("me")]
         [Authorize]
         public IActionResult GetCurrentUser()
@@ -192,3 +192,4 @@ namespace Meditrans.UsersService.Controllers
 
     }*/
 }
+

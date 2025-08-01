@@ -1,4 +1,4 @@
-﻿using Raphael.Shared.DTOs;
+using Raphael.Shared.DTOs;
 using Raphael.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -71,3 +71,4 @@ namespace Raphael.Api.Controllers
     }
 
 }
+

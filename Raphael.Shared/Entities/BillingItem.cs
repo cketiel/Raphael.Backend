@@ -1,4 +1,4 @@
-﻿namespace Raphael.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class BillingItem
     {
@@ -16,3 +16,4 @@
         public ICollection<FundingSourceBillingItem> FundingSourceBillingItems { get; set; }
     }
 }
+

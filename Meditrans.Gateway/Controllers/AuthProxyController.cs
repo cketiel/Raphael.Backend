@@ -1,7 +1,7 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.Gateway.Controllers;
+namespace Raphael.Gateway.Controllers;
 
 [ApiController]
 [Route("api/auth")]
@@ -30,3 +30,4 @@ public class AuthProxyController : ControllerBase
     }
 
 }
+

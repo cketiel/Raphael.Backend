@@ -1,4 +1,4 @@
-namespace Meditrans.GpsService
+namespace Raphael.GpsService
 {
     public class WeatherForecast
     {
@@ -11,3 +11,4 @@ namespace Meditrans.GpsService
         public string? Summary { get; set; }
     }
 }
+

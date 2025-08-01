@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.UsersService.Controllers
+namespace Raphael.UsersService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -10,3 +10,4 @@ namespace Meditrans.UsersService.Controllers
         public IActionResult Get() => Ok("Users Service is running");
     }
 }
+

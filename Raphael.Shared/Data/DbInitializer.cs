@@ -1,9 +1,9 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.Shared.Helpers;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.Shared.Data
+namespace Raphael.Shared.Data
 {
     public class DbInitializer : IDbInitializer
     {
@@ -102,3 +102,4 @@ namespace Meditrans.Shared.Data
        
     }
 }
+

@@ -1,4 +1,4 @@
-﻿namespace Meditrans.UsersService.Settings
+namespace Raphael.UsersService.Settings
 {
     public class JwtSettings
     {
@@ -8,3 +8,4 @@
         public int ExpiresInMinutes { get; set; }
     }
 }
+

@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class CustomerCreateDto
     {
@@ -49,3 +49,4 @@ namespace Meditrans.Shared.DTOs
         public double? Longitude { get; set; }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Raphael.Shared.Entities
@@ -29,3 +29,4 @@ namespace Raphael.Shared.Entities
         public ICollection<FundingSourceBillingItem> BillingItems { get; set; }
     }
 }
+

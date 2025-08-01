@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.Gateway.Controllers
+namespace Raphael.Gateway.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -10,3 +10,4 @@ namespace Meditrans.Gateway.Controllers
         public IActionResult Get() => Ok("Gateway Service is running");
     }
 }
+

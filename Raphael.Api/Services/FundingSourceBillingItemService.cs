@@ -1,12 +1,12 @@
-﻿using System.Runtime.ConstrainedExecution;
-using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.DTOs;
-using Meditrans.Shared.Entities;
+using System.Runtime.ConstrainedExecution;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
 using Microsoft.AspNetCore.Server.IISIntegration;
 using Microsoft.EntityFrameworkCore;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class FundingSourceBillingItemService : IFundingSourceBillingItemService
     {
@@ -117,3 +117,4 @@ namespace Meditrans.Api.Services
 
     }// end class    
 }// end namespace
+

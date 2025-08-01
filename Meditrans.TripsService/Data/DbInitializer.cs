@@ -1,6 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Meditrans.TripsService.Models;
-namespace Meditrans.TripsService.Data
+using Microsoft.EntityFrameworkCore;
+using Raphael.TripsService.Models;
+namespace Raphael.TripsService.Data
 {
     public class DbInitializer
     {
@@ -27,3 +27,4 @@ namespace Meditrans.TripsService.Data
         }
     }
 }
+

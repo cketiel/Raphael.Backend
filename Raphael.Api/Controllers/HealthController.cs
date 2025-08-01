@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Raphael.Api.Controllers
 {
@@ -10,3 +10,4 @@ namespace Raphael.Api.Controllers
         public IActionResult Get() => Ok("Api Service is running");
     }
 }
+

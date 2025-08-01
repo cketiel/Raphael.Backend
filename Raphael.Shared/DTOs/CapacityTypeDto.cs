@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.Dtos
+namespace Raphael.Shared.Dtos
 {
     public class CapacityTypeDto
     {
@@ -6,3 +6,4 @@
         public string? Description { get; set; }
     }
 }
+

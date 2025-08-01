@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class UserCreateDto
     {
@@ -14,3 +14,4 @@
         public string? DriverLicense { get; set; }
     }
 }
+

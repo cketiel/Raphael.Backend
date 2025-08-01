@@ -1,11 +1,11 @@
-﻿using Meditrans.TripsService.Data;
-using Meditrans.TripsService.DTOs;
-using Meditrans.TripsService.Models;
-using Meditrans.TripsService.Services;
+using Raphael.TripsService.Data;
+using Raphael.TripsService.DTOs;
+using Raphael.TripsService.Models;
+using Raphael.TripsService.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.TripsService.Controllers
+namespace Raphael.TripsService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -55,3 +55,4 @@ namespace Meditrans.TripsService.Controllers
     }
 
 }
+

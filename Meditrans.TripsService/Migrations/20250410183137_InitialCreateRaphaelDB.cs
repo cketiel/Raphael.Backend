@@ -1,11 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Meditrans.TripsService.Migrations
+namespace Raphael.TripsService.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateMeditransDB : Migration
+    public partial class InitialCreateRaphaelDB : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -20,3 +20,4 @@ namespace Meditrans.TripsService.Migrations
         }
     }
 }
+

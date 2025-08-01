@@ -1,7 +1,8 @@
-﻿namespace Meditrans.Shared.Data
+namespace Raphael.Shared.Data
 {
     public interface IDbInitializer
     {
         void Initialize();
     }
 }
+

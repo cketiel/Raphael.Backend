@@ -1,4 +1,4 @@
-﻿namespace Meditrans.TripsService.Models
+namespace Raphael.TripsService.Models
 {
     public class Trip
     {
@@ -23,3 +23,4 @@
         }
     }
 }
+

@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Meditrans.Shared.Migrations
+namespace Raphael.Shared.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateMeditransDb : Migration
+    public partial class InitialCreateRaphaelDb : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -561,3 +561,4 @@ namespace Meditrans.Shared.Migrations
         }
     }
 }
+

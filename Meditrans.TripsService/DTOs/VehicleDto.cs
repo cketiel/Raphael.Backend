@@ -1,4 +1,4 @@
-﻿namespace Meditrans.TripsService.DTOs
+namespace Raphael.TripsService.DTOs
 {
     public class VehicleDto
     {
@@ -18,3 +18,4 @@
 
 
 }
+

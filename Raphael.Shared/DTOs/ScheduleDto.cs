@@ -1,6 +1,6 @@
-﻿using Meditrans.Shared.Entities;
+using Raphael.Shared.Entities;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class ScheduleDto
     {
@@ -38,3 +38,4 @@ namespace Meditrans.Shared.DTOs
         public bool Performed { get; set; }
     }
 }
+

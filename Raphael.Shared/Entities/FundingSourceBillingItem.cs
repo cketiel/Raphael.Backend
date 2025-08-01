@@ -1,4 +1,4 @@
-﻿namespace Raphael.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class FundingSourceBillingItem
     {
@@ -22,3 +22,4 @@
         public DateTime ToDate { get; set; }
     }
 }
+

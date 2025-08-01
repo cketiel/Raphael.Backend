@@ -1,15 +1,15 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.UsersService.Helpers;
-using Meditrans.Shared.Entities;
+using Raphael.Shared.DbContexts;
+using Raphael.UsersService.Helpers;
+using Raphael.Shared.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.UsersService.Data
+namespace Raphael.UsersService.Data
 {
     public class DbInitializer : IDbInitializer
     {
-        private readonly MediTransContext _db;
+        private readonly RaphaelContext _db;
 
-        public DbInitializer(MediTransContext db)
+        public DbInitializer(RaphaelContext db)
         {
             _db = db;
 
@@ -110,7 +110,7 @@ namespace Meditrans.UsersService.Data
                 db.Users.Add(new User
                 {
                     Username = "admin",
-                    PasswordHash = "admin", // ⚠️ En texto plano por ahora
+                    PasswordHash = "admin", // ?? En texto plano por ahora
                     Role = UserRole.Admin,
                     FullName = "System Administrator"
                 });
@@ -177,3 +177,4 @@ namespace Meditrans.UsersService.Data
     }
 
 }
+

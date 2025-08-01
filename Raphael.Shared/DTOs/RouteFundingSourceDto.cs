@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class RouteFundingSourceDto
     {
@@ -10,3 +10,4 @@ namespace Meditrans.Shared.DTOs
         public int FundingSourceId { get; set; }
     }
 }
+

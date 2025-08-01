@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
 using Microsoft.EntityFrameworkCore;
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class VehicleTypeService: IVehicleTypeService
     {
@@ -58,3 +58,4 @@ namespace Meditrans.Api.Services
         }
     }
 }
+

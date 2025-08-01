@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Meditrans.Shared.Migrations
+namespace Raphael.Shared.Migrations
 {
     /// <inheritdoc />
     public partial class CorrectTypographicalError : Migration
@@ -46,3 +46,4 @@ namespace Meditrans.Shared.Migrations
         }
     }
 }
+

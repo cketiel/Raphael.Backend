@@ -1,4 +1,4 @@
-﻿namespace Meditrans.TripsService.Dtos
+namespace Raphael.TripsService.Dtos
 {
     public class CustomerDto
     {
@@ -20,3 +20,4 @@
         public string CreatedBy { get; set; }
     }
 }
+

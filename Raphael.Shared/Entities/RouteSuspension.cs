@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.Entities
 {
@@ -20,3 +20,4 @@ namespace Raphael.Shared.Entities
         public string? Reason { get; set; }
     }
 }
+

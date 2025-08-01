@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.GpsService.Controllers
+namespace Raphael.GpsService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -10,3 +10,4 @@ namespace Meditrans.GpsService.Controllers
         public IActionResult Get() => Ok("GPS Service is running");
     }
 }
+

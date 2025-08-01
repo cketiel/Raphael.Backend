@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.DTOs;
+using Raphael.Shared.DTOs;
 using FluentValidation;
 
-namespace Meditrans.Shared.Validators
+namespace Raphael.Shared.Validators
 {
     public class CustomerCreateDtoValidator : AbstractValidator<CustomerCreateDto>
     {
@@ -26,3 +26,4 @@ namespace Meditrans.Shared.Validators
         }
     }
 }
+

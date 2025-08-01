@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class VehicleRouteDto
     {
@@ -49,3 +49,4 @@ namespace Meditrans.Shared.DTOs
         public List<RouteFundingSourceDto>? FundingSources { get; set; }
     }
 }
+

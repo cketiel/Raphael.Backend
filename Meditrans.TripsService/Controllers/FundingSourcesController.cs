@@ -1,10 +1,10 @@
-﻿
-using Meditrans.Shared.Dtos;
-using Meditrans.Shared.Entities;
-using Meditrans.TripsService.Services;
+
+using Raphael.Shared.Dtos;
+using Raphael.Shared.Entities;
+using Raphael.TripsService.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.TripsService.Controllers
+namespace Raphael.TripsService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -56,3 +56,4 @@ namespace Meditrans.TripsService.Controllers
         }
     }
 }
+

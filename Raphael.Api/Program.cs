@@ -4,16 +4,16 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
-using Meditrans.Api.Settings;
-using Meditrans.Shared.DbContexts;
+using Raphael.Api.Settings;
+using Raphael.Shared.DbContexts;
 using Microsoft.EntityFrameworkCore;
-using Meditrans.Shared.Data;
-using Meditrans.Api.Services;
-using Meditrans.Shared.Entities;
+using Raphael.Shared.Data;
+using Raphael.Api.Services;
+using Raphael.Shared.Entities;
 using FluentValidation.AspNetCore;
 using FluentValidation;
-using Meditrans.Shared.DTOs;
-using Meditrans.Shared.Validators;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Validators;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
@@ -31,7 +31,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Meditrans Backend API",
+        Title = "Raphael Backend API",
         Version = "v1"
     });
 });
@@ -109,7 +109,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Meditrans Backend API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Raphael Backend API v1");
 });
 
 // Swagger (optional)
@@ -175,3 +175,4 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 });
 
 app.Run();
+

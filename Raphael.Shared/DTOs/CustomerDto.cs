@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.Dtos
+namespace Raphael.Shared.Dtos
 {
     public class CustomerDto
     {
@@ -22,3 +22,4 @@
         public double? Longitude { get; set; }
     }
 }
+

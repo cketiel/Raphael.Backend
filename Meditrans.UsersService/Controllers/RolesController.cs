@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Meditrans.Shared.Entities;
-using Meditrans.UsersService.Services;
-using Meditrans.UsersService.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using Raphael.Shared.Entities;
+using Raphael.UsersService.Services;
+using Raphael.UsersService.DTOs;
 
-namespace Meditrans.UsersService.Controllers
+namespace Raphael.UsersService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -54,3 +54,4 @@ namespace Meditrans.UsersService.Controllers
         }
     }
 }
+

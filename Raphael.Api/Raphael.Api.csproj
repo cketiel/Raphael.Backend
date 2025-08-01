@@ -18,7 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Meditrans.Shared\Raphael.Shared.csproj" />
+    <ProjectReference Include="..\Raphael.Shared\Raphael.Shared.csproj" />
+    <ProjectReference Include="..\Raphael.Shared\Raphael.Shared.csproj" />
   </ItemGroup>
 
 </Project>
+

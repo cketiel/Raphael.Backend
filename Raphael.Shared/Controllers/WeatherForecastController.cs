@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.Shared.Controllers
+namespace Raphael.Shared.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -31,3 +31,4 @@ namespace Meditrans.Shared.Controllers
         }
     }
 }
+

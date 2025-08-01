@@ -1,4 +1,4 @@
-﻿namespace Meditrans.UsersService.DTOs
+namespace Raphael.UsersService.DTOs
 {
     public class UserDto
     {
@@ -10,3 +10,4 @@
         public string RoleName { get; set; } = null!;
     }
 }
+

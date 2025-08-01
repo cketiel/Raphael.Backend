@@ -1,10 +1,10 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.Shared.Dtos;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.Shared.Dtos;
 using Microsoft.EntityFrameworkCore;
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.DTOs;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class CustomerService
     {
@@ -135,3 +135,4 @@ namespace Meditrans.Api.Services
         }
     }
 }
+

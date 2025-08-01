@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.GpsService.Controllers
+namespace Raphael.GpsService.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -31,3 +31,4 @@ namespace Meditrans.GpsService.Controllers
         }
     }
 }
+

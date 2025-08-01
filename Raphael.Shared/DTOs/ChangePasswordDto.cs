@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class ChangePasswordDto
     {
@@ -8,3 +8,4 @@
         public string ConfirmPassword { get; set; }
     }
 }
+

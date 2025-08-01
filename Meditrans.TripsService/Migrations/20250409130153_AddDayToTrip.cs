@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Meditrans.TripsService.Migrations
+namespace Raphael.TripsService.Migrations
 {
     /// <inheritdoc />
     public partial class AddDayToTrip : Migration
@@ -35,3 +35,4 @@ namespace Meditrans.TripsService.Migrations
         }
     }
 }
+

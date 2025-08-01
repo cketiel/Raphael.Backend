@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.Entities
@@ -25,3 +25,4 @@ namespace Raphael.Shared.Entities
         public bool IsActive { get; set; } = true;
     }
 }
+

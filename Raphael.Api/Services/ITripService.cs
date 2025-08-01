@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.DTOs;
-using Meditrans.Shared.Entities;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public interface ITripService
     {
@@ -19,3 +19,4 @@ namespace Meditrans.Api.Services
     }
 
 }
+

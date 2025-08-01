@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.Notifications.Controllers
+namespace Raphael.Notifications.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -10,3 +10,4 @@ namespace Meditrans.Notifications.Controllers
         public IActionResult Get() => Ok("Notifications Service is running");
     }
 }
+

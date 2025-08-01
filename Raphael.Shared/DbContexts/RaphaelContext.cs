@@ -1,5 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Meditrans.Shared.Entities;
+using Microsoft.EntityFrameworkCore;
+using Raphael.Shared.Entities;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Raphael.Shared.DbContexts
@@ -35,7 +35,7 @@ namespace Raphael.Shared.DbContexts
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer("Server=localhost;Database=MeditransDB;Trusted_Connection=True;TrustServerCertificate=True;");
+                optionsBuilder.UseSqlServer("Server=localhost;Database=RaphaelDB;Trusted_Connection=True;TrustServerCertificate=True;");
             }
         }
 
@@ -192,3 +192,4 @@ namespace Raphael.Shared.DbContexts
         }
     }
 }
+

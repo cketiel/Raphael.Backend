@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.TripsService.Controllers
+namespace Raphael.TripsService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -10,3 +10,4 @@ namespace Meditrans.TripsService.Controllers
         public IActionResult Get() => Ok("Trips Service is running");
     }
 }
+

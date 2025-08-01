@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.Entities;
-using Meditrans.TripsService.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.TripsService.DTOs;
 
-namespace Meditrans.TripsService.Services
+namespace Raphael.TripsService.Services
 {
     public interface IVehicleService
     {
@@ -13,3 +13,4 @@ namespace Meditrans.TripsService.Services
     }
 
 }
+

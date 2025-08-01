@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.Entities;
-using Meditrans.UsersService.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.UsersService.DTOs;
 
-namespace Meditrans.UsersService.Services
+namespace Raphael.UsersService.Services
 {
     public interface IRoleService
     {
@@ -12,3 +12,4 @@ namespace Meditrans.UsersService.Services
         Task<bool> DeleteAsync(int id);
     }
 }
+

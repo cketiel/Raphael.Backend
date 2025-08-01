@@ -1,7 +1,7 @@
-﻿using Meditrans.Shared.Entities;
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.Shared.DTOs;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public interface IVehicleService
     {
@@ -13,3 +13,4 @@ namespace Meditrans.Api.Services
     }
 
 }
+

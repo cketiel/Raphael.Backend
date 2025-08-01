@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.UsersService.DTOs
+namespace Raphael.UsersService.DTOs
 {
     public class RoleDto
     {
@@ -9,3 +9,4 @@ namespace Meditrans.UsersService.DTOs
         public string? Description { get; set; }
     }
 }
+

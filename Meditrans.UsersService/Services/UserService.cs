@@ -1,19 +1,19 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.DTOs;
-using Meditrans.Shared.Entities;
-using Meditrans.UsersService.Data;
-//using Meditrans.UsersService.DTOs;
-using Meditrans.UsersService.Helpers;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.UsersService.Data;
+//using Raphael.UsersService.DTOs;
+using Raphael.UsersService.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.UsersService.Services
+namespace Raphael.UsersService.Services
 {
     public class UserService : IUserService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public UserService(MediTransContext context)
+        public UserService(RaphaelContext context)
         {
             _context = context;
         }
@@ -209,3 +209,4 @@ namespace Meditrans.UsersService.Services
         }
     }*/
 }
+

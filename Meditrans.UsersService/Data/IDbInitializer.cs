@@ -1,7 +1,8 @@
-﻿namespace Meditrans.UsersService.Data
+namespace Raphael.UsersService.Data
 {
     public interface IDbInitializer
     {
         void Initialize();
     }
 }
+

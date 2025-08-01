@@ -1,4 +1,4 @@
-﻿namespace Raphael.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class Unit
     {
@@ -8,3 +8,4 @@
         public ICollection<BillingItem> BillingItems { get; set; }
     }
 }
+

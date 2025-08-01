@@ -1,9 +1,9 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class TripService : ITripService
     {
@@ -405,7 +405,7 @@ namespace Meditrans.Api.Services
 
         public async Task<(List<TripReadDto> Trips, int TotalCount)> GetByDatePaginatedAsync(DateTime date, int pageNumber = 1, int pageSize = 20)
         {
-            // Validar parámetros
+            // Validar par�metros
             if (pageNumber < 1)
                 throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
 
@@ -552,3 +552,4 @@ namespace Meditrans.Api.Services
     }// end class
 
 }
+

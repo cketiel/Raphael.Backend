@@ -1,4 +1,4 @@
-﻿namespace Meditrans.UsersService.DTOs
+namespace Raphael.UsersService.DTOs
 {
     public class UserCreateDto
     {
@@ -14,3 +14,4 @@
         public string? DriverLicense { get; set; }
     }
 }
+

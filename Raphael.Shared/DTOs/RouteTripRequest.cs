@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     // For routing request
     public class RouteTripRequest
@@ -33,3 +33,4 @@ namespace Meditrans.Shared.DTOs
         public TimeSpan DropoffETA { get; set; } // "hh:mm" format
     }
 }
+

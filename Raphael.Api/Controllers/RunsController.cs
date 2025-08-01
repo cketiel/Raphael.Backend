@@ -1,4 +1,4 @@
-﻿using Raphael.Shared.DTOs;
+using Raphael.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.Entities;

@@ -1,4 +1,4 @@
-﻿namespace Meditrans.UsersService.DTOs
+namespace Raphael.UsersService.DTOs
 {
     public class LoginDto
     {
@@ -6,3 +6,4 @@
         public string Password { get; set; } = null!;
     }
 }
+

@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Meditrans.UsersService.Migrations
+namespace Raphael.UsersService.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -40,3 +40,4 @@ namespace Meditrans.UsersService.Migrations
         }
     }
 }
+

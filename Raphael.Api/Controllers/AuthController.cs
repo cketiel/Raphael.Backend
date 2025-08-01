@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -93,3 +93,4 @@ namespace Raphael.Api.Controllers
         public string Password { get; set; } = string.Empty;
     }
 }
+

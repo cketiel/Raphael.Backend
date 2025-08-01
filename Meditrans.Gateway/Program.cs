@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -33,7 +33,7 @@ builder.Services.AddHttpClient("UsersService", client =>
 var app = builder.Build();
 
 app.UseRouting();
-app.UseAuthentication(); // ← valida JWT
+app.UseAuthentication(); // ? valida JWT
 app.UseAuthorization();
 
 app.MapControllers();
@@ -77,10 +77,10 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Cargar configuración Ocelot
+// Cargar configuraci�n Ocelot
 builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
 
-// Configuración de JWT
+// Configuraci�n de JWT
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
     {
@@ -113,7 +113,7 @@ app.Run();*/
 
 // la ultima version
 /*
-using Meditrans.Gateway.Settings;
+using Raphael.Gateway.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Ocelot.DependencyInjection;
@@ -127,7 +127,7 @@ builder.Logging.ClearProviders(); // Limpia otros providers (opcional)
 builder.Logging.AddConsole();     // Habilita logging en consola
 
 
-// ⚙️ Configuración de ocelot.json
+// ?? Configuraci�n de ocelot.json
 builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
 
 // Agrega los servicios de Ocelot
@@ -139,7 +139,7 @@ var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.Configure<JwtSettings>(jwtSection);
 var jwtSettings = jwtSection.Get<JwtSettings>();
 
-// 🔐 Configuración JWT
+// ?? Configuraci�n JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer("Bearer", options =>
     {
@@ -151,7 +151,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            // 🔑 Clave secreta usada también en UsersService
+            // ?? Clave secreta usada tambi�n en UsersService
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
             //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your_secret_key_here"))
         };
@@ -164,10 +164,11 @@ var app = builder.Build();
 // Usa Ocelot y espera a que se configure
 await app.UseOcelot();
 
-// 🔐 Habilita la autenticación
+// ?? Habilita la autenticaci�n
 app.UseAuthentication();
 app.UseAuthorization();
 
 await app.UseOcelot();
 app.Run();
 */
+

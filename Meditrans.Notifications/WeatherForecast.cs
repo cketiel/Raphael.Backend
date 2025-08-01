@@ -1,4 +1,4 @@
-namespace Meditrans.Notifications
+namespace Raphael.Notifications
 {
     public class WeatherForecast
     {
@@ -11,3 +11,4 @@ namespace Meditrans.Notifications
         public string? Summary { get; set; }
     }
 }
+

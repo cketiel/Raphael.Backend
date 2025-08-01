@@ -1,9 +1,9 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.DTOs;
-using Meditrans.Shared.Entities;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class ScheduleService : IScheduleService
     {
@@ -403,3 +403,4 @@ namespace Meditrans.Api.Services
 
     }
 }
+

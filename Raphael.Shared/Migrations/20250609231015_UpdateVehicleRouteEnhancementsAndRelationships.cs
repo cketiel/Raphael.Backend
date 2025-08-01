@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Meditrans.Shared.Migrations
+namespace Raphael.Shared.Migrations
 {
     /// <inheritdoc />
     public partial class UpdateVehicleRouteEnhancementsAndRelationships : Migration
@@ -245,3 +245,4 @@ namespace Meditrans.Shared.Migrations
         }
     }
 }
+

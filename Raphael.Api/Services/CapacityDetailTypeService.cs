@@ -1,9 +1,9 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.Shared.DTOs;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.Api.Services
+namespace Raphael.Api.Services
 {
     public class CapacityDetailTypeService : ICapacityDetailTypeService
     {
@@ -61,3 +61,4 @@ namespace Meditrans.Api.Services
     }
 
 }
+

@@ -1,4 +1,4 @@
-﻿namespace Meditrans.TripsService.Dtos
+namespace Raphael.TripsService.Dtos
 {
     public class SpaceTypeDto
     {
@@ -10,3 +10,4 @@
         public bool IsActive { get; set; }
     }
 }
+

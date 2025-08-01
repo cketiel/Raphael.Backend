@@ -1,4 +1,4 @@
-﻿namespace Meditrans.Shared.Dtos
+namespace Raphael.Shared.Dtos
 {
     public class FundingSourceDto
     {
@@ -20,3 +20,4 @@
         public string? VectorcareFacilityId { get; set; }
     }
 }
+

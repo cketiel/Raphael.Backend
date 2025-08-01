@@ -1,9 +1,9 @@
 
 using System.Text;
-using Meditrans.Shared.DbContexts;
-using Meditrans.UsersService.Data;
-using Meditrans.UsersService.Services;
-using Meditrans.UsersService.Settings;
+using Raphael.Shared.DbContexts;
+using Raphael.UsersService.Data;
+using Raphael.UsersService.Services;
+using Raphael.UsersService.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -18,7 +18,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Meditrans Users Service API",
+        Title = "Raphael Users Service API",
         Version = "v1"
     });
 });
@@ -54,8 +54,8 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // Entity Framework DB
-builder.Services.AddDbContext<MediTransContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("MeditransConnection")));
+builder.Services.AddDbContext<RaphaelContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("RaphaelConnection")));
 /*builder.Services.AddDbContext<UsersDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));*/
 
@@ -108,7 +108,7 @@ using (var scope = app.Services.CreateScope())
     {
         var services = scope.ServiceProvider;
         var context = services.GetRequiredService<UsersDbContext>();
-        Meditrans.UsersService.Data.DbInitializer.Seed(context);
+        Raphael.UsersService.Data.DbInitializer.Seed(context);
     }*/
 
     // usuario admin, sin Hash
@@ -131,6 +131,7 @@ using (var scope = app.Services.CreateScope())
 
 
     app.Run();
+
 
 
 

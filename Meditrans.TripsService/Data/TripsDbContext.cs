@@ -1,7 +1,7 @@
-﻿using Meditrans.TripsService.Models;
+using Raphael.TripsService.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.TripsService.Data
+namespace Raphael.TripsService.Data
 {
     public class TripsDbContext : DbContext
     {
@@ -15,3 +15,4 @@ namespace Meditrans.TripsService.Data
 
     }
 }
+

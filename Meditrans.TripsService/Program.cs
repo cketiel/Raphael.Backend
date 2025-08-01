@@ -1,6 +1,6 @@
-using Meditrans.Shared.DbContexts;
-using Meditrans.TripsService.Data;
-using Meditrans.TripsService.Services;
+using Raphael.Shared.DbContexts;
+using Raphael.TripsService.Data;
+using Raphael.TripsService.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 
@@ -26,8 +26,8 @@ builder.Services.AddScoped<IRunService, RunService>();
 
 
 // Entity Framework DB
-builder.Services.AddDbContext<MediTransContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("MeditransConnection")));
+builder.Services.AddDbContext<RaphaelContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("RaphaelConnection")));
 
 /*var connectionString = builder.Configuration.GetConnectionString("TripsDb");
 builder.Services.AddDbContext<TripsDbContext>(options =>
@@ -55,7 +55,8 @@ app.MapControllers();
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<TripsDbContext>();
-    Meditrans.TripsService.Data.DbInitializer.Seed(context);
+    Raphael.TripsService.Data.DbInitializer.Seed(context);
 }*/
 
 app.Run();
+

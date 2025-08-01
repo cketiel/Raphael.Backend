@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.Entities
 {
@@ -15,3 +15,4 @@ namespace Raphael.Shared.Entities
         public FundingSource FundingSource { get; set; }
     }
 }
+

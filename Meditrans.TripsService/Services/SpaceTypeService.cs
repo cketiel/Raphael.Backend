@@ -1,16 +1,16 @@
-﻿using Meditrans.Shared.DbContexts;
-using Meditrans.Shared.Entities;
-using Meditrans.TripsService.Data;
-using Meditrans.TripsService.Dtos;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.Entities;
+using Raphael.TripsService.Data;
+using Raphael.TripsService.Dtos;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.TripsService.Services
+namespace Raphael.TripsService.Services
 {
     public class SpaceTypeService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public SpaceTypeService(MediTransContext context)
+        public SpaceTypeService(RaphaelContext context)
         {
             _context = context;
         }
@@ -57,3 +57,4 @@ namespace Meditrans.TripsService.Services
         }
     }
 }
+

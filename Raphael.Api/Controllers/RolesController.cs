@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Raphael.Shared.Entities;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
@@ -54,3 +54,4 @@ namespace Raphael.Api.Controllers
         }
     }
 }
+

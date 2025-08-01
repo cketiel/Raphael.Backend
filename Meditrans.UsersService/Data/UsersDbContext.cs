@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using Meditrans.UsersService.Models;
+using System.Collections.Generic;
+using Raphael.UsersService.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Meditrans.UsersService.Data
+namespace Raphael.UsersService.Data
 {
     public class UsersDbContext : DbContext
     {
@@ -15,7 +15,8 @@ namespace Meditrans.UsersService.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            // Aquí puedes configurar el modelo, pero no es obligatorio si usas convenciones
+            // Aqu� puedes configurar el modelo, pero no es obligatorio si usas convenciones
         }
     }
 }
+

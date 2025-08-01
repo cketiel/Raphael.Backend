@@ -1,7 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Meditrans.Shared.Entities;
+using System.ComponentModel.DataAnnotations;
+using Raphael.Shared.Entities;
 
-namespace Meditrans.Shared.DTOs
+namespace Raphael.Shared.DTOs
 {
     public class TripCreateDto
     {

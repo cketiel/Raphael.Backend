@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.Notifications.Controllers
+namespace Raphael.Notifications.Controllers
 {
     [ApiController]
     [Route("[controller]")]
@@ -31,3 +31,4 @@ namespace Meditrans.Notifications.Controllers
         }
     }
 }
+
