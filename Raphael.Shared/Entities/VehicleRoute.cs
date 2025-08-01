@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Meditrans.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class VehicleRoute
     {

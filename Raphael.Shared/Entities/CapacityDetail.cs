@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Meditrans.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class CapacityDetail
     {

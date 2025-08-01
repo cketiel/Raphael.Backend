@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace Meditrans.Api.Controllers
+namespace Raphael.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

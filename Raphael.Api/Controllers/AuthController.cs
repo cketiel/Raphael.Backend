@@ -4,15 +4,15 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Meditrans.Api.Settings;
+using Raphael.Api.Settings;
 using Microsoft.EntityFrameworkCore;
-using Meditrans.Shared.Helpers;
+using Raphael.Shared.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using System.Numerics;
-using Meditrans.Shared.DbContexts;
+using Raphael.Shared.DbContexts;
 
 
-namespace Meditrans.Api.Controllers
+namespace Raphael.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

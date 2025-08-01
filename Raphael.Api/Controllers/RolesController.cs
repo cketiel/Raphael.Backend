@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Meditrans.Shared.Entities;
-using Meditrans.Api.Services;
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.Api.Services;
+using Raphael.Shared.DTOs;
 
-namespace Meditrans.Api.Controllers
+namespace Raphael.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

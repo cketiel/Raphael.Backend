@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace Meditrans.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public class FundingSource
     {

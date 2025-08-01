@@ -1,15 +1,15 @@
-﻿using Meditrans.Api.Services;
-using Meditrans.Shared.Dtos;
+﻿using Raphael.Api.Services;
+using Raphael.Shared.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Mime;
 using FluentValidation.AspNetCore;
-using Meditrans.Shared.DTOs;
+using Raphael.Shared.DTOs;
 using Microsoft.Data.SqlClient;
 
-namespace Meditrans.Api.Controllers
+namespace Raphael.Api.Controllers
 {
     /// <summary>
     /// Management of customer entities

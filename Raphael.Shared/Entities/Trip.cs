@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.Metrics;
 
-namespace Meditrans.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     public static class TripType
     {

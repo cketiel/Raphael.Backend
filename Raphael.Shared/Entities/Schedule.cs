@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Meditrans.Shared.Entities
+namespace Raphael.Shared.Entities
 {
     // Denormalized Fields(Name, Address, FundingSourceName, etc.): We store this data directly in the Schedule table.
     // This makes the query to populate the top grid extremely fast and simple,
