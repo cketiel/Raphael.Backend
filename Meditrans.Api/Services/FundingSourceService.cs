@@ -7,9 +7,9 @@ namespace Meditrans.Api.Services
 {
     public class FundingSourceService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public FundingSourceService(MediTransContext context)
+        public FundingSourceService(RaphaelContext context)
         {
             _context = context;
         }

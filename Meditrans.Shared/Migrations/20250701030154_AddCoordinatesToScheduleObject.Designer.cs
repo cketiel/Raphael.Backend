@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Meditrans.Shared.Migrations
 {
-    [DbContext(typeof(MediTransContext))]
+    [DbContext(typeof(RaphaelContext))]
     [Migration("20250701030154_AddCoordinatesToScheduleObject")]
     partial class AddCoordinatesToScheduleObject
     {

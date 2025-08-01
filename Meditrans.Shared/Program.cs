@@ -10,7 +10,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 // Add services to the container.
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<MediTransContext>(options =>
+builder.Services.AddDbContext<RaphaelContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 

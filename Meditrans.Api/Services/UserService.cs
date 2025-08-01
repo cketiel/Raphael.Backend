@@ -9,9 +9,9 @@ namespace Meditrans.Api.Services
 {
     public class UserService : IUserService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public UserService(MediTransContext context)
+        public UserService(RaphaelContext context)
         {
             _context = context;
         }

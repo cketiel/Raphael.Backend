@@ -19,9 +19,9 @@ namespace Meditrans.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly JwtSettings _jwtSettings;
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public AuthController(IOptions<JwtSettings> jwtOptions, MediTransContext context)
+        public AuthController(IOptions<JwtSettings> jwtOptions, RaphaelContext context)
         {
             _jwtSettings = jwtOptions.Value;
             _context = context;

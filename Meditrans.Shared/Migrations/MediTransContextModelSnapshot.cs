@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Meditrans.Shared.Migrations
 {
-    [DbContext(typeof(MediTransContext))]
+    [DbContext(typeof(RaphaelContext))]
     partial class MediTransContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

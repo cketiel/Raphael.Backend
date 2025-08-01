@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Meditrans.Shared.Migrations
 {
-    [DbContext(typeof(MediTransContext))]
+    [DbContext(typeof(RaphaelContext))]
     [Migration("20250608021923_UpdateVehicleTypes")]
     partial class UpdateVehicleTypes
     {

@@ -7,9 +7,9 @@ namespace Meditrans.Api.Services
 {
     public class RoleService : IRoleService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public RoleService(MediTransContext context)
+        public RoleService(RaphaelContext context)
         {
             _context = context;
         }

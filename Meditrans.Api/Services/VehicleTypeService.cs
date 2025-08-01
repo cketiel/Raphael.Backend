@@ -5,9 +5,9 @@ namespace Meditrans.Api.Services
 {
     public class VehicleTypeService: IVehicleTypeService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public VehicleTypeService(MediTransContext context)
+        public VehicleTypeService(RaphaelContext context)
         {
             _context = context;
         }

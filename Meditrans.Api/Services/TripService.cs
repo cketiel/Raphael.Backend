@@ -7,9 +7,9 @@ namespace Meditrans.Api.Services
 {
     public class TripService : ITripService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public TripService(MediTransContext context)
+        public TripService(RaphaelContext context)
         {
             _context = context;
         }

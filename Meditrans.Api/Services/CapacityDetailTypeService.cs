@@ -7,9 +7,9 @@ namespace Meditrans.Api.Services
 {
     public class CapacityDetailTypeService : ICapacityDetailTypeService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public CapacityDetailTypeService(MediTransContext context)
+        public CapacityDetailTypeService(RaphaelContext context)
         {
             _context = context;
         }

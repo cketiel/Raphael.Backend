@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Meditrans.Shared.Migrations
 {
-    [DbContext(typeof(MediTransContext))]
+    [DbContext(typeof(RaphaelContext))]
     [Migration("20250521094106_AddUniqueConstraintToCustomerRiderId")]
     partial class AddUniqueConstraintToCustomerRiderId
     {

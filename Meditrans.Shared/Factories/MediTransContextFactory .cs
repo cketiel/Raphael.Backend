@@ -6,11 +6,11 @@ using Meditrans.Shared.DbContexts;
 
 namespace Meditrans.Shared.Factories
 {
-    public class MediTransContextFactory : IDesignTimeDbContextFactory<MediTransContext>
+    public class MediTransContextFactory : IDesignTimeDbContextFactory<RaphaelContext>
     {
-        public MediTransContext CreateDbContext(string[] args)
+        public RaphaelContext CreateDbContext(string[] args)
         {
-            var optionsBuilder = new DbContextOptionsBuilder<MediTransContext>();
+            var optionsBuilder = new DbContextOptionsBuilder<RaphaelContext>();
 
             // Cargar configuración desde appsettings.json
             IConfigurationRoot configuration = new ConfigurationBuilder()
@@ -22,7 +22,7 @@ namespace Meditrans.Shared.Factories
 
             optionsBuilder.UseSqlServer(connectionString);
 
-            return new MediTransContext(optionsBuilder.Options);
+            return new RaphaelContext(optionsBuilder.Options);
         }
     }
 }

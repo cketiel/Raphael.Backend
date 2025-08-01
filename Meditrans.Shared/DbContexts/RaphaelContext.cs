@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Meditrans.Shared.DbContexts
 {
-    public class MediTransContext : DbContext
+    public class RaphaelContext : DbContext
     {
-        public MediTransContext(DbContextOptions<MediTransContext> options) : base(options) { }
+        public RaphaelContext(DbContextOptions<RaphaelContext> options) : base(options) { }
 
         public DbSet<RouteSuspension> RouteSuspensions { get; set; }
         public DbSet<RouteAvailability> RouteAvailabilities { get; set; }

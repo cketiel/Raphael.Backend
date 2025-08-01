@@ -11,9 +11,9 @@ namespace Meditrans.Api.Services
 {
     public class RunService : IRunService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public RunService(MediTransContext context)
+        public RunService(RaphaelContext context)
         {
             _context = context;
         }

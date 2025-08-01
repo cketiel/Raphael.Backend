@@ -7,9 +7,9 @@ namespace Meditrans.Api.Services
 {
     public class ScheduleService : IScheduleService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public ScheduleService(MediTransContext context)
+        public ScheduleService(RaphaelContext context)
         {
             _context = context;
         }

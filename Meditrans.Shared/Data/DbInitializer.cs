@@ -7,9 +7,9 @@ namespace Meditrans.Shared.Data
 {
     public class DbInitializer : IDbInitializer
     {
-        private readonly MediTransContext _db;
+        private readonly RaphaelContext _db;
 
-        public DbInitializer(MediTransContext db)
+        public DbInitializer(RaphaelContext db)
         {
             _db = db;
 

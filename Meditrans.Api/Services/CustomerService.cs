@@ -8,9 +8,9 @@ namespace Meditrans.Api.Services
 {
     public class CustomerService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public CustomerService(MediTransContext context)
+        public CustomerService(RaphaelContext context)
         {
             _context = context;
         }

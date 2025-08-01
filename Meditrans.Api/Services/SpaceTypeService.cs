@@ -8,9 +8,9 @@ namespace Meditrans.Api.Services
 {
     public class SpaceTypeService
     {
-        private readonly MediTransContext _context;
+        private readonly RaphaelContext _context;
 
-        public SpaceTypeService(MediTransContext context)
+        public SpaceTypeService(RaphaelContext context)
         {
             _context = context;
         }
