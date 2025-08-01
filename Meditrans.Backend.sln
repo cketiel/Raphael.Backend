@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raphael.Shared", "Meditrans.Shared\Raphael.Shared.csproj", "{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raphael.Shared", "Raphael.Shared\Raphael.Shared.csproj", "{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raphael.Api", "Meditrans.Api\Raphael.Api.csproj", "{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raphael.Api", "Raphael.Api\Raphael.Api.csproj", "{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
