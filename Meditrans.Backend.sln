@@ -3,19 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.Gateway", "Meditrans.Gateway\Meditrans.Gateway.csproj", "{AB912F25-C9D5-4588-6BB9-477974CDA7E9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raphael.Shared", "Meditrans.Shared\Raphael.Shared.csproj", "{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.GpsService", "Meditrans.GpsService\Meditrans.GpsService.csproj", "{887794B9-0C28-8940-C25C-2D176E1FEF53}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.Notifications", "Meditrans.Notifications\Meditrans.Notifications.csproj", "{8A204B68-1E7D-9A27-B352-A587F4C076F3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.Shared", "Meditrans.Shared\Meditrans.Shared.csproj", "{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.TripsService", "Meditrans.TripsService\Meditrans.TripsService.csproj", "{AEAE5ED7-8AF2-D3CB-A819-F0B290A1C607}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.UsersService", "Meditrans.UsersService\Meditrans.UsersService.csproj", "{7178E2E4-C860-33DC-367C-93269268E9A2}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meditrans.Api", "Meditrans.Api\Meditrans.Api.csproj", "{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raphael.Api", "Meditrans.Api\Raphael.Api.csproj", "{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,30 +13,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AB912F25-C9D5-4588-6BB9-477974CDA7E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AB912F25-C9D5-4588-6BB9-477974CDA7E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AB912F25-C9D5-4588-6BB9-477974CDA7E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AB912F25-C9D5-4588-6BB9-477974CDA7E9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{887794B9-0C28-8940-C25C-2D176E1FEF53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{887794B9-0C28-8940-C25C-2D176E1FEF53}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{887794B9-0C28-8940-C25C-2D176E1FEF53}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{887794B9-0C28-8940-C25C-2D176E1FEF53}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8A204B68-1E7D-9A27-B352-A587F4C076F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8A204B68-1E7D-9A27-B352-A587F4C076F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8A204B68-1E7D-9A27-B352-A587F4C076F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8A204B68-1E7D-9A27-B352-A587F4C076F3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E0BDB9CB-6808-3FC3-AD6D-5FF8568A15C3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AEAE5ED7-8AF2-D3CB-A819-F0B290A1C607}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AEAE5ED7-8AF2-D3CB-A819-F0B290A1C607}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AEAE5ED7-8AF2-D3CB-A819-F0B290A1C607}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AEAE5ED7-8AF2-D3CB-A819-F0B290A1C607}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7178E2E4-C860-33DC-367C-93269268E9A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7178E2E4-C860-33DC-367C-93269268E9A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7178E2E4-C860-33DC-367C-93269268E9A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7178E2E4-C860-33DC-367C-93269268E9A2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9953009A-43BD-4B2D-A6A7-3F80BB98CCA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
