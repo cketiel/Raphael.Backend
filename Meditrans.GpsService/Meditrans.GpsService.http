@@ -1,6 +1,0 @@
-@Meditrans.GpsService_HostAddress = http://localhost:5053
-
-GET {{Meditrans.GpsService_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

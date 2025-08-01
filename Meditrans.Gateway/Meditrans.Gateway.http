@@ -1,6 +1,0 @@
-@Meditrans.Gateway_HostAddress = http://localhost:5034
-
-GET {{Meditrans.Gateway_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
