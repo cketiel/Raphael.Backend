@@ -10,9 +10,9 @@ namespace Meditrans.Shared.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
+            /*migrationBuilder.DropColumn(
                 name: "PhoneNumber",
-                table: "Users");
+                table: "Users");*/
 
             migrationBuilder.AlterColumn<string>(
                 name: "Email",
