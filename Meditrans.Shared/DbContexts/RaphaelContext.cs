@@ -2,7 +2,7 @@
 using Meditrans.Shared.Entities;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
-namespace Meditrans.Shared.DbContexts
+namespace Raphael.Shared.DbContexts
 {
     public class RaphaelContext : DbContext
     {
