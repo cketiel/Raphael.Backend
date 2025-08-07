@@ -12,94 +12,84 @@ namespace Raphael.Shared.Data
         public DbInitializer(RaphaelContext db)
         {
             _db = db;
-
         }
+
         public void Initialize()
         {
             try
             {
-                if (_db.Database.GetPendingMigrations().Count() > 0)
+                if (_db.Database.GetPendingMigrations().Any())
                 {
                     _db.Database.Migrate(); // Run pending migrations
                 }
-
             }
             catch (Exception)
-            {
-
+            {               
                 throw;
             }
 
-
-            // Create roles, users, etc. //if(_db.Roles.Any(r => r.RoleName == "Admin"))return;
-            //if (_db.Roles.Any()) return; // _roleService.CreateAsync(new Role("Admin")).GetAwaiter().GetResult();
-            // If no roles exist, then create the Administrator role
-            var adminRole = new Role();
-            var driverRole = new Role();
-            var userRole = new Role();
+            // If roles do not exist, create them
             if (!_db.Roles.Any())
             {
-                var roles = new List<Role>();
-
-                adminRole.Id = 1;
-                adminRole.RoleName = "Admin";
-                adminRole.Description = "System Administrator";
-
-                driverRole.Id = 2;
-                driverRole.RoleName = "Driver";
-                driverRole.Description = "Driver Role";
-
-                userRole.Id = 3;
-                userRole.RoleName = "User";
-                userRole.Description = "User Role";
-
-                roles.Add(adminRole);
-                roles.Add(driverRole);
-                roles.Add(userRole);
-
-                _db.Roles.AddRange(roles);
-                _db.SaveChanges();
-            }
-
-            //if (_db.Users.Any()) return;
-            if (!_db.Users.Any())
-            {
-                var users = new List<User>
+                var adminRole = new Role
                 {
-                    new User {
-                        FullName = "System Administrator",
-                        Username = "Admin",
-                        PasswordHash = PasswordHasher.Hash("admin"),
-                        RoleId = adminRole.Id,
-                        IsActive = true
-                    },
-                    new User {
-                        FullName = "Driver for Testing",
-                        Username = "Driver",
-                        PasswordHash = PasswordHasher.Hash("diver"),
-                        DriverLicense = "A123456",
-                        RoleId = driverRole.Id,
-                        IsActive = true
-                    },
-                    new User {
-                        FullName = "User for Testing",
-                        Username = "User",
-                        PasswordHash = PasswordHasher.Hash("user"),
-                        RoleId = userRole.Id,
-                        Email = "user@example.com",
-                        PhoneNumber = "9999999999",
-                        Address = "999 Main St",
-                        IsActive = true
-                    }
+                    RoleName = "Admin",
+                    Description = "System Administrator"
                 };
 
-                _db.Users.AddRange(users);
+                var driverRole = new Role
+                {
+                    RoleName = "Driver",
+                    Description = "Driver Role"
+                };
+
+                var userRole = new Role
+                {
+                    RoleName = "User",
+                    Description = "User Role"
+                };
+
+                // Add the roles to the context
+                _db.Roles.AddRange(adminRole, driverRole, userRole);
+                // Save the changes so that the database assigns the IDs
                 _db.SaveChanges();
 
-            }
+                // If no users exist, create them
+                if (!_db.Users.Any())
+                {
+                    var users = new List<User>
+                    {
+                        new User {
+                            FullName = "System Administrator",
+                            Username = "Admin",
+                            PasswordHash = PasswordHasher.Hash("admin"),
+                            RoleId = adminRole.Id, 
+                            IsActive = true
+                        },
+                        new User {
+                            FullName = "Driver for Testing",
+                            Username = "Driver",
+                            PasswordHash = PasswordHasher.Hash("driver"), 
+                            DriverLicense = "A123456",
+                            RoleId = driverRole.Id, 
+                            IsActive = true
+                        },
+                        new User {
+                            FullName = "User for Testing",
+                            Username = "User",
+                            PasswordHash = PasswordHasher.Hash("user"),
+                            RoleId = userRole.Id, 
+                            Email = "user@example.com",
+                            PhoneNumber = "9999999999",
+                            Address = "999 Main St",
+                            IsActive = true
+                        }
+                    };
 
+                    _db.Users.AddRange(users);
+                    _db.SaveChanges();
+                }
+            }
         }
-       
     }
 }
-
