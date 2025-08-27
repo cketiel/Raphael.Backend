@@ -91,6 +91,8 @@ namespace Raphael.Api.Services
                     Date = s.Date,
                     Sequence = s.Sequence,
                     EventType = s.EventType,
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type,
                     Performed = s.Performed,
                 })
                 .ToListAsync();

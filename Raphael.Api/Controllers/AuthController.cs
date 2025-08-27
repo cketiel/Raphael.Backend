@@ -38,7 +38,7 @@ namespace Raphael.Api.Controllers
             var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Username == request.Username);
 
-            if (user == null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
+            if (user == null || !PasswordHasher.Verify(request.Password, user!.PasswordHash))
             {
                 return Unauthorized("Invalid username or password.");
             }
