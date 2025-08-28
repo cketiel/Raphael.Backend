@@ -287,6 +287,21 @@ namespace Raphael.Api.Controllers
             }
         }
 
+        [HttpPost("{id}/cancel")] // Ruta: api/trips/123/cancel
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CancelTrip(int id)
+        {
+            var success = await _tripService.CancelAsync(id);
+
+            if (!success)
+            {
+                return NotFound(new { Message = $"Trip with ID {id} not found or cannot be cancelled." });
+            }
+
+            return NoContent(); // Success
+        }
+
     }// end class
 }
 

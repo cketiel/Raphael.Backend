@@ -549,6 +549,38 @@ namespace Raphael.Api.Services
             return (trips, totalCount);
         }
 
+        public async Task<bool> CancelAsync(int id)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null)
+            {
+                return false; // Trip not found
+            }
+
+            // You cannot cancel a trip that has already been completed or cancelled.
+            if (trip.Status == TripStatus.Finished || trip.Status == TripStatus.Canceled)
+            {
+                
+                return false;
+            }
+
+            trip.Status = TripStatus.Canceled;
+            trip.IsCancelled = true;
+           
+            // Create the status change log.
+            var tripLog = new TripLog
+            {
+                TripId = id,
+                Status = TripStatus.Canceled,
+                Date = DateTime.UtcNow.Date,
+                Time = DateTime.UtcNow.TimeOfDay
+            };
+            _context.TripLogs.Add(tripLog);
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }// end class
 
 }
