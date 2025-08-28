@@ -302,6 +302,27 @@ namespace Raphael.Api.Controllers
             return NoContent(); // Success
         }
 
+        [HttpPatch("{id}/dispatch-update")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UpdateFromDispatch(int id, [FromBody] TripDispatchUpdateDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var success = await _tripService.UpdateFromDispatchAsync(id, dto);
+
+            if (!success)
+            {
+                return NotFound(new { Message = $"Trip with ID {id} not found." });
+            }
+
+            return NoContent();
+        }
+
     }// end class
 }
 

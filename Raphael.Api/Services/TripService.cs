@@ -581,6 +581,27 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        public async Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null)
+            {
+                return false; // Not found
+            }
+
+            // Map only allowed fields from this DTO
+            trip.Type = dto.Type;
+            trip.FromTime = dto.FromTime;
+            trip.WillCall = dto.WillCall;
+            trip.PickupPhone = dto.PickupPhone;
+            trip.PickupComment = dto.PickupComment;
+            trip.DropoffPhone = dto.DropoffPhone;
+            trip.DropoffComment = dto.DropoffComment;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }// end class
 
 }
