@@ -51,7 +51,9 @@ namespace Raphael.Api.Services
                     EventType = s.EventType, // Pickup or Dropoff
                     SpaceType = s.SpaceTypeName,
                     TripType = s.Trip.Type, // (Appointment, Return)
-                    Performed = s.Performed
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
                 })
                 .ToListAsync();
         }
@@ -94,6 +96,8 @@ namespace Raphael.Api.Services
                     SpaceType = s.SpaceTypeName,
                     TripType = s.Trip.Type,
                     Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
                 })
                 .ToListAsync();
         }

@@ -36,6 +36,9 @@ namespace Raphael.Shared.DTOs
         public string? Patient { get; set; }
 
         public bool Performed { get; set; }
+
+        public string? Run { get; set; }
+        public string? Vehicle { get; set; }
     }
 }
 
