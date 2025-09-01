@@ -30,7 +30,8 @@ namespace Raphael.Api.Services
                     APAccount = b.APAccount,
                     APSubAccount = b.APSubAccount,
                     APCompany = b.APCompany,
-                    UnitAbbreviation = b.Unit.Abbreviation 
+                    UnitAbbreviation = b.Unit.Abbreviation,
+                    UnitId = b.UnitId,
                 })
                 .ToListAsync();
         }

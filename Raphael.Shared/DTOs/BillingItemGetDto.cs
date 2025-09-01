@@ -12,5 +12,6 @@
         public string? APSubAccount { get; set; }
         public string? APCompany { get; set; }
         public string UnitAbbreviation { get; set; }
+        public int UnitId { get; set; }
     }
 }
