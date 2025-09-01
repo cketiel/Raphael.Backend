@@ -161,7 +161,8 @@ namespace Raphael.Shared.DbContexts
 
             modelBuilder.Entity<BillingItem>()
                 .HasOne(b => b.Unit)
-                .WithMany(u => u.BillingItems)
+                //.WithMany(u => u.BillingItems)
+                .WithMany()
                 .HasForeignKey(b => b.UnitId);
 
             modelBuilder.Entity<FundingSourceBillingItem>()
