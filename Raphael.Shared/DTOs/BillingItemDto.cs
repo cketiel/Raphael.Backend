@@ -13,6 +13,7 @@ namespace Raphael.Shared.Dtos
         public string Description { get; set; }
 
         [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "A valid Unit is required.")]
         public int UnitId { get; set; }
 
         public bool IsCopay { get; set; }
