@@ -104,6 +104,7 @@ builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<BillingItemService>();
+builder.Services.AddScoped<UnitService>();
 
 var app = builder.Build();
 
