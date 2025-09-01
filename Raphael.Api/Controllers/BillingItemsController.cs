@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.Dtos;
+using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 
 namespace Raphael.Api.Controllers
@@ -17,7 +18,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<BillingItem>>> GetAll()
+        public async Task<ActionResult<List<BillingItemGetDto>>> GetAll()
         {
             var list = await _service.GetAllAsync();
             return Ok(list);

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.Dtos;
+using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 
 namespace Raphael.Api.Services
@@ -14,11 +15,23 @@ namespace Raphael.Api.Services
             _context = context;
         }
 
-        public async Task<List<BillingItem>> GetAllAsync()
+        public async Task<List<BillingItemGetDto>> GetAllAsync()
         {
-            // The 'Unit' entity is included so that the data reaches the WPF client complete
             return await _context.BillingItems
-                .Include(b => b.Unit)
+                .Include(b => b.Unit) 
+                .Select(b => new BillingItemGetDto
+                {
+                    Id = b.Id,
+                    Description = b.Description,
+                    IsCopay = b.IsCopay,
+                    ARAccount = b.ARAccount,
+                    ARSubAccount = b.ARSubAccount,
+                    ARCompany = b.ARCompany,
+                    APAccount = b.APAccount,
+                    APSubAccount = b.APSubAccount,
+                    APCompany = b.APCompany,
+                    UnitAbbreviation = b.Unit.Abbreviation 
+                })
                 .ToListAsync();
         }
 
