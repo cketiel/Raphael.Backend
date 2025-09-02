@@ -17,6 +17,24 @@ namespace Raphael.Api.Services
             _context = context;
         }
 
+        public async Task<List<FundingSourceBillingItem>> GetByFundingSourceIdAsync(int fundingSourceId, bool includeExpired)
+        {
+            var query = _context.FundingSourceBillingItems
+                .Where(i => i.FundingSourceId == fundingSourceId)
+                .Include(f => f.BillingItem)
+                .ThenInclude(bi => bi.Unit) 
+                .Include(f => f.SpaceType)
+                .AsQueryable();
+
+            if (!includeExpired)
+            {
+                // Only includes items whose end date is today or in the future
+                query = query.Where(i => i.ToDate.Date >= DateTime.Today.Date);
+            }
+
+            return await query.ToListAsync();
+        }
+
         public async Task<List<FundingSourceBillingItem>> GetAllAsync()
         {
             return await _context.FundingSourceBillingItems

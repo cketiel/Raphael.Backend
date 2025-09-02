@@ -16,6 +16,13 @@ namespace Raphael.Api.Controllers
             _service = service;
         }
 
+        [HttpGet("ByFundingSource/{fundingSourceId}")]
+        public async Task<ActionResult<List<FundingSourceBillingItem>>> GetByFundingSource(int fundingSourceId, [FromQuery] bool includeExpired = false)
+        {
+            var list = await _service.GetByFundingSourceIdAsync(fundingSourceId, includeExpired);
+            return Ok(list);
+        }
+
         [HttpGet]
         public async Task<ActionResult<List<FundingSourceBillingItem>>> GetAll()
         {

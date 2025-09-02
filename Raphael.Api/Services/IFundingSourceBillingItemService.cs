@@ -5,6 +5,7 @@ namespace Raphael.Api.Services
 {
     public interface IFundingSourceBillingItemService
     {
+        Task<List<FundingSourceBillingItem>> GetByFundingSourceIdAsync(int fundingSourceId, bool includeExpired);
         Task<List<FundingSourceBillingItem>> GetAllAsync();
         //Task<IEnumerable<FundingSourceBillingItemDto>> GetAllAsync();
         Task<FundingSourceBillingItemDto?> GetByIdAsync(int id);
