@@ -14,9 +14,21 @@ namespace Raphael.Api.Services
             _context = context;
         }
 
-        public async Task<List<FundingSource>> GetAllAsync()
+        /*public async Task<List<FundingSource>> GetAllAsync()
         {
             return await _context.FundingSources.ToListAsync();
+        }*/
+
+        public async Task<List<FundingSource>> GetAllAsync(bool includeInactive = false)
+        {
+            var query = _context.FundingSources.AsQueryable();
+          
+            if (!includeInactive)
+            {
+                query = query.Where(fs => fs.IsActive);
+            }
+
+            return await query.ToListAsync();
         }
 
         public async Task<FundingSource?> GetByIdAsync(int id)

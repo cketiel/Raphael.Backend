@@ -17,10 +17,17 @@ namespace Raphael.Api.Controllers
             _service = service;
         }
 
-        [HttpGet]
+        /*[HttpGet]
         public async Task<ActionResult<List<FundingSource>>> GetAll()
         {
             var list = await _service.GetAllAsync();
+            return Ok(list);
+        }*/
+
+        [HttpGet]
+        public async Task<ActionResult<List<FundingSource>>> GetAll([FromQuery] bool includeInactive = false)
+        {
+            var list = await _service.GetAllAsync(includeInactive);
             return Ok(list);
         }
 
