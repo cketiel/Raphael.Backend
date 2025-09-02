@@ -2,6 +2,7 @@ using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Raphael.Shared.Dtos;
 
 namespace Raphael.Api.Controllers
 {
@@ -17,7 +18,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet("ByFundingSource/{fundingSourceId}")]
-        public async Task<ActionResult<List<FundingSourceBillingItem>>> GetByFundingSource(int fundingSourceId, [FromQuery] bool includeExpired = false)
+        public async Task<ActionResult<List<FundingSourceBillingItemGetDto>>> GetByFundingSource(int fundingSourceId, [FromQuery] bool includeExpired = false)
         {
             var list = await _service.GetByFundingSourceIdAsync(fundingSourceId, includeExpired);
             return Ok(list);

@@ -5,6 +5,7 @@ using Raphael.Shared.Entities;
 using Microsoft.AspNetCore.Server.IISIntegration;
 using Microsoft.EntityFrameworkCore;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Raphael.Shared.Dtos;
 
 namespace Raphael.Api.Services
 {
@@ -17,22 +18,39 @@ namespace Raphael.Api.Services
             _context = context;
         }
 
-        public async Task<List<FundingSourceBillingItem>> GetByFundingSourceIdAsync(int fundingSourceId, bool includeExpired)
+        public async Task<List<FundingSourceBillingItemGetDto>> GetByFundingSourceIdAsync(int fundingSourceId, bool includeExpired)
         {
             var query = _context.FundingSourceBillingItems
                 .Where(i => i.FundingSourceId == fundingSourceId)
                 .Include(f => f.BillingItem)
-                .ThenInclude(bi => bi.Unit) 
+                    .ThenInclude(bi => bi.Unit)
                 .Include(f => f.SpaceType)
                 .AsQueryable();
 
             if (!includeExpired)
             {
-                // Only includes items whose end date is today or in the future
                 query = query.Where(i => i.ToDate.Date >= DateTime.Today.Date);
             }
 
-            return await query.ToListAsync();
+            // Proyectar los resultados en el DTO
+            return await query.Select(i => new FundingSourceBillingItemGetDto
+            {
+                Id = i.Id,
+                Rate = i.Rate,
+                Per = i.Per,
+                IsDefault = i.IsDefault,
+                ProcedureCode = i.ProcedureCode,
+                MinCharge = i.MinCharge,
+                MaxCharge = i.MaxCharge,
+                GreaterThanMinQty = i.GreaterThanMinQty,
+                LessOrEqualMaxQty = i.LessOrEqualMaxQty,
+                FreeQty = i.FreeQty,
+                FromDate = i.FromDate,
+                ToDate = i.ToDate,
+                BillingItemDescription = i.BillingItem.Description,
+                BillingItemUnitAbbreviation = i.BillingItem.Unit.Abbreviation,
+                SpaceTypeName = i.SpaceType.Name
+            }).ToListAsync();
         }
 
         public async Task<List<FundingSourceBillingItem>> GetAllAsync()

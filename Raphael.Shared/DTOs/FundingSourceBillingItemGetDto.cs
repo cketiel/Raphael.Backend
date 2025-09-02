@@ -1,13 +1,8 @@
-using Raphael.Shared.Entities;
-
-namespace Raphael.Shared.DTOs
+﻿namespace Raphael.Shared.Dtos
 {
-    public class FundingSourceBillingItemDto
-    {   
+    public class FundingSourceBillingItemGetDto
+    {
         public int Id { get; set; }
-        public int FundingSourceId { get; set; }
-        public int BillingItemId { get; set; }
-        public int SpaceTypeId { get; set; }
         public decimal Rate { get; set; }
         public string? Per { get; set; }
         public bool IsDefault { get; set; }
@@ -19,6 +14,10 @@ namespace Raphael.Shared.DTOs
         public int? FreeQty { get; set; }
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
+
+        //
+        public string BillingItemDescription { get; set; }
+        public string? BillingItemUnitAbbreviation { get; set; }
+        public string SpaceTypeName { get; set; }
     }
 }
-
