@@ -91,8 +91,8 @@ namespace Raphael.Api.Services
             };
         }
 
-        public async Task<FundingSourceBillingItemDto> CreateAsync(FundingSourceBillingItemDto dto)
-        {
+        public async Task<FundingSourceBillingItem> CreateAsync(FundingSourceBillingItemDto dto)
+        {         
             var fsbi = new FundingSourceBillingItem
             {
                 FundingSourceId = dto.FundingSourceId,
@@ -110,11 +110,19 @@ namespace Raphael.Api.Services
                 FromDate = dto.FromDate,
                 ToDate = dto.ToDate
             };
-
+          
             _context.FundingSourceBillingItems.Add(fsbi);
             await _context.SaveChangesAsync();
-
-            return await GetByIdAsync(fsbi.Id) ?? throw new Exception("FundingSourceBillingItem creation failed.");
+          
+            await _context.Entry(fsbi).Reference(i => i.BillingItem).LoadAsync();
+            
+            if (fsbi.BillingItem != null)
+            {
+                await _context.Entry(fsbi.BillingItem).Reference(b => b.Unit).LoadAsync();
+            }
+            await _context.Entry(fsbi).Reference(i => i.SpaceType).LoadAsync();
+            
+            return fsbi;
         }
 
         public async Task<bool> UpdateAsync(int id, FundingSourceBillingItemDto dto)

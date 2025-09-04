@@ -10,7 +10,7 @@ namespace Raphael.Api.Services
         Task<List<FundingSourceBillingItem>> GetAllAsync();
         //Task<IEnumerable<FundingSourceBillingItemDto>> GetAllAsync();
         Task<FundingSourceBillingItemDto?> GetByIdAsync(int id);
-        Task<FundingSourceBillingItemDto> CreateAsync(FundingSourceBillingItemDto dto);
+        Task<FundingSourceBillingItem> CreateAsync(FundingSourceBillingItemDto dto);
         Task<bool> UpdateAsync(int id, FundingSourceBillingItemDto dto);
         Task<bool> DeleteAsync(int id);
     }
