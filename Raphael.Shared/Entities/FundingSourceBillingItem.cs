@@ -4,11 +4,11 @@ namespace Raphael.Shared.Entities
     {
         public int Id { get; set; }
         public int FundingSourceId { get; set; }
-        public FundingSource FundingSource { get; set; } = new FundingSource();
+        public FundingSource FundingSource { get; set; }
         public int BillingItemId { get; set; }
-        public BillingItem BillingItem { get; set; } = new BillingItem();
+        public BillingItem BillingItem { get; set; } 
         public int SpaceTypeId { get; set; }
-        public SpaceType SpaceType { get; set; } = new SpaceType();
+        public SpaceType SpaceType { get; set; }
         public decimal Rate { get; set; }
         public string? Per { get; set; }
         public bool IsDefault { get; set; }
