@@ -31,11 +31,12 @@ namespace Raphael.Api.Services
             {
                 query = query.Where(i => i.ToDate.Date >= DateTime.Today.Date);
             }
-
-            // Proyectar los resultados en el DTO
+           
             return await query.Select(i => new FundingSourceBillingItemGetDto
             {
                 Id = i.Id,
+                BillingItemId = i.BillingItemId,
+                SpaceTypeId = i.SpaceTypeId,
                 Rate = i.Rate,
                 Per = i.Per,
                 IsDefault = i.IsDefault,
