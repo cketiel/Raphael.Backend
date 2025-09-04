@@ -25,7 +25,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<FundingSourceBillingItem>>> GetAll()
+        public async Task<ActionResult<List<FundingSourceBillingItemGetDto>>> GetAll()
         {
             var list = await _service.GetAllAsync();
             return Ok(list);

@@ -54,13 +54,32 @@ namespace Raphael.Api.Services
             }).ToListAsync();
         }
 
-        public async Task<List<FundingSourceBillingItem>> GetAllAsync()
+        public async Task<List<FundingSourceBillingItemGetDto>> GetAllAsync()
         {
             return await _context.FundingSourceBillingItems
-                .Include(f => f.FundingSource)
                 .Include(f => f.BillingItem)
+                    .ThenInclude(bi => bi.Unit)
                 .Include(f => f.SpaceType)
-                .ToListAsync();
+                .Select(i => new FundingSourceBillingItemGetDto 
+                {
+                    Id = i.Id,
+                    BillingItemId = i.BillingItemId,
+                    SpaceTypeId = i.SpaceTypeId,
+                    Rate = i.Rate,
+                    Per = i.Per,
+                    IsDefault = i.IsDefault,
+                    ProcedureCode = i.ProcedureCode,
+                    MinCharge = i.MinCharge,
+                    MaxCharge = i.MaxCharge,
+                    GreaterThanMinQty = i.GreaterThanMinQty,
+                    LessOrEqualMaxQty = i.LessOrEqualMaxQty,
+                    FreeQty = i.FreeQty,
+                    FromDate = i.FromDate,
+                    ToDate = i.ToDate,
+                    BillingItemDescription = i.BillingItem.Description,
+                    BillingItemUnitAbbreviation = i.BillingItem.Unit.Abbreviation,
+                    SpaceTypeName = i.SpaceType.Name
+                }).ToListAsync();
         }
 
         public async Task<FundingSourceBillingItemDto?> GetByIdAsync(int id)
