@@ -402,6 +402,7 @@ namespace Raphael.Api.Services
             schedules.TravelTime = dto.Travel;
             schedules.ETATime = dto.ETA;
             schedules.Odometer = dto.Odometer;
+            schedules.Sequence = dto.Sequence;
 
             await _context.SaveChangesAsync();
             return true;
