@@ -35,6 +35,7 @@ namespace Raphael.Api.Services
             return await query.Select(i => new FundingSourceBillingItemGetDto
             {
                 Id = i.Id,
+                FundingSourceId = i.Id,
                 BillingItemId = i.BillingItemId,
                 SpaceTypeId = i.SpaceTypeId,
                 Rate = i.Rate,
@@ -63,6 +64,7 @@ namespace Raphael.Api.Services
                 .Select(i => new FundingSourceBillingItemGetDto 
                 {
                     Id = i.Id,
+                    FundingSourceId = i.Id,
                     BillingItemId = i.BillingItemId,
                     SpaceTypeId = i.SpaceTypeId,
                     Rate = i.Rate,

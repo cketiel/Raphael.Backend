@@ -3,6 +3,7 @@
     public class FundingSourceBillingItemGetDto
     {
         public int Id { get; set; }
+        public int FundingSourceId { get; set; }
         public int BillingItemId { get; set; }
         public int SpaceTypeId { get; set; }
         public decimal Rate { get; set; }
