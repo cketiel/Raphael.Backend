@@ -581,6 +581,39 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        public async Task<bool> UncancelAsync(int id)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null)
+            {
+                return false; // Trip not found
+            }
+
+            // You can only reverse a canceled trip.
+            if (trip.Status != TripStatus.Canceled)
+            {
+                return false; // The ride is not in the correct state for this operation
+            }
+
+            // Revert the status to 'Assigned' or the default status
+            trip.Status = TripStatus.Assigned;
+            trip.IsCancelled = false;
+
+            // Record the change
+            var tripLog = new TripLog
+            {
+                TripId = id,
+                Status = TripStatus.Assigned, 
+                //Comment = "Trip cancellation has been reversed.", 
+                Date = DateTime.UtcNow.Date,
+                Time = DateTime.UtcNow.TimeOfDay
+            };
+            _context.TripLogs.Add(tripLog);
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto)
         {
             var trip = await _context.Trips.FindAsync(id);

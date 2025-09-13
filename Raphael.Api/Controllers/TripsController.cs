@@ -302,6 +302,21 @@ namespace Raphael.Api.Controllers
             return NoContent(); // Success
         }
 
+        [HttpPost("{id}/uncancel")] // Ruta: api/trips/123/uncancel
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UncancelTrip(int id)
+        {
+            var success = await _tripService.UncancelAsync(id);
+
+            if (!success)
+            {
+                return NotFound(new { Message = $"Trip with ID {id} not found or cannot be restored." });
+            }
+
+            return NoContent(); // Success
+        }
+
         [HttpPatch("{id}/dispatch-update")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
