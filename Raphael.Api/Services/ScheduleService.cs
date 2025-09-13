@@ -108,7 +108,8 @@ namespace Raphael.Api.Services
                 .Include(t => t.Customer)
                 .Include(t => t.FundingSource)
                 .Include(t => t.SpaceType)
-                .Where(t => t.VehicleRouteId == null && !t.IsCancelled && t.Date.Date == date.Date)
+                .Where(t => t.VehicleRouteId == null && t.Date.Date == date.Date)
+                //.Where(t => t.VehicleRouteId == null && !t.IsCancelled && t.Date.Date == date.Date)
                 .Select(t => new UnscheduledTripDto
                 {
                     Id = t.Id,
@@ -138,7 +139,8 @@ namespace Raphael.Api.Services
                     Authorization = t.Authorization,
                     WillCall = t.WillCall,
                     Status = t.Status,
-                    FundingSourceId = t.FundingSourceId,                
+                    FundingSourceId = t.FundingSourceId,  
+                    DriverNoShowReason = t.DriverNoShowReason,
                 })
                 .ToListAsync();
         }

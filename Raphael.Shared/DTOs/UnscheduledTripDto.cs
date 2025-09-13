@@ -30,6 +30,7 @@ namespace Raphael.Shared.DTOs
         public bool WillCall { get; set; }
         public string Status { get; set; }
         public int? FundingSourceId { get; set; }
+        public string? DriverNoShowReason { get; set; }
 
     }
 }
