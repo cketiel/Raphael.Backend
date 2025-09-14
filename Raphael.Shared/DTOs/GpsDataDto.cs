@@ -1,22 +1,16 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Raphael.Shared.Entities
+namespace Raphael.Shared.DTOs
 {
-    public class GPS
+    public class GpsDataDto
     {
-        [Key]
-        public int Id { get; set; }
-
         [Required]
         public int IdVehicleRoute { get; set; }
-        [ForeignKey("IdVehicleRoute")]
-        public VehicleRoute VehicleRoute { get; set; }
 
+        [Required]
         public DateTime DateTime { get; set; }
 
         public double Speed { get; set; }
-
         public string? Address { get; set; }
 
         [Required]

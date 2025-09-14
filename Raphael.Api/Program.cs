@@ -106,6 +106,8 @@ builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<BillingItemService>();
 builder.Services.AddScoped<UnitService>();
 
+builder.Services.AddScoped<IGpsService, GpsService>();
+
 var app = builder.Build();
 
 app.UseSwagger();
