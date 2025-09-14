@@ -54,6 +54,7 @@ namespace Raphael.Api.Services
                     Performed = s.Performed,
                     Run = s.VehicleRoute.Name,
                     Vehicle = s.VehicleRoute.Vehicle.Name,
+                    VehicleRouteId = s.VehicleRouteId,
                 })
                 .ToListAsync();
         }
