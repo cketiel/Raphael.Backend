@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Raphael.Shared.DbContexts;
 
@@ -11,9 +12,11 @@ using Raphael.Shared.DbContexts;
 namespace Raphael.Shared.Migrations
 {
     [DbContext(typeof(RaphaelContext))]
-    partial class RaphaelContextModelSnapshot : ModelSnapshot
+    [Migration("20250914081953_AddGpsTable")]
+    partial class AddGpsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
