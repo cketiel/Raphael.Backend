@@ -412,7 +412,29 @@ namespace Raphael.Api.Services
 
             await _context.SaveChangesAsync();
             return true;
-        }      
+        }
+
+        public async Task<bool> SaveSignatureAsync(int scheduleId, byte[] signature)
+        {
+            var schedule = await _context.Schedules.FindAsync(scheduleId);
+            if (schedule == null)
+            {
+                return false;
+            }
+
+            schedule.PassengerSignature = signature;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<byte[]?> GetSignatureAsync(int scheduleId)
+        {
+            var schedule = await _context.Schedules
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == scheduleId);
+
+            return schedule?.PassengerSignature;
+        }
 
     }
 }

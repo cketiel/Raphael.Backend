@@ -89,6 +89,46 @@ namespace Raphael.Api.Controllers
             // 204 NoContent is the standard response for a successful PUT that returns no content.
             return NoContent();
         }
+
+        [HttpPost("{id}/signature")]
+        public async Task<IActionResult> UploadSignature(int id, [FromBody] SignatureUploadDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.SignatureBase64))
+            {
+                return BadRequest("Signature data is required.");
+            }
+
+            try
+            {
+                // Convert Base64 string back to a byte array
+                var signatureBytes = Convert.FromBase64String(dto.SignatureBase64);
+                var success = await _scheduleService.SaveSignatureAsync(id, signatureBytes);
+
+                if (!success)
+                {
+                    return NotFound($"Schedule with ID {id} not found.");
+                }
+                return Ok();
+            }
+            catch (FormatException)
+            {
+                return BadRequest("Invalid Base64 string for signature.");
+            }
+        }
+
+        [HttpGet("{id}/signature")]
+        public async Task<IActionResult> GetSignature(int id)
+        {
+            var signatureBytes = await _scheduleService.GetSignatureAsync(id);
+            if (signatureBytes == null)
+            {
+                return NotFound();
+            }
+
+            // We return the image as a file, the browser/client will know how to display it
+            return File(signatureBytes, "image/png");
+        }
+
     }
 }
 

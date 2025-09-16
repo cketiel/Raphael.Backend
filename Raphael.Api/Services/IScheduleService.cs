@@ -10,6 +10,9 @@ namespace Raphael.Api.Services
         Task RouteTripAsync(RouteTripRequest request);
         Task CancelRouteForTripAsync(int scheduleId);
         Task<bool> UpdateAsync(int id, ScheduleDto dto);
+
+        Task<bool> SaveSignatureAsync(int scheduleId, byte[] signature);
+        Task<byte[]?> GetSignatureAsync(int scheduleId);
     }
 }
 
