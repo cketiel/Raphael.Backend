@@ -409,6 +409,9 @@ namespace Raphael.Api.Services
             schedules.Odometer = dto.Odometer;
             schedules.Sequence = dto.Sequence;
             schedules.Performed = dto.Performed;
+            schedules.ActualArriveTime = dto.Arrive;
+            schedules.ArriveDistance = dto.ArriveDist;
+            schedules.GpsArrive = dto.GPSArrive;
 
             await _context.SaveChangesAsync();
             return true;
