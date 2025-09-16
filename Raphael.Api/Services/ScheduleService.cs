@@ -55,6 +55,7 @@ namespace Raphael.Api.Services
                     Run = s.VehicleRoute.Name,
                     Vehicle = s.VehicleRoute.Vehicle.Name,
                     VehicleRouteId = s.VehicleRouteId,
+                    Patient = s.Trip.Customer.FullName,
                 })
                 .ToListAsync();
         }
@@ -99,6 +100,7 @@ namespace Raphael.Api.Services
                     Performed = s.Performed,
                     Run = s.VehicleRoute.Name,
                     Vehicle = s.VehicleRoute.Vehicle.Name,
+                    Patient = s.Trip.Customer.FullName,
                 })
                 .ToListAsync();
         }
@@ -406,6 +408,7 @@ namespace Raphael.Api.Services
             schedules.ETATime = dto.ETA;
             schedules.Odometer = dto.Odometer;
             schedules.Sequence = dto.Sequence;
+            schedules.Performed = dto.Performed;
 
             await _context.SaveChangesAsync();
             return true;
