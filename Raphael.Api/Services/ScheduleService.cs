@@ -255,7 +255,7 @@ namespace Raphael.Api.Services
                     Address = tripToRoute.PickupAddress,
                     ScheduleLatitude = tripToRoute.PickupLatitude,
                     ScheduleLongitude = tripToRoute.PickupLongitude,
-                    Phone = tripToRoute.Customer.MobilePhone ?? tripToRoute.Customer.Phone,
+                    Phone = tripToRoute.PickupPhone,
                     Comment = tripToRoute.PickupComment,
                     FundingSourceName = tripToRoute.FundingSource?.Name ?? "N/A",
                     AuthNo = tripToRoute.Authorization,
@@ -266,7 +266,7 @@ namespace Raphael.Api.Services
                     TravelTime = request.PickupTravelTime,
                     ETATime = request.PickupETA,
                     Date = tripToRoute.Date,
-                    Performed = false, // Not performed by default
+                    Performed = false, // Not performed by default                  
                 };
 
                 // Dropoff Event
@@ -279,7 +279,7 @@ namespace Raphael.Api.Services
                     Address = tripToRoute.DropoffAddress,
                     ScheduleLatitude = tripToRoute.DropoffLatitude,
                     ScheduleLongitude = tripToRoute.DropoffLongitude,
-                    Phone = tripToRoute.Customer.MobilePhone ?? tripToRoute.Customer.Phone,
+                    Phone = tripToRoute.DropoffPhone, // tripToRoute.Customer.MobilePhone ?? tripToRoute.Customer.Phone,
                     Comment = tripToRoute.DropoffComment,
                     FundingSourceName = tripToRoute.FundingSource?.Name ?? "N/A",
                     AuthNo = tripToRoute.Authorization,

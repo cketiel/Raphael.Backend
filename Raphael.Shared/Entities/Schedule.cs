@@ -72,5 +72,7 @@ namespace Raphael.Shared.Entities
         public DateTime? Date { get; set; }
 
         public bool Performed { get; set; }
+
+        public byte[]? PassengerSignature { get; set; }
     }
 }
