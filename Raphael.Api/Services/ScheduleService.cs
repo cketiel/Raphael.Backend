@@ -412,6 +412,9 @@ namespace Raphael.Api.Services
             schedules.ActualArriveTime = dto.Arrive;
             schedules.ArriveDistance = dto.ArriveDist;
             schedules.GpsArrive = dto.GPSArrive;
+            schedules.ActualPerformTime = dto.Perform;
+            schedules.PerformDistance = dto.PerformDist;
+            schedules.Performed = dto.Performed;
 
             await _context.SaveChangesAsync();
             return true;
