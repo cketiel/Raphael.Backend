@@ -60,6 +60,59 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<ScheduleDto>> GetPendingSchedulesForDriverAsync(string runLogin, DateTime date)
+        {
+            return await _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.Trip) 
+                .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin && s.Date == date.Date)
+
+                // FILTER 1: Exclude already completed events (Performed)
+                .Where(s => s.Performed == false)
+
+                // FILTER 2: Exclude events from canceled trips
+                .Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
+
+                .OrderBy(s => s.Sequence)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute.Driver.FullName,
+
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    ArriveDist = s.ArriveDistance,
+                    PerformDist = s.PerformDistance,
+                    GPSArrive = s.GpsArrive,
+                    Odometer = s.Odometer,
+                    Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType, // Pickup or Dropoff
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type, // (Appointment, Return)
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    VehicleRouteId = s.VehicleRouteId,
+                    Patient = s.Trip.Customer.FullName,
+                })
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<ScheduleDto>> GetSchedulesByRouteAndDateAsync(int vehicleRouteId, DateTime date)
         {
             return await _context.Schedules

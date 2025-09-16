@@ -22,6 +22,13 @@ namespace Raphael.Api.Controllers
             return Ok(schedules);
         }
 
+        [HttpGet("driver/pending")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPendingSchedulesForDriver([FromQuery] string runLogin, [FromQuery] DateTime date)
+        {
+            var schedules = await _scheduleService.GetPendingSchedulesForDriverAsync(runLogin, date);
+            return Ok(schedules);
+        }
+
         [HttpGet("by-route")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetSchedules([FromQuery] int vehicleRouteId, [FromQuery] DateTime date)
         {
