@@ -17,6 +17,7 @@ namespace Raphael.Api.Services
         Task<(List<TripReadDto> Trips, int TotalCount)> GetByDatePaginatedAsync(DateTime date, int pageNumber = 1, int pageSize = 20);
         Task<(List<TripReadDto> Trips, int TotalCount)> GetByDateRangePaginatedAsync(DateTime startDate, DateTime endDate, int pageNumber = 1, int pageSize = 20);
         Task<bool> CancelAsync(int id);
+        Task<bool> CancelByDriverAsync(int id, string reason);
         Task<bool> UncancelAsync(int id);
         Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto);
     }

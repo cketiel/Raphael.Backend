@@ -302,6 +302,25 @@ namespace Raphael.Api.Controllers
             return NoContent(); // Success
         }
 
+        // POST: api/Trips/{id}/cancel-by-driver
+        [HttpPost("{id}/cancel-by-driver")]
+        public async Task<IActionResult> CancelByDriver(int id, [FromBody] DriverCancelTripDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var success = await _tripService.CancelByDriverAsync(id, dto.Reason);
+            if (!success)
+            {
+                // It could be because the trip was not found or was already cancelled/ended
+                return NotFound($"Trip with ID {id} not found or cannot be cancelled.");
+            }
+
+            return Ok("Trip successfully cancelled by driver.");
+        }
+
         [HttpPost("{id}/uncancel")] // Ruta: api/trips/123/uncancel
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

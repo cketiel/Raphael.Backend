@@ -581,6 +581,39 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        public async Task<bool> CancelByDriverAsync(int id, string reason)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null)
+            {
+                return false; 
+            }
+
+            if (trip.Status == TripStatus.Finished || trip.Status == TripStatus.Canceled)
+            {
+                return false; // You cannot cancel a trip that has already been completed or cancelled.
+            }
+
+            // We assign the new status and reason
+            trip.Status = TripStatus.Canceled;
+            trip.IsCancelled = true;
+            trip.DriverNoShowReason = reason; // <-- We save the driver's motive
+
+            // We create the state change record
+            var tripLog = new TripLog
+            {
+                TripId = id,
+                Status = TripStatus.Canceled,
+                Date = DateTime.UtcNow.Date,
+                Time = DateTime.UtcNow.TimeOfDay,
+                //Notes = $"Cancelled by driver. Reason: {reason}" 
+            };
+            _context.TripLogs.Add(tripLog);
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<bool> UncancelAsync(int id)
         {
             var trip = await _context.Trips.FindAsync(id);
