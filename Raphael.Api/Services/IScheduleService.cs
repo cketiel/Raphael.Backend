@@ -14,6 +14,7 @@ namespace Raphael.Api.Services
 
         Task<bool> SaveSignatureAsync(int scheduleId, byte[] signature);
         Task<byte[]?> GetSignatureAsync(int scheduleId);
+        Task<IEnumerable<ScheduleDto>> GetFutureSchedulesForDriverAsync(string runLogin);
     }
 }
 

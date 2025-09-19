@@ -136,6 +136,13 @@ namespace Raphael.Api.Controllers
             return File(signatureBytes, "image/png");
         }
 
+        [HttpGet("driver/future")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetFutureSchedulesForDriver([FromQuery] string runLogin)
+        {
+            var schedules = await _scheduleService.GetFutureSchedulesForDriverAsync(runLogin);
+            return Ok(schedules);
+        }
+
     }
 }
 
