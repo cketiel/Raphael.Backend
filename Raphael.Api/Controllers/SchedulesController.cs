@@ -143,6 +143,20 @@ namespace Raphael.Api.Controllers
             return Ok(schedules);
         }
 
+        [HttpGet("history/{runLogin}/{date}")]
+        public async Task<ActionResult<IEnumerable<ScheduleHistoryDto>>> GetHistory(string runLogin, DateTime date)
+        {
+            var history = await _scheduleService.GetScheduleHistoryAsync(runLogin, date);
+            return Ok(history);
+        }
+
+        [HttpGet("history/count/{runLogin}/{date}")]
+        public async Task<ActionResult<int>> GetHistoryCount(string runLogin, DateTime date)
+        {
+            var count = await _scheduleService.GetScheduleHistoryCountAsync(runLogin, date);
+            return Ok(count);
+        }
+
     }
 }
 

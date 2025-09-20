@@ -549,6 +549,77 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<ScheduleHistoryDto>> GetScheduleHistoryAsync(string runLogin, DateTime date)
+        {
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            // Get COMPLETED events
+            var completedEvents = await _context.Schedules
+                .Include(s => s.Trip) 
+                .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin &&
+                             s.Performed == true &&
+                             s.Date >= dayStart && s.Date < dayEnd)
+                .Select(s => new ScheduleHistoryDto
+                {
+                    
+                    Id = s.Id,
+                    Name = s.Name,
+                    Perform = s.ActualPerformTime,
+                    ScheduledTime = s.ScheduledPickupTime,
+                    Patient = s.Trip.Customer.FullName,
+                    Address = s.Address,
+                    EventType = s.EventType,
+                    TripType = s.Trip.Type,
+
+
+                    IsCanceled = false // These are not canceled
+                })
+                .ToListAsync();
+
+            // Get PICKUPS from CANCELED trips
+            var canceledTripPickups = await _context.Schedules
+                .Include(s => s.Trip)
+                .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin &&
+                             s.Trip.IsCancelled == true && // We filter by canceled trips
+                             s.EventType == ScheduleEventType.Pickup && // ONLY the pickups
+                             s.Date >= dayStart && s.Date < dayEnd)
+                .Select(s => new ScheduleHistoryDto
+                {                  
+                    Id = s.Id,
+                    Name = s.Name,
+                    Perform = null, // It was not done
+                    ScheduledTime = s.ScheduledPickupTime, // We use the scheduled time
+                    Patient = s.Trip.Customer.FullName,
+                    Address = s.Address,
+                    EventType = s.EventType,
+                    TripType = s.Trip.Type,
+                    IsCanceled = true // We mark as canceled!
+                })
+                .ToListAsync();
+
+            // Combine and sort the two lists
+            var history = completedEvents.Concat(canceledTripPickups)
+                                         .OrderBy(s => s.IsCanceled ? s.ScheduledTime : s.Perform)
+                                         .ToList();
+
+            return history;
+        }
+      
+        public async Task<int> GetScheduleHistoryCountAsync(string runLogin, DateTime date)
+        {
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            var completedCount = await _context.Schedules
+                .CountAsync(s => s.VehicleRoute.SmartphoneLogin == runLogin && s.Performed == true && s.Date >= dayStart && s.Date < dayEnd);
+
+            var canceledCount = await _context.Schedules
+                .CountAsync(s => s.VehicleRoute.SmartphoneLogin == runLogin && s.Trip.IsCancelled == true && s.EventType == ScheduleEventType.Pickup && s.Date >= dayStart && s.Date < dayEnd);
+
+            return completedCount + canceledCount;
+        }
+
     }
 }
 
