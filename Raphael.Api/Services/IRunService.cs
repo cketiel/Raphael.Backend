@@ -11,6 +11,7 @@ namespace Raphael.Api.Services
         Task<bool> UpdateAsync(int id, VehicleRouteDto dto);  // Task<bool> UpdateAsync(int id, RunDto dto);
         Task<bool> DeleteAsync(int id);
         Task<bool> CancelAsync(int id);
+        Task<VehicleRoute?> GetActiveRunByDriverIdAsync(int driverId);
     }
 
 }

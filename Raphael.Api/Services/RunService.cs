@@ -195,6 +195,24 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        public async Task<VehicleRoute?> GetActiveRunByDriverIdAsync(int driverId)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            // We look for the route that meets the conditions:
+            // 1. Matches the DriverId.
+            // 2. The start date is today or earlier.
+            // 3. The end date (ToDate) does not exist (is null) Either it is today or in the future.
+            // We include Driver and Vehicle because we will need them in the app.
+            return await _context.VehicleRoutes
+                .Include(vr => vr.Driver)
+                .Include(vr => vr.Vehicle)
+                .Where(vr => vr.DriverId == driverId &&
+                             vr.FromDate.Date <= today &&
+                             (vr.ToDate == null || vr.ToDate.Value.Date >= today))
+                .FirstOrDefaultAsync();
+        }
+
         #region Private methods to organize collection update logic
         private void UpdateSuspensions(VehicleRoute route, List<RouteSuspensionDto>? suspensionDtos)
         {

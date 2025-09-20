@@ -97,5 +97,18 @@ namespace Raphael.Api.Controllers
             // 204 NoContent is the standard response for a successful operation that returns no data.
             return NoContent();
         }
+
+        [HttpGet("driver/{driverId}")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(VehicleRoute))]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<VehicleRoute>> GetByDriverId(int driverId)
+        {
+            var route = await _service.GetActiveRunByDriverIdAsync(driverId);
+            if (route == null)
+            {
+                return NotFound($"No active route found for driver with ID {driverId}.");
+            }
+            return Ok(route);
+        }
     }
 }
