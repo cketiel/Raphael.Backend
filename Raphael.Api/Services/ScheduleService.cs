@@ -115,7 +115,104 @@ namespace Raphael.Api.Services
 
         public async Task<IEnumerable<ScheduleDto>> GetSchedulesByRouteAndDateAsync(int vehicleRouteId, DateTime date)
         {
-            return await _context.Schedules
+            var noCanceledEvents = await _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date)
+                .Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
+                .Select(s => new ScheduleDto
+                {
+
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute.Driver.FullName,
+
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    ArriveDist = s.ArriveDistance,
+                    PerformDist = s.PerformDistance,
+                    GPSArrive = s.GpsArrive,
+                    Odometer = s.Odometer,
+                    Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType,
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type,
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    Patient = s.Trip.Customer.FullName,
+
+                    Status = s.Trip.Status // These are not canceled
+                })
+                .ToListAsync();
+
+            // Get PICKUPS from CANCELED trips
+            var canceledTripPickups = await _context.Schedules
+                .Include(s => s.Trip)
+                .Where(s => s.VehicleRouteId == vehicleRouteId &&
+                             s.Trip.IsCancelled == true && // We filter by canceled trips
+                             s.EventType == ScheduleEventType.Pickup && // ONLY the pickups
+                             s.Date == date.Date)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute.Driver.FullName,
+
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    ArriveDist = s.ArriveDistance,
+                    PerformDist = s.PerformDistance,
+                    GPSArrive = s.GpsArrive,
+                    Odometer = s.Odometer,
+                    Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType,
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type,
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    Patient = s.Trip.Customer.FullName,
+
+                    Status = "Canceled" // We mark as canceled!
+                })
+                .ToListAsync();
+
+            // Combine and sort the two lists
+            var allEvents = noCanceledEvents.Concat(canceledTripPickups)
+                                         .OrderBy(s => s.ETA)
+                                         .ToList();
+
+            return allEvents;
+
+            /*return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
                 .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date && s.Performed == false)
                 //.Where(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == date.Date)
@@ -155,7 +252,7 @@ namespace Raphael.Api.Services
                     Vehicle = s.VehicleRoute.Vehicle.Name,
                     Patient = s.Trip.Customer.FullName,
                 })
-                .ToListAsync();
+                .ToListAsync();*/
         }
 
         public async Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date)

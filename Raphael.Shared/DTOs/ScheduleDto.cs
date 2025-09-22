@@ -40,6 +40,7 @@ namespace Raphael.Shared.DTOs
         public string? Run { get; set; }
         public string? Vehicle { get; set; }
         public int VehicleRouteId { get; set; }
+        public string? Status { get; set; }
     }
 }
 
