@@ -37,5 +37,27 @@ namespace Raphael.Api.Controllers
                 return StatusCode(500, "An internal error occurred while saving GPS data.");
             }
         }
+
+        // GET: api/Gps/latest/{vehicleRouteId}
+        [HttpGet("latest/{vehicleRouteId}")]
+        public async Task<ActionResult<GpsDataDto>> GetLatestGpsData(int vehicleRouteId)
+        {
+            try
+            {
+                var gpsData = await _gpsService.GetLatestGpsDataAsync(vehicleRouteId);
+
+                if (gpsData == null)
+                {
+                    return NotFound($"No GPS data found for vehicle route ID {vehicleRouteId}.");
+                }
+
+                return Ok(gpsData);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (ex)
+                return StatusCode(500, "An internal error occurred while retrieving GPS data.");
+            }
+        }
     }
 }

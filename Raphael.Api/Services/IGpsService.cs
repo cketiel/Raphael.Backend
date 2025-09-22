@@ -5,5 +5,6 @@ namespace Raphael.Api.Services
     public interface IGpsService
     {
         Task SaveGpsDataAsync(GpsDataDto gpsDataDto);
+        Task<GpsDataDto?> GetLatestGpsDataAsync(int vehicleRouteId);
     }
 }
