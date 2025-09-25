@@ -158,14 +158,14 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpPut("trip/{tripId}/contact-phone")]
-        public async Task<IActionResult> UpdateContactPhoneNumber(int tripId, [FromBody] string phoneNumber)
+        public async Task<IActionResult> UpdateContactPhoneNumber(int tripId, [FromBody] UpdatePhoneDto dto)
         {
-            if (phoneNumber == null || string.IsNullOrWhiteSpace(phoneNumber))
+            if (dto == null || string.IsNullOrWhiteSpace(dto.PhoneNumber))
             {
                 return BadRequest("A valid phone number is required.");
             }
 
-            var success = await _scheduleService.UpdateContactPhoneNumberAsync(tripId, phoneNumber);
+            var success = await _scheduleService.UpdateContactPhoneNumberAsync(tripId, dto.PhoneNumber);
 
             if (!success)
             {
