@@ -13,7 +13,24 @@ namespace Raphael.Api.Services
         {
             _context = context;
         }
+        public async Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber)
+        {
+            var trip = await _context.Trips
+                                     .Include(t => t.Customer)
+                                     .FirstOrDefaultAsync(t => t.Id == tripId);
+          
+            if (trip == null || trip.Customer == null)
+            {
+                return false;
+            }
 
+            // The trip pick-up phone number and the customer's main phone number are updated.
+            trip.PickupPhone = newPhoneNumber;
+            trip.Customer.Phone = newPhoneNumber;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
         public async Task<IEnumerable<ScheduleDto>> GetSchedulesByRunLoginAndDateAsync(string runLogin, DateTime date)
         {
             return await _context.Schedules
@@ -64,7 +81,7 @@ namespace Raphael.Api.Services
         {
             return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
-                .Include(s => s.Trip) 
+                .Include(s => s.Trip).ThenInclude(t => t.Customer) 
                 .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin && s.Date == date.Date)
 
                 // FILTER 1: Exclude already completed events (Performed)
@@ -109,6 +126,8 @@ namespace Raphael.Api.Services
                     Vehicle = s.VehicleRoute.Vehicle.Name,
                     VehicleRouteId = s.VehicleRouteId,
                     Patient = s.Trip.Customer.FullName,
+                    CustomerId = s.Trip.CustomerId,
+                    CustomerPhone = s.Trip.Customer.Phone,
                 })
                 .ToListAsync();
         }
@@ -563,8 +582,7 @@ namespace Raphael.Api.Services
             schedules.ArriveDistance = dto.ArriveDist;
             schedules.GpsArrive = dto.GPSArrive;
             schedules.ActualPerformTime = dto.Perform;
-            schedules.PerformDistance = dto.PerformDist;
-            schedules.Performed = dto.Performed;
+            schedules.PerformDistance = dto.PerformDist;          
 
             await _context.SaveChangesAsync();
             return true;

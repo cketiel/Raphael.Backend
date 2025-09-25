@@ -157,6 +157,25 @@ namespace Raphael.Api.Controllers
             return Ok(count);
         }
 
+        [HttpPut("trip/{tripId}/contact-phone")]
+        public async Task<IActionResult> UpdateContactPhoneNumber(int tripId, [FromBody] string phoneNumber)
+        {
+            if (phoneNumber == null || string.IsNullOrWhiteSpace(phoneNumber))
+            {
+                return BadRequest("A valid phone number is required.");
+            }
+
+            var success = await _scheduleService.UpdateContactPhoneNumberAsync(tripId, phoneNumber);
+
+            if (!success)
+            {
+                return NotFound($"Trip with ID {tripId} or its associated customer was not found.");
+            }
+
+            // 204 NoContent is the standard response for a successful PUT that returns no content.
+            return NoContent();
+        }
+
     }
 }
 

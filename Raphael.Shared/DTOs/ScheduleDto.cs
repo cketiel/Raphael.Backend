@@ -41,6 +41,10 @@ namespace Raphael.Shared.DTOs
         public string? Vehicle { get; set; }
         public int VehicleRouteId { get; set; }
         public string? Status { get; set; }
+
+        // To update the member's phone number
+        public int? CustomerId { get; set; }
+        public string? CustomerPhone { get; set; }
     }
 }
 
