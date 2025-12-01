@@ -46,6 +46,8 @@ namespace Raphael.Shared.DTOs
         public DateTime Created { get; set; }
         public int? FundingSourceId { get; set; }
         public string? FundingSourceName { get; set; }
+        public string? PickupCity { get; set; }
+        public string? DropoffCity { get; set; }
     }
 
 
