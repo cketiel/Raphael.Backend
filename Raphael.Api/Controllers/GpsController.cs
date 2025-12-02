@@ -59,5 +59,24 @@ namespace Raphael.Api.Controllers
                 return StatusCode(500, "An internal error occurred while retrieving GPS data.");
             }
         }
+
+        // GET: api/Gps/reports/history?vehicleRouteId=1&date=2025-12-01
+        [HttpGet("reports/history")]
+        public async Task<ActionResult<IEnumerable<GpsDataDto>>> GetGpsHistoryReport(
+            [FromQuery] int vehicleRouteId, [FromQuery] DateTime date)
+        {
+            try
+            {
+                var gpsHistory = await _gpsService.GetGpsHistoryForReportAsync(vehicleRouteId, date);
+                // It's perfectly fine to return an empty list if no data is found for that day.
+                return Ok(gpsHistory);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (ex)
+                return StatusCode(500, "An internal error occurred while retrieving GPS history.");
+            }
+        }
+
     }
 }

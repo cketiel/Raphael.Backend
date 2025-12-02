@@ -56,5 +56,33 @@ namespace Raphael.Api.Services
             };
         }
 
+        public async Task<IEnumerable<GpsDataDto>> GetGpsHistoryForReportAsync(int vehicleRouteId, DateTime date)
+        {
+            // Calculate the start and end of the given day in UTC for a robust query,
+            // assuming the dates in the database are stored in UTC.
+            var dayStartUtc = date.Date.ToUniversalTime();
+            var dayEndUtc = dayStartUtc.AddDays(1);
+
+            var gpsHistory = await _context.GPSData
+                .AsNoTracking() // Use AsNoTracking for better performance on read-only queries
+                .Where(g => g.IdVehicleRoute == vehicleRouteId &&
+                             g.DateTime >= dayStartUtc &&
+                             g.DateTime < dayEndUtc)
+                .OrderBy(g => g.DateTime) // Order the data chronologically
+                .Select(g => new GpsDataDto // Project the entity to a DTO
+                {
+                    IdVehicleRoute = g.IdVehicleRoute,
+                    DateTime = g.DateTime,
+                    Speed = g.Speed,
+                    Address = g.Address,
+                    Latitude = g.Latitude,
+                    Longitude = g.Longitude,
+                    Direction = g.Direction
+                })
+                .ToListAsync();
+
+            return gpsHistory;
+        }
+
     }
 }
