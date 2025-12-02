@@ -735,6 +735,52 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
+        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date)
+        {
+            // Fetch all relevant schedules for the given date.
+            // We include related entities needed for the report.
+            var schedulesForDay = await _context.Schedules
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Include(s => s.VehicleRoute)             
+                .Where(s => s.Date.HasValue && s.Date.Value.Date == date.Date && s.TripId != null)
+                .ToListAsync();
+
+            // Group the schedules by TripId. Each group should contain a Pickup and a Dropoff event.
+            var reportData = schedulesForDay
+                .GroupBy(s => s.TripId)
+                .Select(tripGroup =>
+                {
+                    var pickupSchedule = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Pickup);
+                    var dropoffSchedule = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Dropoff);
+
+                    if (pickupSchedule == null || dropoffSchedule == null || !pickupSchedule.Date.HasValue)
+                    {
+                        return null; // Filter out incomplete trips or those with no date.
+                    }
+
+                    // Project the data from the two schedules into a single DTO.
+                    return new ProductionReportRowDto
+                    {                       
+                        Date = pickupSchedule.Date.Value.Date,
+                        Authorization = pickupSchedule.AuthNo,
+                        ReqPickup = pickupSchedule.ScheduledPickupTime,
+                        Appointment = dropoffSchedule.ScheduledApptTime,
+                        Patient = pickupSchedule.Trip?.Customer?.FullName,
+                        PickupCity = pickupSchedule.Trip?.PickupCity,
+                        Run = pickupSchedule.VehicleRoute?.Name,
+                        Space = pickupSchedule.SpaceTypeName,
+                        PickupArrive = pickupSchedule.ActualArriveTime,
+                        DropoffArrive = dropoffSchedule.ActualArriveTime
+                    };
+                })
+                .Where(row => row != null)
+                .OrderBy(row => row.Run)
+                .ThenBy(row => row.ReqPickup)
+                .ToList();
+
+            return reportData;
+        }
+
     }
 }
 

@@ -176,6 +176,13 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
+        [HttpGet("reports/production")]
+        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionReport([FromQuery] DateTime date)
+        {
+            var reportData = await _scheduleService.GetProductionReportDataAsync(date);
+            return Ok(reportData);
+        }
+
     }
 }
 
