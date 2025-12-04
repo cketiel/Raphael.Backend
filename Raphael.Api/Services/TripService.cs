@@ -334,7 +334,9 @@ namespace Raphael.Api.Services
                     DriverNoShowReason = t.DriverNoShowReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
-                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null,
+                    PickupCity = t.PickupCity,
+                    DropoffCity = t.DropoffCity,
                 })
                 .ToListAsync();
         }
