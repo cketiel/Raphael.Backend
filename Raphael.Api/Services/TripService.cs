@@ -238,6 +238,10 @@ namespace Raphael.Api.Services
                 DriverNoShowReason = dto.DriverNoShowReason,
                 FundingSourceId = dto.FundingSourceId,
 
+                // Optimization
+                PickupCity = dto.PickupCity,    
+                DropoffCity = dto.DropoffCity,
+
                 // System-managed properties
                 Status = TripStatus.Assigned,
                 Created = DateTime.UtcNow,

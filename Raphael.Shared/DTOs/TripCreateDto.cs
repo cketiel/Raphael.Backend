@@ -67,5 +67,7 @@ namespace Raphael.Shared.DTOs
         public int? VehicleRouteId { get; set; }
         public string? DriverNoShowReason { get; set; }
         public int? FundingSourceId { get; set; }
+        public string? PickupCity { get; set; }
+        public string? DropoffCity { get; set; }
     }
 }
