@@ -313,6 +313,8 @@ namespace Raphael.Api.Services
                     Status = t.Status,
                     FundingSourceId = t.FundingSourceId,  
                     DriverNoShowReason = t.DriverNoShowReason,
+                    PickupCity = t.PickupCity,  
+                    DropoffCity = t.DropoffCity,
                 })
                 .ToListAsync();
         }
