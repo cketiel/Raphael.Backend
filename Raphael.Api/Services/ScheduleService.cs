@@ -559,7 +559,10 @@ namespace Raphael.Api.Services
                 // 1. Schedules WITHOUT TripId (Pull-out/in) AND
                 // 2. Schedules WITH TripId whose travel date matches.
                 .Where(s => s.VehicleRouteId == vehicleRouteId && (!s.TripId.HasValue || s.Trip.Date.Date == date.Date))
-                .OrderBy(s => s.ETATime)
+                //.OrderBy(s => s.ETATime)
+                .OrderBy(s => s.Name == "Pull-in") // false va primero, true (Pull-in) va al final
+                .ThenBy(s => s.Name != "Pull-out") // false (Pull-out) va primero
+                .ThenBy(s => s.ETATime) // This code snippet ensures that the "Pull-out" event must always be the first (Sequence 0) and the "Pull-in" event must always be the last, regardless of the estimated time.
                 .ToListAsync();
 
             for (int i = 0; i < schedulesToSequence.Count; i++)
