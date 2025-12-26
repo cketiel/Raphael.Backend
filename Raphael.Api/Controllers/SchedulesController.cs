@@ -177,9 +177,9 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet("reports/production")]
-        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionReport([FromQuery] DateTime date)
+        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionReport([FromQuery] DateTime date, [FromQuery] int? fundingSourceId)
         {
-            var reportData = await _scheduleService.GetProductionReportDataAsync(date);
+            var reportData = await _scheduleService.GetProductionReportDataAsync(date, fundingSourceId);
             return Ok(reportData);
         }
 

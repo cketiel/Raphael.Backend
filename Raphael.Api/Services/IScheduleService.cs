@@ -20,7 +20,7 @@ namespace Raphael.Api.Services
         Task<int> GetScheduleHistoryCountAsync(string runLogin, DateTime date);
 
         Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber);
-        Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date);
+        Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId);
     }
 }
 

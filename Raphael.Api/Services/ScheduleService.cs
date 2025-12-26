@@ -740,15 +740,31 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
-        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date)
+        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId)
         {
             // Fetch all relevant schedules for the given date.
             // We include related entities needed for the report.
-            var schedulesForDay = await _context.Schedules
+            /*var schedulesForDay = await _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
                 .Include(s => s.VehicleRoute)             
                 .Where(s => s.Date.HasValue && s.Date.Value.Date == date.Date && s.TripId != null)
-                .ToListAsync();
+                .ToListAsync();*/
+
+            // Start with the base query
+            var baseQuery = _context.Schedules
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Include(s => s.VehicleRoute)
+                .Where(s => s.Date.HasValue && s.Date.Value.Date == date.Date && s.TripId != null);
+
+            // --- NEW: Conditionally apply the FundingSource filter ---
+            if (fundingSourceId.HasValue)
+            {
+                // Add a WHERE clause to filter by the FundingSourceId on the related Trip
+                baseQuery = baseQuery.Where(s => s.Trip.FundingSourceId == fundingSourceId.Value);
+            }
+
+            // Now, execute the final query
+            var schedulesForDay = await baseQuery.ToListAsync();
 
             // Group the schedules by TripId. Each group should contain a Pickup and a Dropoff event.
             var reportData = schedulesForDay
