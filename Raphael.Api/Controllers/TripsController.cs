@@ -357,6 +357,25 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
+        [HttpPatch("{id}/assign-run")]
+        public async Task<IActionResult> AssignRun(int id, [FromBody] int? vehicleRouteId)
+        {
+            if (vehicleRouteId == null)
+            {
+                return BadRequest();
+            }
+
+            var success = await _tripService.AssignRunAsync(id, vehicleRouteId);
+
+            if (!success)
+            {
+                return NotFound(new { Message = $"Trip with ID {id} not found." });
+            }
+
+            return NoContent();
+           
+        }
+
     }// end class
 }
 

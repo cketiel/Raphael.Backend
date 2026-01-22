@@ -674,6 +674,23 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        public async Task<bool> AssignRunAsync(int id, int? vehicleRouteId)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null)
+            {
+                return false; // Not found
+            }           
+
+            trip.VehicleRouteId = vehicleRouteId;
+            // Si se asigna a null, el estado vuelve a ser "Accepted" 
+            trip.Status = vehicleRouteId.HasValue ? TripStatus.Scheduled : TripStatus.Accepted;
+
+            await _context.SaveChangesAsync();
+          
+            return true;
+        }
+
     }// end class
 
 }

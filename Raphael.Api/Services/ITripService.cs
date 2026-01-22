@@ -20,6 +20,7 @@ namespace Raphael.Api.Services
         Task<bool> CancelByDriverAsync(int id, string reason);
         Task<bool> UncancelAsync(int id);
         Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto);
+        Task<bool> AssignRunAsync(int id, int? vehicleRouteId);
     }
 
 }
