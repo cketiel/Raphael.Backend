@@ -13,7 +13,7 @@ namespace Raphael.Api.Services
             _context = context;
         }
 
-        public async Task<ActionResult<IEnumerable<TripHistory>>> GetHistoryByTrip(int tripId)
+        public async Task<IEnumerable<TripHistory>> GetHistoryByTrip(int tripId)
         {
             return await _context.TripHistories
                 .Where(h => h.TripId == tripId)
@@ -21,12 +21,10 @@ namespace Raphael.Api.Services
                 .ToListAsync();
            
         }
-        public async Task<ActionResult<TripHistory>> PostHistory(TripHistory history)
-        {            
-
+        public async Task<TripHistory> PostHistory(TripHistory history)
+        {
             _context.TripHistories.Add(history);
             await _context.SaveChangesAsync();
-
             return history;
         }
 

@@ -5,7 +5,7 @@ namespace Raphael.Api.Services
 {
     public interface ITripHistoryService
     {  
-        Task<ActionResult<IEnumerable<TripHistory>>> GetHistoryByTrip(int tripId);
-        Task<ActionResult<TripHistory>> PostHistory(TripHistory history);
+        Task<IEnumerable<TripHistory>> GetHistoryByTrip(int tripId);
+        Task<TripHistory> PostHistory(TripHistory history);
     }
 }
