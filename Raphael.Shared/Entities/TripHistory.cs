@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Raphael.Shared.Entities
 {
@@ -25,6 +26,7 @@ namespace Raphael.Shared.Entities
         public string? NewValue { get; set; }
 
         [ForeignKey("TripId")]
+        [JsonIgnore]
         public virtual Trip Trip { get; set; }
     }
 }

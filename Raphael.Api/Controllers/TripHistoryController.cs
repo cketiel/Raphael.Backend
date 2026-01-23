@@ -28,20 +28,23 @@ namespace Raphael.Api.Controllers
 
         // POST: api/TripHistory
         [HttpPost]
-        public async Task<ActionResult<TripHistory>> PostHistory(TripHistoryCreateDto dto)
-        {           
-            var history = new TripHistory
+        public async Task<ActionResult<TripHistory>> PostHistory(TripHistory history)
+        {
+            try
             {
-                TripId = dto.TripId,
-                User = dto.User,
-                Field = dto.Field,
-                PriorValue = dto.PriorValue,
-                NewValue = dto.NewValue,
-                ChangeDate = dto.ChangeDate ?? DateTime.Now
-            };
+                if (history.ChangeDate == default)
+                    history.ChangeDate = DateTime.Now;
 
-            var result = await _service.PostHistory(history);
-            return Ok(result);
+                // We clear the navigation property in case WPF sent something there
+                history.Trip = null;
+
+                var result = await _service.PostHistory(history);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal Error: {ex.Message} - {ex.InnerException?.Message}");
+            }
         }
     }
 }
