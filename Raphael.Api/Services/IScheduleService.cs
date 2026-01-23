@@ -21,6 +21,8 @@ namespace Raphael.Api.Services
 
         Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber);
         Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId);
+
+        Task<ScheduleDto?> GetByIdAsync(int id);
     }
 }
 

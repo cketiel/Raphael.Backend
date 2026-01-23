@@ -802,6 +802,54 @@ namespace Raphael.Api.Services
             return reportData;
         }
 
+        public async Task<ScheduleDto?> GetByIdAsync(int id)
+        {
+            return await _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Where(s => s.Id == id)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute.Driver.FullName,
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    ArriveDist = s.ArriveDistance,
+                    PerformDist = s.PerformDistance,
+                    GPSArrive = s.GpsArrive,
+                    Odometer = s.Odometer,
+                    Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType,
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type,
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    VehicleRouteId = s.VehicleRouteId,
+                    Patient = s.Trip.Customer.FullName,
+                    CustomerId = s.Trip.CustomerId,
+                    CustomerPhone = s.Trip.Customer.Phone,
+                    Status = s.Trip.Status.ToString()
+                })
+                .FirstOrDefaultAsync();
+        }
+
     }
 }
 

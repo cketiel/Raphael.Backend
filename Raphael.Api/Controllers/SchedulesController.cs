@@ -183,6 +183,19 @@ namespace Raphael.Api.Controllers
             return Ok(reportData);
         }
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ScheduleDto>> GetById(int id)
+        {
+            var schedule = await _scheduleService.GetByIdAsync(id);
+
+            if (schedule == null)
+            {
+                return NotFound($"Schedule with ID {id} not found.");
+            }
+
+            return Ok(schedule);
+        }
+
     }
 }
 
