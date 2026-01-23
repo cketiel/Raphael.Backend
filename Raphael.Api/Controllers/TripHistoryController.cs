@@ -28,8 +28,19 @@ namespace Raphael.Api.Controllers
 
         // POST: api/TripHistory
         [HttpPost]
-        public async Task<ActionResult<TripHistory>> PostHistory(TripHistory history)
+        public async Task<ActionResult<TripHistory>> PostHistory(TripHistoryCreateDto dto)
         {
+        
+            var history = new TripHistory
+            {
+                TripId = dto.TripId,
+                User = dto.User,
+                Field = dto.Field,
+                PriorValue = dto.PriorValue,
+                NewValue = dto.NewValue,
+                ChangeDate = dto.ChangeDate ?? DateTime.Now
+            };
+
             try
             {
                 if (history.ChangeDate == default)

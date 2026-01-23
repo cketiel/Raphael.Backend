@@ -110,6 +110,8 @@ builder.Services.AddScoped<IGpsService, GpsService>();
 
 builder.Services.AddScoped<IProviderService, ProviderService>();
 
+builder.Services.AddScoped<ITripHistoryService, TripHistoryService>();
+
 var app = builder.Build();
 
 app.UseSwagger();
