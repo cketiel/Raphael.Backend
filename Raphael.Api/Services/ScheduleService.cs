@@ -849,6 +849,35 @@ namespace Raphael.Api.Services
                 })
                 .FirstOrDefaultAsync();
         }
+       
+        public async Task<IEnumerable<ScheduleDto>> GetPatientETAsByNameAsync(string patientFullName, DateTime date)
+        {
+            return await _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Where(s => s.Trip.Customer.FullName.ToLower().Contains(patientFullName.ToLower())
+                            && s.Date.Value.Date == date.Date
+                            && !s.Performed)
+                .OrderBy(s => s.ETATime)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    Driver = s.VehicleRoute.Driver.FullName,
+                    ETA = s.ETATime,
+                    Date = s.Date,
+                    EventType = s.EventType,
+                    Patient = s.Trip.Customer.FullName,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    Status = s.Trip.Status.ToString()
+                })
+                .ToListAsync();
+        }
 
     }
 }

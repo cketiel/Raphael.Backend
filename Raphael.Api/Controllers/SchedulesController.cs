@@ -196,6 +196,25 @@ namespace Raphael.Api.Controllers
             return Ok(schedule);
         }
 
+        [HttpGet("patient-eta")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA([FromQuery] string patientName)
+        {
+            if (string.IsNullOrWhiteSpace(patientName))
+            {
+                return BadRequest("The patient's name is required.");
+            }
+
+            // We use the current server date
+            var etas = await _scheduleService.GetPatientETAsByNameAsync(patientName, DateTime.Today);
+
+            if (!etas.Any())
+            {
+                return NotFound("No trips scheduled for today were found with that patient name.");
+            }
+
+            return Ok(etas);
+        }
+
     }
 }
 

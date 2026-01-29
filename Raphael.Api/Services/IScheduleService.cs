@@ -23,6 +23,8 @@ namespace Raphael.Api.Services
         Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId);
 
         Task<ScheduleDto?> GetByIdAsync(int id);
+
+        Task<IEnumerable<ScheduleDto>> GetPatientETAsByNameAsync(string patientFullName, DateTime date);
     }
 }
 
