@@ -133,7 +133,8 @@ app.UseSwaggerUI();
 
 app.UseAuthentication();
 
-
+app.UseDefaultFiles(); // So that it searches index.html if you access the root
+app.UseStaticFiles();  // To serve files from wwwroot
 
 // Configure the HTTP request pipeline.
 

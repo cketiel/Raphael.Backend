@@ -1,0 +1,169 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raphael - Trip Tracking</title>
+    <!-- Bootstrap 5 for a professional look -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f4f7f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            max-width: 500px;
+            margin-top: 60px;
+        }
+
+        .brand-header {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .card-eta {
+            border: none;
+            border-left: 5px solid #007bff;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+
+            .card-eta:hover {
+                transform: scale(1.02);
+            }
+
+        .eta-time {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .event-type {
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="text-center mb-5">
+            <h2 class="brand-header">RAPHAEL</h2>
+            <p class="text-secondary">Track your estimated time of arrival (ETA)</p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="card shadow-sm p-4 mb-4">
+            <div class="mb-3">
+                <label for="patientName" class="form-label fw-bold">Patient Full Name</label>
+                <input type="text" id="patientName" class="form-control form-control-lg" placeholder="e.g. John Doe">
+                <div class="form-text">Please enter the name exactly as it appears in your record.</div>
+            </div>
+            <button onclick="fetchETA()" class="btn btn-primary btn-lg w-100">Check My ETA</button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results"></div>
+
+        <!-- Footer -->
+        <div class="text-center mt-5">
+            <small class="text-muted">&copy; 2024 Raphael Transport System</small>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Formats a TimeSpan string (HH:mm:ss) to (HH:mm)
+         */
+        function formatTime(timeStr) {
+            if (!timeStr) return "N/A";
+            // If it's 14:30:00, it returns 14:30
+            return timeStr.substring(0, 5);
+        }
+
+        async function fetchETA() {
+            const nameInput = document.getElementById('patientName');
+            const resultsDiv = document.getElementById('results');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                alert("Please enter a patient name.");
+                return;
+            }
+
+            // UI Loading state
+            resultsDiv.innerHTML = `
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-secondary">Searching for today's trips...</p>
+                </div>`;
+
+            try {
+                const url = `/api/Schedules/patient-eta?patientName=${encodeURIComponent(name)}`;
+                const response = await fetch(url);
+
+                if (response.status === 404) {
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-warning shadow-sm">
+                            <strong>No trips found.</strong> We couldn't find any scheduled trips for today under that name.
+                        </div>`;
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error("Server error");
+                }
+
+                const data = await response.json();
+                resultsDiv.innerHTML = '<h5 class="mb-3 text-secondary">Active Trips for Today:</h5>';
+
+                data.forEach(item => {
+                    // item.eventType: 0 is usually Pickup, 1 is Dropoff (based on standard Raphael logic)
+                    const typeLabel = item.eventType === 0 ? "Pickup" : "Dropoff";
+                    const formattedETA = formatTime(item.eta);
+
+                    const card = `
+                        <div class="card card-eta shadow-sm p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="event-type">${typeLabel} Event</div>
+                                    <div class="fw-bold text-dark mt-1" style="font-size: 1.1rem;">${item.address}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small text-muted text-uppercase">ETA</div>
+                                    <div class="eta-time">${formattedETA}</div>
+                                </div>
+                            </div>
+                            <hr class="my-2 text-muted opacity-25">
+                            <div class="row small text-secondary">
+                                <div class="col-6">
+                                    <strong>Driver:</strong> ${item.driver || 'Pending...'}
+                                </div>
+                                <div class="col-6 text-end">
+                                    <strong>Vehicle:</strong> ${item.vehicle || 'N/A'}
+                                </div>
+                            </div>
+                        </div>`;
+                    resultsDiv.innerHTML += card;
+                });
+
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-danger shadow-sm">
+                        <strong>Error:</strong> Unable to retrieve information at this time. Please try again later.
+                    </div>`;
+            }
+        }
+
+        // Allow pressing "Enter" key to search
+        document.getElementById('patientName').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                fetchETA();
+            }
+        });
+    </script>
+</body>
+</html>
