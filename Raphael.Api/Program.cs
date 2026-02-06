@@ -112,6 +112,22 @@ builder.Services.AddScoped<IProviderService, ProviderService>();
 
 builder.Services.AddScoped<ITripHistoryService, TripHistoryService>();
 
+// Allow requests from the etamilanes.com domain
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("EtamilanesPolicy", policy =>
+    {
+        policy
+            .WithOrigins(
+                "https://etamilanes.com",
+                "https://www.etamilanes.com"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -139,6 +155,8 @@ app.UseStaticFiles();  // To serve files from wwwroot
 // Configure the HTTP request pipeline.
 
 app.UseHttpsRedirection();
+
+app.UseCors("EtamilanesPolicy");
 
 app.UseAuthorization();
 
