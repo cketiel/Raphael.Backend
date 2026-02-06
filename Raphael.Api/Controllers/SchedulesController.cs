@@ -1,6 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
-using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
 
 namespace Raphael.Api.Controllers
@@ -197,6 +198,7 @@ namespace Raphael.Api.Controllers
             return Ok(schedule);
         }
 
+        [EnableRateLimiting("public-api")]  // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
         [HttpGet("patient-eta")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA([FromQuery] string patientName)
         {

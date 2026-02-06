@@ -1,22 +1,24 @@
 
 
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using Microsoft.OpenApi.Models;
-using Raphael.Api.Settings;
-using Raphael.Shared.DbContexts;
-using Microsoft.EntityFrameworkCore;
-using Raphael.Shared.Data;
-using Raphael.Api.Services;
-using Raphael.Shared.Entities;
-using FluentValidation.AspNetCore;
 using FluentValidation;
-using Raphael.Shared.DTOs;
-using Raphael.Shared.Validators;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Raphael.Api.Services;
+using Raphael.Api.Settings;
+using Raphael.Shared.Data;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.Shared.Validators;
+using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -127,6 +129,19 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Rate Limiting (ANTI-BOTS)
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("public-api", limiter =>
+    {
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.PermitLimit = 60; // 60 requests por IP
+        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiter.QueueLimit = 10;
+    });
+});
+
+
 
 var app = builder.Build();
 
@@ -157,6 +172,20 @@ app.UseStaticFiles();  // To serve files from wwwroot
 app.UseHttpsRedirection();
 
 app.UseCors("EtamilanesPolicy");
+app.UseRateLimiter(); // Activate middleware Anti-bots  
+
+// Apply Security Headers
+// This protects against: clickjacking, sniffing, basic XSS
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'";
+    await next();
+});
+
 
 app.UseAuthorization();
 
