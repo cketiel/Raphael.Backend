@@ -1,6 +1,7 @@
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.RegularExpressions;
 
 namespace Raphael.Api.Controllers
 {
@@ -203,6 +204,16 @@ namespace Raphael.Api.Controllers
             {
                 return BadRequest("The patient's name is required.");
             }
+
+            patientName = patientName.Trim();
+
+            // Avoid large strings
+            if (patientName.Length > 100)
+                return BadRequest("Invalid patient name.");
+
+            // Avoid rare characters and possible injection attempts
+            if (!Regex.IsMatch(patientName, @"^[a-zA-Z\s\.\-']+$"))
+                return BadRequest("Invalid characters.");
 
             // We use the current server date
             DateTime toDay = DateTime.Today;
