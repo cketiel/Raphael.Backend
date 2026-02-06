@@ -70,7 +70,7 @@
 
         <!-- Footer -->
         <div class="text-center mt-5">
-            <small class="text-muted">&copy; 2024 Raphael Transport System</small>
+            <small class="text-muted">&copy; 2026 Raphael Transport System</small>
         </div>
     </div>
 
@@ -121,8 +121,8 @@
                 resultsDiv.innerHTML = '<h5 class="mb-3 text-secondary">Active Trips for Today:</h5>';
 
                 data.forEach(item => {
-                    // item.eventType: 0 is usually Pickup, 1 is Dropoff (based on standard Raphael logic)
-                    const typeLabel = item.eventType === 0 ? "Pickup" : "Dropoff";
+                    
+                    const typeLabel = item.eventType === 1 ? "Pickup" : "Dropoff";
                     const formattedETA = formatTime(item.eta);
 
                     const card = `

@@ -205,7 +205,9 @@ namespace Raphael.Api.Controllers
             }
 
             // We use the current server date
-            var etas = await _scheduleService.GetPatientETAsByNameAsync(patientName, DateTime.Today);
+            DateTime toDay = DateTime.Today;
+            DateTime searchDate = DateTime.SpecifyKind(toDay, DateTimeKind.Unspecified); // force UTC conversion not to be applied, tells the system: "Don't touch the time, send it as is."
+            var etas = await _scheduleService.GetPatientETAsByNameAsync(patientName, searchDate);
 
             if (!etas.Any())
             {
