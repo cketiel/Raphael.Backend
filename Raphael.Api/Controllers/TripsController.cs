@@ -79,8 +79,25 @@ namespace Raphael.Api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] TripUpdateDto dto)
         {
-            var updated = await _tripService.UpdateAsync(id, dto);
-            return updated ? NoContent() : NotFound();
+            try
+            {
+                var updated = await _tripService.UpdateAsync(id, dto);
+                return updated ? NoContent() : NotFound();
+            }
+            catch (DbUpdateException ex)
+            {
+                // This captures foreign key errors, null data, etc., in the database.
+                var innerExceptionMessage = ex.InnerException?.Message ?? ex.Message;
+                return StatusCode(500, $"Database error while updating trip: {innerExceptionMessage}");
+            }
+            catch (Exception ex)
+            {
+                // This captures general errors
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+
+            //var updated = await _tripService.UpdateAsync(id, dto);
+            //return updated ? NoContent() : NotFound();
         }
 
         [HttpDelete("{id}")]

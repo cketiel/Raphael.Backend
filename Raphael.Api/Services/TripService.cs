@@ -290,7 +290,7 @@ namespace Raphael.Api.Services
             trip.Distance = dto.Distance;
             trip.ETA = dto.ETA;
             trip.WillCall = dto.WillCall;
-            trip.VehicleRouteId = dto.VehicleRouteId;
+            trip.VehicleRouteId = (dto.VehicleRouteId == 0) ? null : dto.VehicleRouteId;
             trip.DriverNoShowReason = dto.DriverNoShowReason;
             trip.FundingSourceId = dto.FundingSourceId;
 
@@ -299,8 +299,8 @@ namespace Raphael.Api.Services
             trip.DropoffCity = dto.DropoffCity;
 
             // System-managed properties
-            trip.Status = TripStatus.Assigned;
-            trip.Created = DateTime.UtcNow;
+            //trip.Status = TripStatus.Assigned;
+            //trip.Created = DateTime.UtcNow;
 
             //trip.PickupNote = dto.PickupNote;
             trip.IsCancelled = dto.IsCancelled;
