@@ -226,7 +226,7 @@ namespace Raphael.Api.Services
 
             // Combine and sort the two lists
             var allEvents = noCanceledEvents.Concat(canceledTripPickups)
-                                         .OrderBy(s => s.ETA)
+                                         .OrderBy(s => s.Sequence) //.OrderBy(s => s.ETA)
                                          .ToList();
 
             return allEvents;

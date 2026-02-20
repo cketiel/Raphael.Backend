@@ -1,7 +1,10 @@
-using Raphael.Shared.DbContexts;
-using Raphael.Shared.Entities;
-using Raphael.Shared.DTOs;
+using Azure;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
+using System.Net;
 
 namespace Raphael.Api.Services
 {
@@ -262,8 +265,8 @@ namespace Raphael.Api.Services
             var trip = await _context.Trips.FindAsync(id);
             if (trip == null) return false;
 
-            trip.Date = dto.Date;
-            trip.Day = dto.Date.DayOfWeek.ToString();
+            trip.Day = dto.Day;
+            trip.Date = dto.Date;          
             trip.FromTime = dto.FromTime;
             trip.ToTime = dto.ToTime;
             trip.CustomerId = dto.CustomerId;
@@ -274,6 +277,31 @@ namespace Raphael.Api.Services
             trip.DropoffLatitude = dto.DropoffLatitude;
             trip.DropoffLongitude = dto.DropoffLongitude;
             trip.SpaceTypeId = dto.SpaceTypeId;
+
+            trip.Type = dto.Type;
+            trip.Pickup = dto.Pickup;
+            trip.PickupPhone = dto.PickupPhone;
+            trip.PickupComment = dto.PickupComment;
+            trip.Dropoff = dto.Dropoff,
+            trip.DropoffPhone = dto.DropoffPhone;
+            trip.DropoffComment = dto.DropoffComment;
+            trip.TripId = dto.TripId;
+            trip.Authorization = dto.Authorization;
+            trip.Distance = dto.Distance;
+            trip.ETA = dto.ETA;
+            trip.WillCall = dto.WillCall;
+            trip.VehicleRouteId = dto.VehicleRouteId;
+            trip.DriverNoShowReason = dto.DriverNoShowReason;
+            trip.FundingSourceId = dto.FundingSourceId;
+
+            // Optimization
+            trip.PickupCity = dto.PickupCity;
+            trip.DropoffCity = dto.DropoffCity;
+
+            // System-managed properties
+            trip.Status = TripStatus.Assigned;
+            trip.Created = DateTime.UtcNow;
+
             //trip.PickupNote = dto.PickupNote;
             trip.IsCancelled = dto.IsCancelled;
 
