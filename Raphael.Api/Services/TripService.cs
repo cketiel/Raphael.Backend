@@ -282,7 +282,7 @@ namespace Raphael.Api.Services
             trip.Pickup = dto.Pickup;
             trip.PickupPhone = dto.PickupPhone;
             trip.PickupComment = dto.PickupComment;
-            trip.Dropoff = dto.Dropoff,
+            trip.Dropoff = dto.Dropoff;
             trip.DropoffPhone = dto.DropoffPhone;
             trip.DropoffComment = dto.DropoffComment;
             trip.TripId = dto.TripId;

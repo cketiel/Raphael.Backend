@@ -53,7 +53,8 @@ namespace Raphael.Api.Services
                 CreatedBy = dto.CreatedBy,
                 RiderId = dto.RiderId,
                 Latitude = dto.Latitude,
-                Longitude = dto.Longitude
+                Longitude = dto.Longitude,
+                DOB = dto.DOB
             };
 
             _context.Customers.Add(customer);
@@ -83,6 +84,7 @@ namespace Raphael.Api.Services
             customer.Gender = dto.Gender;
             customer.Latitude = dto.Latitude;
             customer.Longitude = dto.Longitude;
+            customer.DOB = dto.DOB;
 
             await _context.SaveChangesAsync();
             return MapToResponseDto(customer);
@@ -110,7 +112,8 @@ namespace Raphael.Api.Services
                 CreatedBy = customer.CreatedBy,
                 RiderId = customer.RiderId,
                 Latitude = customer.Latitude,
-                Longitude = customer.Longitude
+                Longitude = customer.Longitude,
+                DOB = customer.DOB
             };
         }
 
