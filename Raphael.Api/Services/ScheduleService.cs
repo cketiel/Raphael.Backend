@@ -849,7 +849,48 @@ namespace Raphael.Api.Services
                 })
                 .FirstOrDefaultAsync();
         }
-       
+
+        public async Task<IEnumerable<ScheduleDto>> GetPatientETAsByNamePhoneAndDateAsync(string patientFullName, string phone, DateTime date)
+        {
+            // Search for the specific date provided by the user
+            DateTime searchDate = date.Date;
+
+            return await _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Where(s =>
+                    // Match Name (Partial)
+                    s.Trip.Customer.FullName.ToLower().Contains(patientFullName.ToLower())
+                    // Match Phone or Mobile Phone (Exact match against input)
+                    && (s.Trip.Customer.Phone == phone || s.Trip.Customer.MobilePhone == phone)
+                    // Match Date
+                    && s.Date.Value.Date == searchDate)
+                // Order by Performed status first (Upcoming first) then by ETA
+                .OrderBy(s => s.Performed)
+                .ThenBy(s => s.ETATime)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    Driver = s.VehicleRoute.Driver.FullName,
+                    ETA = s.ETATime,
+                    Perform = s.ActualPerformTime, // Important to show when it was finished
+                    Date = s.Date,
+                    EventType = s.EventType,
+                    Patient = s.Trip.Customer.FullName,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    Status = s.Trip.Status.ToString(),
+                    Performed = s.Performed // Return this so the JS can split the lists
+                })
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<ScheduleDto>> GetPatientETAsByNameAsync(string patientFullName, DateTime date)
         {
             return await _context.Schedules

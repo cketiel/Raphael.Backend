@@ -198,7 +198,41 @@ namespace Raphael.Api.Controllers
             return Ok(schedule);
         }
 
-        [EnableRateLimiting("public-api")]  // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
+        [EnableRateLimiting("public-api")] // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
+        [HttpGet("patient-eta")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA(
+            [FromQuery] string patientName,
+            [FromQuery] string phone,
+            [FromQuery] DateTime date)
+        {
+            if (string.IsNullOrWhiteSpace(patientName) || string.IsNullOrWhiteSpace(phone))
+            {
+                return BadRequest("Name and Phone Number are required.");
+            }
+
+            // Basic cleaning and validation
+            patientName = patientName.Trim();
+            phone = Regex.Replace(phone, @"[^\d]", ""); // keep only digits for stricter matching
+
+            if (patientName.Length > 100 || phone.Length > 20)
+                return BadRequest("Invalid input length.");
+
+            // Avoid rare characters and possible injection attempts
+            if (!Regex.IsMatch(patientName, @"^[a-zA-Z\s\.\-']+$"))
+                return BadRequest("Invalid characters.");
+
+            // The service handles the date search
+            var etas = await _scheduleService.GetPatientETAsByNamePhoneAndDateAsync(patientName, phone, date);
+
+            if (!etas.Any())
+            {
+                return NotFound("No trips found for the provided information.");
+            }
+
+            return Ok(etas);
+        }
+
+        /*[EnableRateLimiting("public-api")]  // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
         [HttpGet("patient-eta")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA([FromQuery] string patientName)
         {
@@ -228,7 +262,7 @@ namespace Raphael.Api.Controllers
             }
 
             return Ok(etas);
-        }
+        }*/
 
     }
 }

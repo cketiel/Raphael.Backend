@@ -24,6 +24,7 @@ namespace Raphael.Api.Services
 
         Task<ScheduleDto?> GetByIdAsync(int id);
 
+        Task<IEnumerable<ScheduleDto>> GetPatientETAsByNamePhoneAndDateAsync(string patientFullName, string phone, DateTime date);
         Task<IEnumerable<ScheduleDto>> GetPatientETAsByNameAsync(string patientFullName, DateTime date);
     }
 }
