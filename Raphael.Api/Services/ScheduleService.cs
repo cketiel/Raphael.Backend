@@ -920,6 +920,55 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<ScheduleDto>> GetPatientETAsAsync(string? patientFullName, string? phone, DateTime? date, string? tripId)
+        {
+            var query = _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(tripId))
+            {
+                // Search strictly by TripId (identifier from Broker/Funding Source)
+                query = query.Where(s => s.Trip.TripId == tripId.Trim());
+            }
+            else
+            {
+                // Search by Profile (Name + Phone + Date)
+                string pName = patientFullName.ToLower().Trim();
+                query = query.Where(s =>
+                    s.Trip.Customer.FullName.ToLower().Contains(pName) &&
+                    (s.Trip.Customer.Phone == phone || s.Trip.Customer.MobilePhone == phone) &&
+                    s.Date.Value.Date == date.Value.Date
+                );
+            }
+
+            return await query
+                .OrderBy(s => s.Performed) // Show non-completed first
+                .ThenBy(s => s.ETATime)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    Driver = s.VehicleRoute.Driver.FullName,
+                    ETA = s.ETATime,
+                    Perform = s.ActualPerformTime,
+                    Date = s.Date,
+                    EventType = s.EventType,
+                    Patient = s.Trip.Customer.FullName,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    Status = s.Trip.Status.ToString(),
+                    Performed = s.Performed
+                })
+                .ToListAsync();
+        }
+
     }
 }
 

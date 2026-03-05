@@ -201,35 +201,43 @@ namespace Raphael.Api.Controllers
         [EnableRateLimiting("public-api")] // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
         [HttpGet("patient-eta")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA(
-            [FromQuery] string patientName,
-            [FromQuery] string phone,
-            [FromQuery] DateTime date)
+            [FromQuery] string? patientName,
+            [FromQuery] string? phone,
+            [FromQuery] DateTime? date,
+            [FromQuery] string? tripId)
         {
-            if (string.IsNullOrWhiteSpace(patientName) || string.IsNullOrWhiteSpace(phone))
+            // We validate that at least one of the two search methods is present
+            bool isTripSearch = !string.IsNullOrWhiteSpace(tripId);
+            bool isProfileSearch = !string.IsNullOrWhiteSpace(patientName) && !string.IsNullOrWhiteSpace(phone) && date.HasValue;
+
+            if (!isTripSearch && !isProfileSearch)
             {
-                return BadRequest("Name and Phone Number are required.");
+                return BadRequest("You must provide either TripId OR (PatientName, Phone, and Date).");
             }
 
-            // Basic cleaning and validation
-            patientName = patientName.Trim();
-            phone = Regex.Replace(phone, @"[^\d]", ""); // keep only digits for stricter matching
+            if (isProfileSearch) {
+                // Basic cleaning and validation
+                patientName = patientName.Trim();
+                phone = Regex.Replace(phone, @"[^\d]", ""); // keep only digits for stricter matching
 
-            if (patientName.Length > 100 || phone.Length > 20)
-                return BadRequest("Invalid input length.");
+                if (patientName.Length > 100 || phone.Length > 20)
+                    return BadRequest("Invalid input length.");
 
-            // Avoid rare characters and possible injection attempts
-            if (!Regex.IsMatch(patientName, @"^[a-zA-Z\s\.\-']+$"))
-                return BadRequest("Invalid characters.");
-
-            // The service handles the date search
-            var etas = await _scheduleService.GetPatientETAsByNamePhoneAndDateAsync(patientName, phone, date);
-
-            if (!etas.Any())
-            {
-                return NotFound("No trips found for the provided information.");
+                // Avoid rare characters and possible injection attempts
+                if (!Regex.IsMatch(patientName, @"^[a-zA-Z\s\.\-']+$"))
+                    return BadRequest("Invalid characters.");
             }
 
-            return Ok(etas);
+            // We call the service passing all the parameters
+            var etas = await _scheduleService.GetPatientETAsAsync(patientName, phone, date, tripId);
+            //var etas = await _scheduleService.GetPatientETAsByNamePhoneAndDateAsync(patientName, phone, date);
+
+            if (etas == null || !etas.Any())
+            {
+                return NotFound("No scheduled trips were found with the provided information.");
+            }
+
+            return Ok(etas);        
         }
 
         /*[EnableRateLimiting("public-api")]  // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
