@@ -31,6 +31,8 @@ namespace Raphael.Shared.DTOs
 
         [Required]
         public TimeSpan DropoffETA { get; set; } // "hh:mm" format
+
+        public int TargetSequence { get; set; }
     }
 }
 

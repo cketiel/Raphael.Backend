@@ -137,7 +137,7 @@ namespace Raphael.Api.Services
             var noCanceledEvents = await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
                 .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date)
-                .Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
+                .Where(s => s.Trip == null || s.Trip.IsCancelled == false) // s.Trip.Status != TripStatus.Canceled
                 .Select(s => new ScheduleDto
                 {
 
@@ -414,6 +414,35 @@ namespace Raphael.Api.Services
                     await _context.Schedules.AddRangeAsync(pullOutEvent, pullInEvent);
                 }
 
+                // Buscamos todos los eventos que tengan una secuencia >= a la que queremos insertar
+                var existingEventsToShift = await _context.Schedules
+                    .Where(s => s.VehicleRouteId == request.VehicleRouteId && s.Date == tripDate && s.Sequence >= request.TargetSequence)
+                    .ToListAsync();
+
+                foreach (var s in existingEventsToShift)
+                {
+                    s.Sequence += 2; // Abrimos 2 espacios
+                }
+
+                /*var pullIn = await _context.Schedules
+    .FirstOrDefaultAsync(s => s.VehicleRouteId == request.VehicleRouteId && s.Name == "Pull-in" && s.Trip.Date.Date == tripToRoute.Date.Date);
+
+                int newSequence = pullIn != null ? pullIn.Sequence : 100;
+
+                // Al crear los DTOs de Pickup y Dropoff en el servidor:
+                var pickupSchedule = new Schedule
+                {
+                    // ... otros campos ...
+                    Sequence = newSequence,
+                };
+                var dropoffSchedule = new Schedule
+                {
+                    // ... otros campos ...
+                    Sequence = newSequence + 1,
+                };
+
+                if (pullIn != null) pullIn.Sequence = newSequence + 2;*/
+
                 // 4. Create the two new Schedule events with the customer data.
 
                 // Pickup Event
@@ -432,6 +461,7 @@ namespace Raphael.Api.Services
                     AuthNo = tripToRoute.Authorization,
                     SpaceTypeName = tripToRoute.SpaceType.Name,
                     ScheduledPickupTime = tripToRoute.FromTime,
+                    Sequence = request.TargetSequence,
                     // --- Data calculated by the client ---
                     DistanceToPoint = request.PickupDistance,
                     TravelTime = request.PickupTravelTime,
@@ -456,6 +486,7 @@ namespace Raphael.Api.Services
                     AuthNo = tripToRoute.Authorization,
                     SpaceTypeName = tripToRoute.SpaceType.Name,
                     ScheduledApptTime = tripToRoute.ToTime,
+                    Sequence = request.TargetSequence + 1, // JUSTO DESPUÉS DEL PICKUP
                     // --- Data calculated by the client ---
                     DistanceToPoint = request.DropoffDistance,
                     TravelTime = request.DropoffTravelTime,
@@ -562,7 +593,8 @@ namespace Raphael.Api.Services
                 //.OrderBy(s => s.ETATime)
                 .OrderBy(s => s.Name == "Pull-in") // false va primero, true (Pull-in) va al final
                 .ThenBy(s => s.Name != "Pull-out") // false (Pull-out) va primero
-                .ThenBy(s => s.ETATime) // This code snippet ensures that the "Pull-out" event must always be the first (Sequence 0) and the "Pull-in" event must always be the last, regardless of the estimated time.
+                .ThenBy(s => s.Sequence) // Respect the manual/previous order
+                //.ThenBy(s => s.ETATime) // This code snippet ensures that the "Pull-out" event must always be the first (Sequence 0) and the "Pull-in" event must always be the last, regardless of the estimated time.
                 .ToListAsync();
 
             for (int i = 0; i < schedulesToSequence.Count; i++)
@@ -741,6 +773,93 @@ namespace Raphael.Api.Services
         }
 
         public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId)
+        {
+            var baseQuery = _context.Schedules
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
+                .Where(s => s.Date.HasValue && s.Date.Value.Date == date.Date && s.TripId != null);
+
+            if (fundingSourceId.HasValue)
+            {
+                baseQuery = baseQuery.Where(s => s.Trip.FundingSourceId == fundingSourceId.Value);
+            }
+
+            var schedulesForDay = await baseQuery.ToListAsync();
+
+            var reportData = schedulesForDay
+                .GroupBy(s => s.TripId)
+                .Select(tripGroup =>
+                {
+                    var pickup = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Pickup);
+                    var dropoff = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Dropoff);
+                    var trip = pickup?.Trip ?? dropoff?.Trip;
+
+                    if (trip == null) return null;
+
+                    return new ProductionReportRowDto
+                    {
+                        Date = trip.Date,
+                        ReqPickup = trip.FromTime,
+                        Appointment = trip.ToTime,
+                        Patient = trip.Customer?.FullName,
+                        PickupAddress = trip.PickupAddress,
+                        DropoffAddress = trip.DropoffAddress,
+                        Space = trip.SpaceType?.Name,
+                        Charge = trip.Charge,
+                        Paid = trip.Paid,
+                        PickupComment = trip.PickupComment,
+                        DropoffComment = trip.DropoffComment,
+                        Type = trip.Type,
+                        PickupPhone = trip.PickupPhone,
+                        DropoffPhone = trip.DropoffPhone,
+                        Authorization = trip.Authorization,
+                        FundingSource = trip.FundingSource?.Name,
+                        Distance = trip.Distance,
+                        Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
+                        Driver = pickup?.VehicleRoute?.Driver?.FullName,
+                        PickupArrive = pickup?.ActualArriveTime,
+                        PickupPerform = pickup?.ActualPerformTime,
+                        DropoffArrive = dropoff?.ActualArriveTime,
+                        DropoffPerform = dropoff?.ActualPerformTime,
+                        WillCall = trip.WillCall,
+                        Canceled = trip.IsCancelled,
+                        VIN = pickup?.VehicleRoute?.Vehicle?.VIN,
+                        PickupOdometer = pickup?.Odometer,
+                        DropoffOdometer = dropoff?.Odometer,
+                        WillCallTime = trip.WillCall ? trip.FromTime : null, // null, //
+                        Vehicle = pickup?.VehicleRoute?.Vehicle?.Name,
+                        VehiclePlate = pickup?.VehicleRoute?.Vehicle?.Plate,
+                        TripId = trip.TripId,
+                        PickupGpsArriveDistance = pickup?.ArriveDistance,
+                        DropoffGpsArriveDistance = dropoff?.ArriveDistance,
+                        PickupCity = trip.PickupCity,
+                        PickupState = trip.Customer?.State, //
+                        PickupZip = trip.Customer?.Zip,
+                        DropoffCity = trip.DropoffCity,
+                        DropoffState = trip.Customer?.State,
+                        DropoffZip = trip.Customer?.Zip,
+                        PatientAddress = trip.Customer?.Address,
+                        DOB = trip.Customer?.DOB,
+                        DriverNoShowReason = trip.DriverNoShowReason,
+                        PickupLat = trip.PickupLatitude,
+                        PickupLon = trip.PickupLongitude,
+                        DropoffLat = trip.DropoffLatitude,
+                        DropoffLon = trip.DropoffLongitude,
+                        Created = trip.Created
+                    };
+                })
+                .Where(row => row != null)
+                .OrderBy(row => row.Run)
+                .ThenBy(row => row.ReqPickup)
+                .ToList();
+
+            return reportData;
+        }
+
+        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsyncOld(DateTime date, int? fundingSourceId)
         {
             // Fetch all relevant schedules for the given date.
             // We include related entities needed for the report.
