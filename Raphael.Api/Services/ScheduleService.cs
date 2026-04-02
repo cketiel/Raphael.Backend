@@ -772,6 +772,96 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
+        public async Task<IEnumerable<ProductionReportRowDto>> GetAviataReportDataAsync(DateTime startDate, DateTime endDate)
+        {
+            var baseQuery = _context.Schedules
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
+                .Include(s => s.VehicleRoute)
+                .Where(s => s.Date.HasValue && s.Date.Value.Date >= startDate.Date && s.Date.Value.Date <= endDate.Date && s.TripId != null);
+
+            var schedulesForPeriod = await baseQuery.ToListAsync();
+
+            var allBillingRules = await _context.FundingSourceBillingItems
+                .Include(bi => bi.BillingItem)
+                .ToListAsync();
+
+            var reportData = schedulesForPeriod
+                .GroupBy(s => s.TripId)
+                .Select(tripGroup =>
+                {
+                    var pickup = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Pickup);
+                    var dropoff = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Dropoff);
+                    var trip = pickup?.Trip ?? dropoff?.Trip;
+
+                    if (trip == null) return null;
+
+                    var row = new ProductionReportRowDto
+                    {
+                        Date = trip.Date,
+                        Patient = trip.Customer?.FullName,
+                        DOB = trip.Customer?.DOB,
+                        PatientAddress = $"{trip.Customer?.Address}, {trip.Customer?.City}, {trip.Customer?.State} {trip.Customer?.Zip}",
+                        FundingSource = trip.FundingSource?.Name,
+                        PickupAddress = trip.PickupAddress,
+                        DropoffAddress = trip.DropoffAddress,
+                        Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
+                        Distance = trip.Distance,
+                        Canceled = trip.IsCancelled,
+                        TripId = trip.TripId,
+                        Authorization = trip.Authorization,
+                        BillableLines = new List<ChargeLineDto>()
+                    };
+
+                    var rules = allBillingRules.Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId).ToList();
+
+                    if (trip.IsCancelled)
+                    {
+                        row.BillableLines.Add(new ChargeLineDto { ChargeName = "CANCELATION FEE", Quantity = 1.0, Rate = 35.0 });
+                    }
+                    else
+                    {
+                        // PICK UP FEE
+                        var loadRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("Loading") || r.BillingItem.Description.Contains("PICK UP"));
+                        if (loadRule != null)
+                        {
+                            row.BillableLines.Add(new ChargeLineDto
+                            {
+                                ChargeName = "PICK UP FEE",
+                                Quantity = 1.0,
+                                Rate = (double)loadRule.Rate
+                            });
+                        }
+
+                        // MILES 
+                        var milesRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("MILES"));
+                        if (milesRule != null)
+                        {
+                            double tripMiles = trip.Distance ?? 0.0;
+                            double freeQty = (double)(milesRule.FreeQty ?? 0);
+
+                            // Usamos Math.Max con doubles explícitos
+                            double billableMiles = Math.Max(0.0, tripMiles - freeQty);
+
+                            row.BillableLines.Add(new ChargeLineDto
+                            {
+                                ChargeName = "MILES",
+                                Quantity = billableMiles,
+                                Rate = (double)milesRule.Rate
+                            });
+                        }
+                    }
+
+                    return row;
+                })
+                .Where(row => row != null)
+                .OrderBy(row => row.Patient)
+                .ThenBy(row => row.Date)
+                .ToList();
+
+            return reportData;
+        }
         public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId)
         {
             var baseQuery = _context.Schedules

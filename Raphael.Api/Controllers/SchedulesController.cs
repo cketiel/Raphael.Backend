@@ -185,6 +185,14 @@ namespace Raphael.Api.Controllers
             return Ok(reportData);
         }
 
+        [HttpGet("reports/aviata")]
+        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetAviataReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+        {
+            // Llamamos al servicio con el rango de fechas
+            var reportData = await _scheduleService.GetAviataReportDataAsync(startDate, endDate);
+            return Ok(reportData);
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<ScheduleDto>> GetById(int id)
         {
