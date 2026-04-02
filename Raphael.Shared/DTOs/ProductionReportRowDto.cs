@@ -56,6 +56,8 @@
         public double DropoffLat { get; set; }
         public double DropoffLon { get; set; }
         public DateTime Created { get; set; }
+
+        public byte[]? PickupSignature { get; set; }
     }
 
     /*public class ProductionReportRowDto
