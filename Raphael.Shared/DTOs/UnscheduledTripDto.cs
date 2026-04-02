@@ -5,6 +5,8 @@ namespace Raphael.Shared.DTOs
         public int Id { get; set; }
         public DateTime Date { get; set; }
         public string CustomerName { get; set; }
+
+        public string? CustomerPhone { get; set; }
         public TimeSpan? FromTime { get; set; }
         public TimeSpan? ToTime { get; set; }
         public string PickupAddress { get; set; }

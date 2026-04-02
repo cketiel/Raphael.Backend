@@ -287,6 +287,7 @@ namespace Raphael.Api.Services
                     Id = t.Id,
                     Date = t.Date,
                     CustomerName = t.Customer.FullName,
+                    CustomerPhone = t.Customer.Phone,
                     FromTime = t.FromTime,
                     ToTime = t.ToTime,
                     PickupAddress = t.PickupAddress,
