@@ -789,6 +789,15 @@ namespace Raphael.Api.Services
 
             var schedulesForDay = await baseQuery.ToListAsync();
 
+            // Obtener TODAS las reglas de cobro para los FundingSources y SpaceTypes involucrados en este día
+            var fsIds = schedulesForDay.Select(s => s.Trip.FundingSourceId).Distinct().ToList();
+            var stIds = schedulesForDay.Select(s => s.Trip.SpaceTypeId).Distinct().ToList();
+
+            var allBillingRules = await _context.FundingSourceBillingItems
+                .Include(bi => bi.BillingItem)
+                .Where(bi => fsIds.Contains(bi.FundingSourceId) && stIds.Contains(bi.SpaceTypeId))
+                .ToListAsync();
+
             var reportData = schedulesForDay
                 .GroupBy(s => s.TripId)
                 .Select(tripGroup =>
@@ -799,6 +808,33 @@ namespace Raphael.Api.Services
 
                     if (trip == null) return null;
 
+                    // --- LÓGICA DE CÁLCULO DE FACTURACIÓN ---
+                    decimal totalBilled = 0;
+                    double distance = trip.Distance ?? 0;
+
+                    // Filtrar las reglas que aplican a ESTE viaje específico
+                    var currentRules = allBillingRules
+                        .Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId)
+                        .ToList();
+
+                    // A. Loading Fee (Costo fijo)
+                    var loadingFeeItem = currentRules.FirstOrDefault(r =>
+                        r.BillingItem.Description.Contains("Loading Fee", StringComparison.OrdinalIgnoreCase));
+                    if (loadingFeeItem != null)
+                    {
+                        totalBilled += loadingFeeItem.Rate;
+                    }
+
+                    // B. MILES (Cálculo por distancia con FreeQty)
+                    var milesItem = currentRules.FirstOrDefault(r =>
+                        r.BillingItem.Description.Contains("MILES", StringComparison.OrdinalIgnoreCase));
+                    if (milesItem != null)
+                    {
+                        int freeMiles = milesItem.FreeQty ?? 0;
+                        double billableMiles = Math.Max(0, distance - freeMiles);
+                        totalBilled += (decimal)billableMiles * milesItem.Rate;
+                    }
+
                     return new ProductionReportRowDto
                     {
                         Date = trip.Date,
@@ -808,7 +844,8 @@ namespace Raphael.Api.Services
                         PickupAddress = trip.PickupAddress,
                         DropoffAddress = trip.DropoffAddress,
                         Space = trip.SpaceType?.Name,
-                        Charge = trip.Charge,
+                        //Charge = trip.Charge,
+                        Charge = (double)totalBilled,
                         Paid = trip.Paid,
                         PickupComment = trip.PickupComment,
                         DropoffComment = trip.DropoffComment,
