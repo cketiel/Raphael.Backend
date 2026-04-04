@@ -773,7 +773,7 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
-        public async Task<IEnumerable<ProductionReportRowDto>> GetAviataReportDataAsync(DateTime startDate, DateTime endDate)
+        public async Task<IEnumerable<ProductionReportRowDto>> GetAviataReportDataAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds)
         {
             var baseQuery = _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
@@ -781,6 +781,12 @@ namespace Raphael.Api.Services
                 .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
                 .Include(s => s.VehicleRoute)
                 .Where(s => s.Date.HasValue && s.Date.Value.Date >= startDate.Date && s.Date.Value.Date <= endDate.Date && s.TripId != null);
+
+            // Filter by multiple IDs if provided
+            if (fundingSourceIds != null && fundingSourceIds.Any())
+            {
+                baseQuery = baseQuery.Where(s => fundingSourceIds.Contains(s.Trip.FundingSourceId.Value));
+            }
 
             var schedulesForPeriod = await baseQuery.ToListAsync();
 
