@@ -282,6 +282,7 @@ namespace Raphael.Api.Services
                 .Include(t => t.SpaceType)
                 .Where(t => t.VehicleRouteId == null && t.Date.Date == date.Date)
                 //.Where(t => t.VehicleRouteId == null && !t.IsCancelled && t.Date.Date == date.Date)
+                .OrderBy(t => t.FromTime)
                 .Select(t => new UnscheduledTripDto
                 {
                     Id = t.Id,
