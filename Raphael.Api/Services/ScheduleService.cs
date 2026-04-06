@@ -960,15 +960,43 @@ namespace Raphael.Api.Services
                     var cancelationRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("CANCELATION"));
 
                     if (trip.IsCancelled)
-                    { 
-                        double percent = 25.00;
-                        if (cancelationRule != null) 
+                    {
+                        decimal percentValue = cancelationRule?.Rate ?? 25m;
+                        double percent = (double)percentValue;
+                        decimal baseCharge = loadRule?.Rate ?? 0m;
+                        double totalCharge = (double)baseCharge;
+
+                        double cancelationFeeRate = (totalCharge * percent) / 100.0;
+
+                        row.BillableLines ??= new List<ChargeLineDto>();
+
+                        row.BillableLines.Add(new ChargeLineDto
                         {
-                            percent = (double)cancelationRule.Rate;
+                            ChargeName = "CANCELATION FEE",
+                            Quantity = 1.0,
+                            Rate = cancelationFeeRate
+                        });
+
+
+                        /*if (cancelationRule != null)
+                        {
+                            percent = (double)cancelationRule.Rate.GetValueOrDefault(0m);
                         }
-                        double totalCharge = (loadRule.Rate != null) ? (double)loadRule.Rate : 0.0;
-                        double cancelationFeeRate = totalCharge * percent / 100;
-                        row.BillableLines.Add(new ChargeLineDto { ChargeName = "CANCELATION FEE", Quantity = 1.0, Rate = cancelationFeeRate });
+
+                        double totalCharge = (loadRule?.Rate != null) ? (double)loadRule.Rate : 0.0;
+                        double cancelationFeeRate = (totalCharge * percent) / 100;
+                        if (row.BillableLines == null)
+                        {
+                            row.BillableLines = new List<ChargeLineDto>();
+                        }
+
+                        row.BillableLines.Add(new ChargeLineDto
+                        {
+                            ChargeName = "CANCELATION FEE",
+                            Quantity = 1.0,
+                            Rate = cancelationFeeRate
+                        });*/
+                        //row.BillableLines.Add(new ChargeLineDto { ChargeName = "CANCELATION FEE", Quantity = 1.0, Rate = cancelationFeeRate });
                     }
                     else
                     {
