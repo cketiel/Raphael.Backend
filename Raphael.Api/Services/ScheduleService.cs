@@ -894,7 +894,8 @@ namespace Raphael.Api.Services
                         PickupLon = trip.PickupLongitude,
                         DropoffLat = trip.DropoffLatitude,
                         DropoffLon = trip.DropoffLongitude,
-                        Created = trip.Created
+                        Created = trip.Created,
+                        PickupSignature = pickup?.PassengerSignature,
                     };
                 })
                 .Where(row => row != null)
