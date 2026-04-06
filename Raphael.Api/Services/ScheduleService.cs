@@ -774,6 +774,137 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
+        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds)
+        {
+            // 1. Initial Query with all necessary includes
+            var baseQuery = _context.Schedules
+                .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
+                .Where(s => s.Date.HasValue &&
+                            s.Date.Value.Date >= startDate.Date &&
+                            s.Date.Value.Date <= endDate.Date &&
+                            s.TripId != null);
+
+            // 2. Apply Multi-ID Filter if the list contains IDs
+            if (fundingSourceIds != null && fundingSourceIds.Any())
+            {
+                baseQuery = baseQuery.Where(s => fundingSourceIds.Contains(s.Trip.FundingSourceId.Value));
+            }
+
+            // Execute query to bring data into memory
+            var schedulesForPeriod = await baseQuery.ToListAsync();
+
+            // 3. Optimized Billing Rules Fetching
+            // We only fetch rules for the Funding Sources and Space Types present in this specific data set
+            var fsIds = schedulesForPeriod.Select(s => s.Trip.FundingSourceId).Distinct().ToList();
+            var stIds = schedulesForPeriod.Select(s => s.Trip.SpaceTypeId).Distinct().ToList();
+
+            var allBillingRules = await _context.FundingSourceBillingItems
+                .Include(bi => bi.BillingItem)
+                .Where(bi => fsIds.Contains(bi.FundingSourceId) && stIds.Contains(bi.SpaceTypeId))
+                .ToListAsync();
+
+            // 4. Group by TripId and project into the DTO
+            var reportData = schedulesForPeriod
+                .GroupBy(s => s.TripId)
+                .Select(tripGroup =>
+                {
+                    var pickup = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Pickup);
+                    var dropoff = tripGroup.FirstOrDefault(s => s.EventType == ScheduleEventType.Dropoff);
+                    var trip = pickup?.Trip ?? dropoff?.Trip;
+
+                    if (trip == null) return null;
+
+                    // --- BILLING CALCULATION LOGIC ---
+                    decimal totalBilled = 0;
+                    double distance = trip.Distance ?? 0;
+
+                    var currentRules = allBillingRules
+                        .Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId)
+                        .ToList();
+
+                    // A. Loading Fee / Pick Up Fee
+                    var loadingFeeItem = currentRules.FirstOrDefault(r =>
+                        r.BillingItem.Description.Contains("Loading Fee", StringComparison.OrdinalIgnoreCase) ||
+                        r.BillingItem.Description.Contains("PICK UP", StringComparison.OrdinalIgnoreCase));
+
+                    if (loadingFeeItem != null) totalBilled += loadingFeeItem.Rate;
+
+                    // B. Miles Calculation (Considering FreeQty)
+                    var milesItem = currentRules.FirstOrDefault(r =>
+                        r.BillingItem.Description.Contains("MILES", StringComparison.OrdinalIgnoreCase));
+
+                    if (milesItem != null)
+                    {
+                        int freeMiles = milesItem.FreeQty ?? 0;
+                        double billableMiles = Math.Max(0, distance - freeMiles);
+                        totalBilled += (decimal)billableMiles * milesItem.Rate;
+                    }
+
+                    // C. Mapping to DTO
+                    return new ProductionReportRowDto
+                    {
+                        Date = trip.Date,
+                        ReqPickup = trip.FromTime,
+                        Appointment = trip.ToTime,
+                        Patient = trip.Customer?.FullName,
+                        PickupAddress = trip.PickupAddress,
+                        DropoffAddress = trip.DropoffAddress,
+                        Space = trip.SpaceType?.Name,
+                        Charge = (double)totalBilled,
+                        Paid = trip.Paid,
+                        PickupComment = trip.PickupComment,
+                        DropoffComment = trip.DropoffComment,
+                        Type = trip.Type,
+                        PickupPhone = trip.PickupPhone,
+                        DropoffPhone = trip.DropoffPhone,
+                        Authorization = trip.Authorization,
+                        FundingSource = trip.FundingSource?.Name,
+                        Distance = trip.Distance,
+                        Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
+                        Driver = pickup?.VehicleRoute?.Driver?.FullName,
+                        PickupArrive = pickup?.ActualArriveTime,
+                        PickupPerform = pickup?.ActualPerformTime,
+                        DropoffArrive = dropoff?.ActualArriveTime,
+                        DropoffPerform = dropoff?.ActualPerformTime,
+                        WillCall = trip.WillCall,
+                        Canceled = trip.IsCancelled,
+                        VIN = pickup?.VehicleRoute?.Vehicle?.VIN,
+                        PickupOdometer = pickup?.Odometer,
+                        DropoffOdometer = dropoff?.Odometer,
+                        WillCallTime = trip.WillCall ? trip.FromTime : null,
+                        Vehicle = pickup?.VehicleRoute?.Vehicle?.Name,
+                        VehiclePlate = pickup?.VehicleRoute?.Vehicle?.Plate,
+                        TripId = trip.TripId,
+                        PickupGpsArriveDistance = pickup?.ArriveDistance,
+                        DropoffGpsArriveDistance = dropoff?.ArriveDistance,
+                        PickupCity = trip.PickupCity,
+                        PickupState = trip.Customer?.State,
+                        PickupZip = trip.Customer?.Zip,
+                        DropoffCity = trip.DropoffCity,
+                        DropoffState = trip.Customer?.State,
+                        DropoffZip = trip.Customer?.Zip,
+                        PatientAddress = trip.Customer?.Address,
+                        DOB = trip.Customer?.DOB,
+                        DriverNoShowReason = trip.DriverNoShowReason,
+                        PickupLat = trip.PickupLatitude,
+                        PickupLon = trip.PickupLongitude,
+                        DropoffLat = trip.DropoffLatitude,
+                        DropoffLon = trip.DropoffLongitude,
+                        Created = trip.Created
+                    };
+                })
+                .Where(row => row != null)
+                .OrderBy(row => row.Date)
+                .ThenBy(row => row.Run)
+                .ThenBy(row => row.ReqPickup)
+                .ToList();
+
+            return reportData;
+        }
         public async Task<IEnumerable<ProductionReportRowDto>> GetAviataReportDataAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds)
         {
             var baseQuery = _context.Schedules
@@ -823,27 +954,37 @@ namespace Raphael.Api.Services
                     };
 
                     var rules = allBillingRules.Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId).ToList();
+                    var loadRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("Loading") || r.BillingItem.Description.Contains("PICK UP"));
+                    var milesRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("MILES"));
+                    var cancelationRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("CANCELATION"));
 
                     if (trip.IsCancelled)
-                    {
-                        row.BillableLines.Add(new ChargeLineDto { ChargeName = "CANCELATION FEE", Quantity = 1.0, Rate = 35.0 });
+                    { 
+                        double percent = 25.00;
+                        if (cancelationRule != null) 
+                        {
+                            percent = (double)cancelationRule.Rate;
+                        }
+                        double totalCharge = (loadRule.Rate != null) ? (double)loadRule.Rate : 0.0;
+                        double cancelationFeeRate = totalCharge * percent / 100;
+                        row.BillableLines.Add(new ChargeLineDto { ChargeName = "CANCELATION FEE", Quantity = 1.0, Rate = cancelationFeeRate });
                     }
                     else
                     {
                         // PICK UP FEE
-                        var loadRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("Loading") || r.BillingItem.Description.Contains("PICK UP"));
+                        
                         if (loadRule != null)
                         {
                             row.BillableLines.Add(new ChargeLineDto
                             {
-                                ChargeName = "PICK UP FEE",
+                                ChargeName = loadRule.BillingItem.Description, // "PICK UP FEE",
                                 Quantity = 1.0,
                                 Rate = (double)loadRule.Rate
                             });
                         }
 
                         // MILES 
-                        var milesRule = rules.FirstOrDefault(r => r.BillingItem.Description.Contains("MILES"));
+                        
                         if (milesRule != null)
                         {
                             double tripMiles = trip.Distance ?? 0.0;
@@ -854,7 +995,7 @@ namespace Raphael.Api.Services
 
                             row.BillableLines.Add(new ChargeLineDto
                             {
-                                ChargeName = "MILES",
+                                ChargeName = milesRule.BillingItem.Description, // "MILES",
                                 Quantity = billableMiles,
                                 Rate = (double)milesRule.Rate
                             });

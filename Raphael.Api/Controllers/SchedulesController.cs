@@ -185,6 +185,23 @@ namespace Raphael.Api.Controllers
             return Ok(reportData);
         }
 
+        [HttpGet("reports/production-range")]
+        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionRangeReport(
+            [FromQuery] DateTime startDate,
+            [FromQuery] DateTime endDate,
+            [FromQuery] string? fundingSourceIds)
+        {
+            List<int>? ids = null;
+            if (!string.IsNullOrEmpty(fundingSourceIds))
+            {
+                ids = fundingSourceIds.Split(',').Select(int.Parse).ToList();
+            }
+
+            // Call a new service method or update the existing one to handle ranges
+            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, ids);
+            return Ok(reportData);
+        }
+
         [HttpGet("reports/aviata")]
         public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetAviataReport(
             [FromQuery] DateTime startDate,
