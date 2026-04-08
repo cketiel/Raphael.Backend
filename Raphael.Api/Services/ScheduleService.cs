@@ -92,6 +92,7 @@ namespace Raphael.Api.Services
                 //.Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
 
                 .OrderBy(s => s.Sequence)
+                .ThenBy(s => s.ETATime) // This secondary order ensures that if there are any events with the same sequence (e.g. manual entries), they will be ordered by their estimated time.
                 .Select(s => new ScheduleDto
                 {
                     Id = s.Id,
@@ -227,7 +228,7 @@ namespace Raphael.Api.Services
 
             // Combine and sort the two lists
             var allEvents = noCanceledEvents.Concat(canceledTripPickups)
-                                         .OrderBy(s => s.Sequence) //.OrderBy(s => s.ETA)
+                                         .OrderBy(s => s.Sequence).ThenBy(s => s.ETA)
                                          .ToList();
 
             return allEvents;
@@ -604,7 +605,16 @@ namespace Raphael.Api.Services
             for (int i = 0; i < schedulesToSequence.Count; i++)
             {
                 schedulesToSequence[i].Sequence = i;
+                if (schedulesToSequence[i].Name == "Pull-out")
+                    {
+                    schedulesToSequence[i].Sequence = 0; // Ensure Pull-out is always 0
+                }
+                else if (schedulesToSequence[i].Name == "Pull-in")
+                {
+                    schedulesToSequence[i].Sequence = schedulesToSequence.Count - 1; // Ensure Pull-in is always last
+                }
             }
+            
         }
 
         public async Task<bool> UpdateAsync(int id, ScheduleDto dto) 
@@ -623,7 +633,10 @@ namespace Raphael.Api.Services
             schedules.ArriveDistance = dto.ArriveDist;
             schedules.GpsArrive = dto.GPSArrive;
             schedules.ActualPerformTime = dto.Perform;
-            schedules.PerformDistance = dto.PerformDist;          
+            schedules.PerformDistance = dto.PerformDist;   
+            
+            if(schedules.Name == "Pull-out")
+                schedules.Sequence = 0;
 
             await _context.SaveChangesAsync();
             return true;
