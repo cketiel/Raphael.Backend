@@ -328,6 +328,7 @@ namespace Raphael.Api.Services
                 .Include(t => t.Run)
                 .Include(t => t.FundingSource)
                 .Where(t => t.Date.Date == date.Date) // We filter by date (ignoring the time)
+                .OrderBy(t => t.FromTime)
                 .Select(t => new TripReadDto
                 {
                     Id = t.Id,
