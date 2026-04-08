@@ -88,7 +88,8 @@ namespace Raphael.Api.Services
                 .Where(s => s.Performed == false)
 
                 // FILTER 2: Exclude events from canceled trips
-                .Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
+                .Where(s => s.Trip == null || s.Trip.IsCancelled != true)
+                //.Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
 
                 .OrderBy(s => s.Sequence)
                 .Select(s => new ScheduleDto
