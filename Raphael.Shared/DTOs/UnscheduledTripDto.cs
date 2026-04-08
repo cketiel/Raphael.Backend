@@ -35,6 +35,7 @@ namespace Raphael.Shared.DTOs
         public string? DriverNoShowReason { get; set; }
         public string? PickupCity { get; set; }
         public string? DropoffCity { get; set; }
+        public bool IsCanceled { get; set; }
 
     }
 }

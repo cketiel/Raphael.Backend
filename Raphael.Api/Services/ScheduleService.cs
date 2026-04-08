@@ -317,6 +317,7 @@ namespace Raphael.Api.Services
                     DriverNoShowReason = t.DriverNoShowReason,
                     PickupCity = t.PickupCity,  
                     DropoffCity = t.DropoffCity,
+                    IsCanceled = t.IsCancelled,
                 })
                 .ToListAsync();
         }
