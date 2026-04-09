@@ -644,7 +644,64 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        // Ahora se cancelan las 2 patas: A y B, es decir, el viaje principal y los relacionados del mismo cliente para el mismo día.
         public async Task<bool> CancelByDriverAsync(int id, string reason)
+        {
+            // 1. Buscamos el viaje principal
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null)
+            {
+                return false;
+            }
+
+            // Si el viaje ya está finalizado o cancelado, no hacemos nada.
+            if (trip.Status == TripStatus.Finished || trip.Status == TripStatus.Canceled)
+            {
+                return false;
+            }
+
+            // 2. Buscamos todos los viajes pendientes del mismo cliente para el mismo día
+            // Filtramos para que no sean el mismo viaje (t.Id != id) 
+            // y que no estén ya finalizados o cancelados.
+            var relatedTrips = await _context.Trips
+                .Where(t => t.CustomerId == trip.CustomerId &&
+                            t.Date.Date == trip.Date.Date && // Comparamos solo la parte de la fecha
+                            t.Id != id &&
+                            t.Status != TripStatus.Finished &&
+                            t.Status != TripStatus.Canceled)
+                .ToListAsync();
+
+            // 3. Creamos una lista con todos los viajes a cancelar (el principal + los relacionados)
+            var tripsToCancel = new List<Trip> { trip };
+            tripsToCancel.AddRange(relatedTrips);
+
+            // 4. Procesamos la cancelación para cada uno
+            foreach (var t in tripsToCancel)
+            {
+                t.Status = TripStatus.Canceled;
+                t.IsCancelled = true;
+                t.DriverNoShowReason = reason;
+
+                // Creamos el registro de log para cada viaje cancelado
+                var tripLog = new TripLog
+                {
+                    TripId = t.Id,
+                    Status = TripStatus.Canceled,
+                    Date = DateTime.UtcNow.Date,
+                    Time = DateTime.UtcNow.TimeOfDay,
+                    // Opcional: se puede poner en las notas que fue cancelado en cascada
+                    // Notes = t.Id == id ? $"Directly cancelled: {reason}" : $"Auto-cancelled due to main trip {id} cancellation."
+                };
+                _context.TripLogs.Add(tripLog);
+            }
+
+            // 5. Guardamos todos los cambios en una sola transacción
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // Solo la pata A
+        public async Task<bool> CancelByDriverAsyncOld(int id, string reason)
         {
             var trip = await _context.Trips.FindAsync(id);
             if (trip == null)

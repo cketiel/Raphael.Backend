@@ -5,6 +5,7 @@ namespace Raphael.Api.Services
 {
     public interface ITripService
     {
+        Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates);
         Task<List<TripReadDto>> GetAllAsync();
         Task<(List<TripReadDto> Trips, int TotalCount)> GetAllAsync(int pageNumber = 1, int pageSize = 20);
         //Task<IEnumerable<TripReadDto>> GetAllAsync();
