@@ -18,6 +18,24 @@ namespace Raphael.Api.Controllers
             _tripService = tripService;
         }
 
+        [HttpPut("update-types")]
+        public async Task<IActionResult> UpdateTripTypes([FromBody] List<TripTypeUpdateDto> updates)
+        {
+            if (updates == null || !updates.Any())
+                return BadRequest("No data provided.");
+
+            try
+            {
+                // Llamada al servicio para actualizar
+                await _tripService.UpdateTripTypesAsync(updates);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal error: {ex.Message}");
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {

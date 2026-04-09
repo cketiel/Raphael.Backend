@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using System.Linq;
 using System.Net;
 
 namespace Raphael.Api.Services
@@ -15,6 +16,33 @@ namespace Raphael.Api.Services
         public TripService(RaphaelContext context)
         {
             _context = context;
+        }
+
+        public async Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates)
+        {
+            // Opción A: EF Core tradicional (Cargar en memoria y actualizar)
+            /*var ids = updates.Select(u => u.Id).ToList();
+            var tripsToUpdate = await _context.Trips
+                                              .Where(t => ids.Contains(t.Id))
+                                              .ToListAsync();
+
+            foreach (var trip in tripsToUpdate)
+            {
+                var updateData = updates.First(x => x.Id == trip.Id);
+                trip.Type = updateData.Type;
+            }
+
+            await _context.SaveChangesAsync();*/
+
+            
+            // Opción B: EF Core 7+ (Más rápido, sin cargar entidades)
+            foreach (var update in updates)
+            {
+                await _context.Trips
+                    .Where(t => t.Id == update.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(t => t.Type, update.Type));
+            }
+            
         }
 
         /*public async Task<List<Trip>> GetAllAsync2()
