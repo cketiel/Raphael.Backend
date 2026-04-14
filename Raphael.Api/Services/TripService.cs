@@ -331,7 +331,7 @@ namespace Raphael.Api.Services
             //trip.Created = DateTime.UtcNow;
 
             //trip.PickupNote = dto.PickupNote;
-            trip.IsCancelled = dto.IsCancelled;
+            //trip.IsCancelled = dto.IsCancelled; // lo comente porque estaba dando problemas, cuando se importaba por segunda vez el mismo viaje, al actualizar el viaje, siempre se mandaba 0, y si el viaje ya habia sido cancelado se producia esa cotradiccion isCancelled = false y status = cancelled, lo cual no es correcto
 
             await _context.SaveChangesAsync();
             return true;
