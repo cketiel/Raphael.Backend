@@ -69,7 +69,7 @@ namespace Raphael.Shared.Entities
 
         public long? Odometer { get; set; }
         public string? GpsArrive { get; set; } // "lat,lon"
-        public DateTime? Date { get; set; }
+        public DateTime Date { get; set; }
 
         public bool Performed { get; set; }
 

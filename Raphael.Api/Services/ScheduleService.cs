@@ -379,7 +379,7 @@ namespace Raphael.Api.Services
                 // 3. Check if there are already schedules for this route on this day.
                 var tripDate = tripToRoute.Date.Date;
                 bool isFirstTripOfDay = !await _context.Schedules
-                    .AnyAsync(s => s.VehicleRouteId == request.VehicleRouteId && s.Trip.Date.Date == tripDate);
+                    .AnyAsync(s => s.VehicleRouteId == request.VehicleRouteId && s.Date.Date == tripDate);
 
                 if (isFirstTripOfDay)
                 {
