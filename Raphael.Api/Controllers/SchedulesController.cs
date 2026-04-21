@@ -281,6 +281,21 @@ namespace Raphael.Api.Controllers
             return Ok(etas);        
         }
 
+        [HttpPatch("{id}/update-eta")] // We use HttpPatch for partial updates
+        public async Task<IActionResult> UpdateETA(int id, [FromBody] UpdateScheduleEtaDto dto)
+        {
+            if (dto == null) return BadRequest("Data is required.");
+
+            var success = await _scheduleService.UpdateScheduleEtaAsync(id, dto);
+
+            if (!success)
+            {
+                return NotFound($"Schedule with ID {id} not found.");
+            }
+
+            return NoContent();
+        }
+
         /*[EnableRateLimiting("public-api")]  // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
         [HttpGet("patient-eta")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA([FromQuery] string patientName)

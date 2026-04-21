@@ -1408,6 +1408,18 @@ namespace Raphael.Api.Services
                 })
                 .ToListAsync();
         }
+        public async Task<bool> UpdateScheduleEtaAsync(int id, UpdateScheduleEtaDto dto)
+        {
+            var schedule = await _context.Schedules.FindAsync(id);
+
+            if (schedule == null) return false;
+
+            schedule.ETATime = dto.ETA;
+            schedule.TravelTime = dto.Travel;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
 
     }
 }

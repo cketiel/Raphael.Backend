@@ -30,6 +30,7 @@ namespace Raphael.Api.Services
         Task<IEnumerable<ScheduleDto>> GetPatientETAsByNameAsync(string patientFullName, DateTime date);
 
         Task<IEnumerable<ScheduleDto>> GetPatientETAsAsync(string? patientFullName, string? phone, DateTime? date, string? tripId);
+        Task<bool> UpdateScheduleEtaAsync(int id, UpdateScheduleEtaDto dto);
     }
 }
 
