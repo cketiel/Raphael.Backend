@@ -192,6 +192,33 @@ namespace Raphael.Shared.DbContexts
                 .HasOne(s => s.VehicleRoute)
                 .WithMany(vr => vr.Schedules)
                 .HasForeignKey(s => s.VehicleRouteId);
+
+            // To avoid duplicate trips
+            // Define maximum sizes for the columns that will be part of the index
+            // SQL Server has a 900 byte limit for index keys. Since we use nvarchar (2 bytes per character), 450 is the safe maximum.
+            modelBuilder.Entity<Trip>()
+                .Property(t => t.PickupAddress)
+                .HasMaxLength(450)
+                .IsRequired();
+
+            modelBuilder.Entity<Trip>()
+                .Property(t => t.DropoffAddress)
+                .HasMaxLength(450)
+                .IsRequired();
+
+            // Create the Unique Filtered Index
+            modelBuilder.Entity<Trip>()
+                .HasIndex(t => new {
+                    t.Date,
+                    t.CustomerId,
+                    t.PickupAddress,
+                    t.DropoffAddress,
+                    t.FromTime,
+                    t.ToTime
+                })
+                .IsUnique()
+                .HasFilter("[IsCancelled] = 0") // Only apply the uniqueness rule if it is NOT canceled
+                .HasDatabaseName("IX_Trip_Unique_Active_Trip");
         }
     }
 }

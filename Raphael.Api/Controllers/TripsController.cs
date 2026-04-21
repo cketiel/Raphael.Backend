@@ -83,7 +83,9 @@ namespace Raphael.Api.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return Conflict(ex.Message);
+                // This specifically catches the duplicate error sent from the service
+                return Conflict(new { Message = ex.Message }); // Error Code 409: Using Conflict() in the controller helps the Frontend know that it is not a programming error (500), but a duplicate data problem, allowing it to display an alert message to the user.
+                //return Conflict(ex.Message);
             }
             catch (DbUpdateException ex)
             {
@@ -101,6 +103,11 @@ namespace Raphael.Api.Controllers
             {
                 var updated = await _tripService.UpdateAsync(id, dto);
                 return updated ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                // This specifically catches the duplicate error sent from the service
+                return Conflict(new { Message = ex.Message }); // Error Code 409: Using Conflict() in the controller helps the Frontend know that it is not a programming error (500), but a duplicate data problem, allowing it to display an alert message to the user.
             }
             catch (DbUpdateException ex)
             {
@@ -361,14 +368,26 @@ namespace Raphael.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UncancelTrip(int id)
         {
-            var success = await _tripService.UncancelAsync(id);
-
-            if (!success)
+            try
             {
-                return NotFound(new { Message = $"Trip with ID {id} not found or cannot be restored." });
-            }
+                var success = await _tripService.UncancelAsync(id);
 
-            return NoContent(); // Success
+                if (!success)
+                {
+                    return NotFound(new { Message = $"Trip with ID {id} not found or cannot be restored." });
+                }
+
+                return NoContent(); // Success
+            }
+            catch (InvalidOperationException ex)
+            {
+                // If when trying to uncancel it is detected that there is already another active equal
+                return Conflict(new { Message = ex.Message }); // Error Code 409: Using Conflict() in the controller helps the Frontend know that it is not a programming error (500), but a duplicate data problem, allowing it to display an alert message to the user.
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal error: {ex.Message}");
+            }
         }
 
         [HttpPatch("{id}/dispatch-update")]

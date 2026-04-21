@@ -278,14 +278,28 @@ namespace Raphael.Api.Services
                 Created = DateTime.UtcNow,
                 IsCancelled = false
             };
+          
+            try
+            {
+                // Add to context
+                _context.Trips.Add(trip);
 
-            // Add to context
-            _context.Trips.Add(trip);
+                // Save changes
+                await _context.SaveChangesAsync();
 
-            // Save changes
-            await _context.SaveChangesAsync();
-
-            return trip;
+                return trip;
+            }
+            catch (DbUpdateException ex)
+            {
+                // Check if the cause is a unique index violation in SQL Server
+                // Error code 2601 or 2627 indicates UNIQUE constraint violation
+                if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx &&
+                   (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+                {
+                    throw new InvalidOperationException("A similar active trip already exists for this customer on the same date and time.");
+                }
+                throw; // If it's another error, we'll relaunch it
+            }
         }
         
         public async Task<bool> UpdateAsync(int id, TripUpdateDto dto)
@@ -332,9 +346,20 @@ namespace Raphael.Api.Services
 
             //trip.PickupNote = dto.PickupNote;
             //trip.IsCancelled = dto.IsCancelled; // lo comente porque estaba dando problemas, cuando se importaba por segunda vez el mismo viaje, al actualizar el viaje, siempre se mandaba 0, y si el viaje ya habia sido cancelado se producia esa cotradiccion isCancelled = false y status = cancelled, lo cual no es correcto
-
-            await _context.SaveChangesAsync();
-            return true;
+         
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex)
+            {
+                if (IsUniqueConstraintViolation(ex))
+                {
+                    throw new InvalidOperationException("Another active trip already exists with these same details (Date, Customer, Addresses and Times).");
+                }
+                throw;
+            }
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -762,9 +787,20 @@ namespace Raphael.Api.Services
                 Time = DateTime.UtcNow.TimeOfDay
             };
             _context.TripLogs.Add(tripLog);
-
-            await _context.SaveChangesAsync();
-            return true;
+           
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex)
+            {
+                if (IsUniqueConstraintViolation(ex))
+                {
+                    throw new InvalidOperationException("Cannot uncancel this trip because there is already another active trip with the same details for this customer.");
+                }
+                throw;
+            }
         }
 
         public async Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto)
@@ -803,6 +839,11 @@ namespace Raphael.Api.Services
             await _context.SaveChangesAsync();
           
             return true;
+        }
+        private bool IsUniqueConstraintViolation(DbUpdateException ex)
+        {
+            return ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx &&
+                   (sqlEx.Number == 2601 || sqlEx.Number == 2627);
         }
 
     }// end class
