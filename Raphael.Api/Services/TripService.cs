@@ -692,7 +692,8 @@ namespace Raphael.Api.Services
                 .Where(t => t.CustomerId == trip.CustomerId &&
                             t.Date.Date == trip.Date.Date && // Comparamos solo la parte de la fecha
                             t.Id != id &&
-                            t.Status != TripStatus.Finished &&
+                            t.Status != TripStatus.Finished  &&
+                            t.Status != TripStatus.InProgress &&
                             t.Status != TripStatus.Canceled)
                 .ToListAsync();
 
