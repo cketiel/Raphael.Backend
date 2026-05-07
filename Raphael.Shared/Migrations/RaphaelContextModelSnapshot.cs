@@ -67,7 +67,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("UnitId1");
 
-                    b.ToTable("BillingItems");
+                    b.ToTable("BillingItems", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.CapacityDetail", b =>
@@ -93,7 +93,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("SpaceTypeId");
 
-                    b.ToTable("CapacityDetails");
+                    b.ToTable("CapacityDetails", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.CapacityDetailType", b =>
@@ -113,7 +113,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CapacityDetailTypes");
+                    b.ToTable("CapacityDetailTypes", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.CapacityType", b =>
@@ -133,7 +133,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Capacities");
+                    b.ToTable("Capacities", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Customer", b =>
@@ -218,7 +218,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("SpaceTypeId");
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.FundingSource", b =>
@@ -280,7 +280,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FundingSources");
+                    b.ToTable("FundingSources", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.FundingSourceBillingItem", b =>
@@ -341,7 +341,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("SpaceTypeId");
 
-                    b.ToTable("FundingSourceBillingItems");
+                    b.ToTable("FundingSourceBillingItems", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.GPS", b =>
@@ -377,7 +377,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("IdVehicleRoute");
 
-                    b.ToTable("GPSData");
+                    b.ToTable("GPSData", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Provider", b =>
@@ -413,7 +413,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Providers");
+                    b.ToTable("Providers", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Role", b =>
@@ -433,7 +433,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.RouteAvailability", b =>
@@ -463,7 +463,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("VehicleRouteId");
 
-                    b.ToTable("RouteAvailabilities");
+                    b.ToTable("RouteAvailabilities", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.RouteFundingSource", b =>
@@ -481,7 +481,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("FundingSourceId");
 
-                    b.ToTable("RouteFundingSources");
+                    b.ToTable("RouteFundingSources", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.RouteSuspension", b =>
@@ -509,7 +509,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("VehicleRouteId");
 
-                    b.ToTable("RouteSuspensions");
+                    b.ToTable("RouteSuspensions", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Schedule", b =>
@@ -615,7 +615,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("VehicleRouteId");
 
-                    b.ToTable("Schedules");
+                    b.ToTable("Schedules", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.SpaceType", b =>
@@ -653,7 +653,7 @@ namespace Raphael.Shared.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("SpaceTypes");
+                    b.ToTable("SpaceTypes", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Trip", b =>
@@ -788,7 +788,7 @@ namespace Raphael.Shared.Migrations
                         .HasDatabaseName("IX_Trip_Unique_Active_Trip")
                         .HasFilter("[IsCancelled] = 0");
 
-                    b.ToTable("Trips");
+                    b.ToTable("Trips", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.TripHistory", b =>
@@ -823,7 +823,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("TripId");
 
-                    b.ToTable("TripHistories");
+                    b.ToTable("TripHistories", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.TripLog", b =>
@@ -851,7 +851,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("TripId");
 
-                    b.ToTable("TripLogs");
+                    b.ToTable("TripLogs", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Unit", b =>
@@ -872,7 +872,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Units");
+                    b.ToTable("Units", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.User", b =>
@@ -917,7 +917,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Vehicle", b =>
@@ -978,7 +978,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("VehicleTypeId");
 
-                    b.ToTable("Vehicles");
+                    b.ToTable("Vehicles", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.VehicleGroup", b =>
@@ -1001,7 +1001,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VehicleGroups");
+                    b.ToTable("VehicleGroups", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.VehicleRoute", b =>
@@ -1059,7 +1059,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("VehicleId");
 
-                    b.ToTable("VehicleRoutes");
+                    b.ToTable("VehicleRoutes", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.VehicleType", b =>
@@ -1079,7 +1079,7 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VehicleTypes");
+                    b.ToTable("VehicleTypes", (string)null);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.BillingItem", b =>

@@ -617,7 +617,74 @@ namespace Raphael.Api.Services
             
         }
 
-        public async Task<bool> UpdateAsync(int id, ScheduleDto dto) 
+        // Este nuevo metodo actualiza el stado de los viajes
+        public async Task<bool> UpdateAsync(int id, ScheduleDto dto)
+        {
+            // 1. Cargamos el Schedule incluyendo el Trip relacionado para poder actualizarlo
+            var schedule = await _context.Schedules
+                .Include(s => s.Trip)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (schedule == null) return false;
+
+            // 2. Detectamos si el estado "Performed" está cambiando de False a True en esta actualización
+            bool wasJustPerformed = !schedule.Performed && dto.Performed;
+
+            // 3. Actualizamos los campos normales del Schedule
+            schedule.DistanceToPoint = dto.Distance;
+            schedule.TravelTime = dto.Travel;
+            schedule.ETATime = dto.ETA;
+            schedule.Odometer = dto.Odometer;
+            schedule.Sequence = dto.Sequence;
+            schedule.Performed = dto.Performed;
+            schedule.ActualArriveTime = dto.Arrive;
+            schedule.ArriveDistance = dto.ArriveDist;
+            schedule.GpsArrive = dto.GPSArrive;
+            schedule.ActualPerformTime = dto.Perform;
+            schedule.PerformDistance = dto.PerformDist;
+
+            if (schedule.Name == "Pull-out")
+                schedule.Sequence = 0;
+
+            // 4. Lógica de actualización de Trip y TripLogs
+            if (wasJustPerformed && schedule.Trip != null)
+            {
+                string newStatus = string.Empty;
+
+                // Determinar el nuevo estado según el tipo de evento
+                if (schedule.EventType == ScheduleEventType.Pickup)
+                {
+                    newStatus = TripStatus.InProgress;
+                }
+                else if (schedule.EventType == ScheduleEventType.Dropoff)
+                {
+                    newStatus = TripStatus.Finished;
+                }
+
+                // Si tenemos un estado válido para actualizar
+                if (!string.IsNullOrEmpty(newStatus))
+                {
+                    // Actualizar el status del viaje
+                    schedule.Trip.Status = newStatus;
+
+                    // Crear el registro en TripLog
+                    var historyLog = new TripLog
+                    {
+                        TripId = schedule.Trip.Id,
+                        Status = newStatus,
+                        Date = DateTime.Now.Date,
+                        Time = DateTime.Now.TimeOfDay
+                    };
+
+                    _context.TripLogs.Add(historyLog);
+                }
+            }
+
+            // 5. Guardamos todos los cambios (Schedule, Trip y TripLog) en una sola transacción
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        public async Task<bool> UpdateAsyncOld(int id, ScheduleDto dto) 
         {
             var schedules = await _context.Schedules.FirstOrDefaultAsync(r => r.Id == id);
 

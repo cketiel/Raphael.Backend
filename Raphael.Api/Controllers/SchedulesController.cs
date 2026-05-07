@@ -59,7 +59,9 @@ namespace Raphael.Api.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                // Esto nos dirá si el error es de SQL, de una columna inexistente, etc.
+                var innerError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return BadRequest($"Error: {ex.Message} -- Detalle: {innerError}");
             }
         }
 
