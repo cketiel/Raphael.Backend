@@ -557,8 +557,9 @@ namespace Raphael.Api.Services
                 await _context.SaveChangesAsync(); // We save so that the next query sees the changes.
 
                 // 4. Check if there are other trips left for this route on this day.
-                bool otherTripsExist = await _context.Schedules
-                    .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);
+                bool otherTripsExist = await _context.Schedules.CountAsync(s => s.VehicleRouteId == vehicleRouteId && s.Date.HasValue && s.Date.Value.Date == tripDate.Date) > 2;       
+                /*bool otherTripsExist = await _context.Schedules
+                    .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);*/
 
                 if (!otherTripsExist)
                 {
@@ -618,19 +619,17 @@ namespace Raphael.Api.Services
         }
 
         // Este nuevo metodo actualiza el stado de los viajes
-        public async Task<bool> UpdateAsync(int id, ScheduleDto dto)
+        public async Task<bool> UpdateAsyncError(int id, ScheduleDto dto)
         {
-            // 1. Cargamos el Schedule incluyendo el Trip relacionado para poder actualizarlo
+            // 1. Cargamos el Schedule. 
+            // Usamos Include solo si realmente necesitamos actualizar el Trip
             var schedule = await _context.Schedules
                 .Include(s => s.Trip)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (schedule == null) return false;
 
-            // 2. Detectamos si el estado "Performed" está cambiando de False a True en esta actualización
-            bool wasJustPerformed = !schedule.Performed && dto.Performed;
-
-            // 3. Actualizamos los campos normales del Schedule
+            // 2. Mapeo de campos básicos 
             schedule.DistanceToPoint = dto.Distance;
             schedule.TravelTime = dto.Travel;
             schedule.ETATime = dto.ETA;
@@ -646,45 +645,44 @@ namespace Raphael.Api.Services
             if (schedule.Name == "Pull-out")
                 schedule.Sequence = 0;
 
-            // 4. Lógica de actualización de Trip y TripLogs
-            if (wasJustPerformed && schedule.Trip != null)
+            // 3. Lógica de Historial y Status
+            // Verificamos si pasó a Performed y si el Trip existe
+            if (dto.Performed && !schedule.Performed && schedule.Trip != null)
             {
-                string newStatus = string.Empty;
+                string newStatus = schedule.EventType == ScheduleEventType.Pickup
+                                   ? TripStatus.InProgress
+                                   : (schedule.EventType == ScheduleEventType.Dropoff ? TripStatus.Finished : null);
 
-                // Determinar el nuevo estado según el tipo de evento
-                if (schedule.EventType == ScheduleEventType.Pickup)
-                {
-                    newStatus = TripStatus.InProgress;
-                }
-                else if (schedule.EventType == ScheduleEventType.Dropoff)
-                {
-                    newStatus = TripStatus.Finished;
-                }
-
-                // Si tenemos un estado válido para actualizar
                 if (!string.IsNullOrEmpty(newStatus))
                 {
-                    // Actualizar el status del viaje
                     schedule.Trip.Status = newStatus;
 
-                    // Crear el registro en TripLog
+                    // Creamos el log pero con un Try-Catch interno o verificando nulos
                     var historyLog = new TripLog
                     {
                         TripId = schedule.Trip.Id,
                         Status = newStatus,
                         Date = DateTime.Now.Date,
-                        Time = DateTime.Now.TimeOfDay
+                        Time = DateTime.Now.TimeOfDay                      
                     };
 
                     _context.TripLogs.Add(historyLog);
                 }
             }
 
-            // 5. Guardamos todos los cambios (Schedule, Trip y TripLog) en una sola transacción
-            await _context.SaveChangesAsync();
-            return true;
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Esto te dirá en los logs del servidor qué columna falló exactamente
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                throw new Exception($"Error en SaveChanges: {msg}");
+            }
         }
-        public async Task<bool> UpdateAsyncOld(int id, ScheduleDto dto) 
+        public async Task<bool> UpdateAsync(int id, ScheduleDto dto) 
         {
             var schedules = await _context.Schedules.FirstOrDefaultAsync(r => r.Id == id);
 
