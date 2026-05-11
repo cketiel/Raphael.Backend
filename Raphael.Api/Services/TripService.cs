@@ -287,6 +287,16 @@ namespace Raphael.Api.Services
                 // Save changes
                 await _context.SaveChangesAsync();
 
+                // LÓGICA NUEVA: Si el TripId es nulo o vacío (viaje manual), 
+                // le asignamos el Id autogenerado.
+                if (string.IsNullOrWhiteSpace(trip.TripId))
+                {
+                    trip.TripId = trip.Id.ToString();
+
+                    // Actualizamos solo el campo TripId
+                    await _context.SaveChangesAsync();
+                }
+
                 return trip;
             }
             catch (DbUpdateException ex)
