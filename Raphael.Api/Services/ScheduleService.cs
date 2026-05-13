@@ -1097,10 +1097,14 @@ namespace Raphael.Api.Services
                         if (milesRule != null)
                         {
                             double tripMiles = trip.Distance ?? 0.0;
-                            double freeQty = (double)(milesRule.FreeQty ?? 0);
+                            int freeQty = milesRule.FreeQty ?? 0;
+                            // double freeQty = (double)(milesRule.FreeQty ?? 0); // no funciona
 
-                            // Usamos Math.Max con doubles explícitos
-                            double billableMiles = Math.Max(0.0, tripMiles - freeQty);
+                            // C# promocionará el int a double automáticamente en la resta, manteniendo la precisión.
+                            double billableMiles = Math.Max(0, tripMiles - freeQty);
+
+                            // Usamos Math.Max con doubles explícitos (No funciona)
+                            //double billableMiles = Math.Max(0.0, tripMiles - freeQty); //no funciona
 
                             row.BillableLines.Add(new ChargeLineDto
                             {
