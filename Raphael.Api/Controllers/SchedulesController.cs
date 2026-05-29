@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Raphael.Api.Services;
@@ -241,6 +242,7 @@ namespace Raphael.Api.Controllers
             return Ok(schedule);
         }
 
+        [AllowAnonymous]
         [EnableRateLimiting("public-api")] // This endpoint is public and can be accessed without authentication, so we apply rate limiting to prevent abuse. (Protect the public endpoint)
         [HttpGet("patient-eta")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPatientETA(

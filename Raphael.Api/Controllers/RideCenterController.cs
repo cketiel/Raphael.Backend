@@ -1,13 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Attributes;
-using Raphael.Shared.DTOs;
 using Raphael.Api.Services;
+using Raphael.Shared.DTOs;
 using System.Net.Mime;
 
 namespace Raphael.Api.Controllers
 {
     [ApiController]
     [Route("api/integration/ride-center")]
+    [AllowAnonymous] // Ignore JWT Global
     [RideCenterApiKey] // Custom attribute for API Key security
     [Produces(MediaTypeNames.Application.Json)]
     public class RideCenterController : ControllerBase

@@ -3,8 +3,10 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -37,6 +39,33 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Raphael Backend API",
         Version = "v1"
     });
+
+    // --- CONFIGURATION FOR JWT IN SWAGGER ---
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter the JWT token like this: Bearer {your_token}"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+
     // Configure to use XML comments
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -80,14 +109,27 @@ builder.Services.AddDbContext<RaphaelContext>(options =>
 
 
 // Add services to the container.
+builder.Services.AddControllers(options =>
+{
+    // This applies the [Authorize] attribute to all controllers globally
+    var policy = new AuthorizationPolicyBuilder()
+                     .RequireAuthenticatedUser()
+                     .Build();
+    options.Filters.Add(new AuthorizeFilter(policy));
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
 
 //builder.Services.AddControllers();
-builder.Services.AddControllers()
+/*builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    });
+    });*/
 
 // Inject user services
 builder.Services.AddScoped<IUserService, UserService>();
@@ -167,7 +209,7 @@ if (app.Environment.IsDevelopment())
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseAuthentication();
+app.UseAuthentication(); // Who is the user?
 
 app.UseDefaultFiles(); // So that it searches index.html if you access the root
 app.UseStaticFiles();  // To serve files from wwwroot
@@ -192,7 +234,7 @@ app.Use(async (context, next) =>
 });
 
 
-app.UseAuthorization();
+app.UseAuthorization(); // Do you have permission?
 
 app.MapControllers();
 

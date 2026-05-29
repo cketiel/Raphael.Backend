@@ -26,12 +26,14 @@ namespace Raphael.Api.Controllers
             _jwtSettings = jwtOptions.Value;
             _context = context;
         }
+        [AllowAnonymous]
         [HttpPost("loginTest")]
         public async Task<IActionResult> LoginTest([FromBody] LoginRequest request)
         {
             return Ok(new { message = "Login successful" });
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {   
