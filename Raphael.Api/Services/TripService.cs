@@ -17,6 +17,107 @@ namespace Raphael.Api.Services
         {
             _context = context;
         }
+        
+        public async Task<List<string>> UpsertRideCenterTripsAsync(List<RideCenterTripDto> dtos)
+        {
+            var processedIds = new List<string>();
+
+            foreach (var dto in dtos)
+            {
+                // 1. Resolve SpaceType (Unique by Name)
+                var spaceType = await _context.SpaceTypes.FirstOrDefaultAsync(s => s.Name == dto.SpaceTypeName);
+                if (spaceType == null)
+                {
+                    spaceType = new SpaceType
+                    {
+                        Name = dto.SpaceTypeName,
+                        Description = "Auto-created via Integration",
+                        IsActive = true
+                    };
+                    _context.SpaceTypes.Add(spaceType);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 2. Resolve FundingSource (Unique by Name)
+                var fundingSource = await _context.FundingSources.FirstOrDefaultAsync(f => f.Name == dto.FundingSourceName);
+                if (fundingSource == null)
+                {
+                    fundingSource = new FundingSource
+                    {
+                        Name = dto.FundingSourceName,
+                        IsActive = true
+                    };
+                    _context.FundingSources.Add(fundingSource);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 3. Resolve Customer (Unique by RiderId or Logic: Name + Phone)
+                string effectiveRiderId = string.IsNullOrWhiteSpace(dto.RiderId)
+                    ? $"{dto.CustomerFullName} {dto.CustomerPhone}".Trim()
+                    : dto.RiderId;
+
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.RiderId == effectiveRiderId);
+                if (customer == null)
+                {
+                    customer = new Customer
+                    {
+                        RiderId = effectiveRiderId,
+                        FullName = dto.CustomerFullName,
+                        Phone = dto.CustomerPhone,
+                        Address = dto.CustomerAddress ?? "Integration Provided",
+                        City = dto.CustomerCity ?? "Unknown",
+                        Zip = dto.CustomerZip ?? "00000",
+                        State = "N/A",
+                        Gender = dto.CustomerGender ?? "Unknown",
+                        FundingSourceId = fundingSource.Id,
+                        SpaceTypeId = spaceType.Id,
+                        Created = DateTime.UtcNow,
+                        CreatedBy = "RideCenterSystem"
+                    };
+                    _context.Customers.Add(customer);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 4. Resolve Trip (Unique by TripId)
+                var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == dto.TripId);
+                bool isNew = false;
+
+                if (trip == null)
+                {
+                    isNew = true;
+                    trip = new Trip
+                    {
+                        TripId = dto.TripId,
+                        Created = DateTime.UtcNow,
+                        Status = TripStatus.Assigned
+                    };
+                    _context.Trips.Add(trip);
+                }
+
+                // Update Properties
+                trip.Date = dto.Date;
+                trip.Day = dto.Date.DayOfWeek.ToString();
+                trip.FromTime = dto.FromTime;
+                trip.ToTime = dto.ToTime;
+                trip.CustomerId = customer.Id;
+                trip.SpaceTypeId = spaceType.Id;
+                trip.FundingSourceId = fundingSource.Id;
+                trip.PickupAddress = dto.PickupAddress;
+                trip.PickupLatitude = dto.PickupLatitude;
+                trip.PickupLongitude = dto.PickupLongitude;
+                trip.DropoffAddress = dto.DropoffAddress;
+                trip.DropoffLatitude = dto.DropoffLatitude;
+                trip.DropoffLongitude = dto.DropoffLongitude;
+                trip.Type = dto.Type ?? TripType.Appointment;
+                trip.Authorization = dto.Authorization;
+                trip.IsCancelled = false;
+
+                processedIds.Add(dto.TripId);
+            }
+
+            await _context.SaveChangesAsync();
+            return processedIds;
+        }
 
         public async Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates)
         {

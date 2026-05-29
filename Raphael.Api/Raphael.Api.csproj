@@ -21,6 +21,11 @@
     <ProjectReference Include="..\Raphael.Shared\Raphael.Shared.csproj" />
     <ProjectReference Include="..\Raphael.Shared\Raphael.Shared.csproj" />
   </ItemGroup>
+  
+  <PropertyGroup>
+	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	<NoWarn>$(NoWarn);1591</NoWarn> <!-- Hide missing comment warnings -->
+  </PropertyGroup>
 
 </Project>
 
