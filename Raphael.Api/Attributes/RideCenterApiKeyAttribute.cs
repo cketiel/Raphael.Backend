@@ -11,7 +11,7 @@ namespace Raphael.Api.Attributes
         {
             if (!context.HttpContext.Request.Headers.TryGetValue(APIKEYNAME, out var extractedApiKey))
             {
-                context.Result = new ContentResult() { StatusCode = 401, Content = "Api Key no proporcionada" };
+                context.Result = new ContentResult() { StatusCode = 401, Content = "API Key was not provided" };
                 return;
             }
 
@@ -20,7 +20,7 @@ namespace Raphael.Api.Attributes
 
             if (!apiKey.Equals(extractedApiKey))
             {
-                context.Result = new ContentResult() { StatusCode = 403, Content = "Acceso no autorizado" };
+                context.Result = new ContentResult() { StatusCode = 403, Content = "Unauthorized access" };
                 return;
             }
 
