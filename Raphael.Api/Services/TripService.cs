@@ -108,6 +108,9 @@ namespace Raphael.Api.Services
                 trip.DropoffAddress = dto.DropoffAddress;
                 trip.DropoffLatitude = dto.DropoffLatitude;
                 trip.DropoffLongitude = dto.DropoffLongitude;
+                trip.Distance = dto.Distance;
+                trip.PickupCity = dto.PickupCity;
+                trip.DropoffCity = dto.DropoffCity;
                 trip.Type = dto.Type ?? TripType.Appointment;
                 trip.Authorization = dto.Authorization;
                 trip.IsCancelled = false;
