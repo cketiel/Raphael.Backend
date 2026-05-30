@@ -109,7 +109,7 @@ builder.Services.AddDbContext<RaphaelContext>(options =>
 
 
 // Add services to the container.
-builder.Services.AddControllers(options =>
+/*builder.Services.AddControllers(options =>
 {
     // This applies the [Authorize] attribute to all controllers globally
     var policy = new AuthorizationPolicyBuilder()
@@ -121,15 +121,15 @@ builder.Services.AddControllers(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-});
+});*/
 
 //builder.Services.AddControllers();
-/*builder.Services.AddControllers()
+builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    });*/
+    });
 
 // Inject user services
 builder.Services.AddScoped<IUserService, UserService>();

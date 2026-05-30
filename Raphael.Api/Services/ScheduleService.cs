@@ -618,8 +618,8 @@ namespace Raphael.Api.Services
             
         }
 
-        // Este nuevo metodo actualiza el stado de los viajes
-        public async Task<bool> UpdateAsyncError(int id, ScheduleDto dto)
+        // Este nuevo metodo actualiza el estado de los viajes
+        public async Task<bool> PerformUpdateAsync(int id, ScheduleDto dto)
         {
             // 1. Cargamos el Schedule. 
             // Usamos Include solo si realmente necesitamos actualizar el Trip

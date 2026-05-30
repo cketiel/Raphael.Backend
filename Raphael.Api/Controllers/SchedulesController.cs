@@ -102,6 +102,24 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
+        [HttpPut("{id}/perform")] // La ruta será: api/Schedules/5/perform
+        public async Task<IActionResult> PerformUpdate(int id, [FromBody] ScheduleDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+           
+            var success = await _scheduleService.PerformUpdateAsync(id, dto);
+
+            if (!success)
+            {
+                return NotFound($"Schedule with ID {id} not found.");
+            }
+
+            return NoContent();
+        }
+
         [HttpPost("{id}/signature")]
         public async Task<IActionResult> UploadSignature(int id, [FromBody] SignatureUploadDto dto)
         {
