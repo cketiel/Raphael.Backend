@@ -36,6 +36,9 @@ namespace Raphael.Shared.DTOs
         public string DropoffAddress { get; set; }
         public double DropoffLatitude { get; set; }
         public double DropoffLongitude { get; set; }
+        public double Distance { get; set; }  // In miles
+        public string PickupCity { get; set; }
+        public string DropoffCity { get; set; }
         public string? Type { get; set; } // Appointment / Return
         public string? Authorization { get; set; }
     }
