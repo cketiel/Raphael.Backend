@@ -646,8 +646,8 @@ namespace Raphael.Api.Services
                 schedule.Sequence = 0;
 
             // 3. Lógica de Historial y Status
-            // Verificamos si pasó a Performed y si el Trip existe
-            if (dto.Performed && !schedule.Performed && schedule.Trip != null)
+            // Verificamos si el Trip existe
+            if (schedule.Trip != null)
             {
                 string newStatus = schedule.EventType == ScheduleEventType.Pickup
                                    ? TripStatus.InProgress
