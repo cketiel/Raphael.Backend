@@ -557,11 +557,12 @@ namespace Raphael.Api.Services
                 await _context.SaveChangesAsync(); // We save so that the next query sees the changes.
 
                 // 4. Check if there are other trips left for this route on this day.
-                bool otherTripsExist = await _context.Schedules.CountAsync(s => s.VehicleRouteId == vehicleRouteId && s.Date.HasValue && s.Date.Value.Date == tripDate.Date) > 2;       
+                bool otherTripsExist = await _context.Schedules.CountAsync(s => s.VehicleRouteId == vehicleRouteId && s.Date.HasValue && s.Date.Value.Date == tripDate.Date) > 2;
                 /*bool otherTripsExist = await _context.Schedules
                     .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);*/
 
-                if (!otherTripsExist)
+                // Nunca eliminar los Pull-out/in, aunque no queden viajes, pq si no hay conexion con el servidor entonces las app clientes eliminan los pull-out/in y se desconfigura toda la ruta. Lo que si se puede hacer es recalcular la secuencia para que Pull-out sea 0 y Pull-in el último, aunque no queden viajes entre medio.
+                /*if (!otherTripsExist)
                 {
                     // If there are no more trips left, we also eliminate Pull-out and Pull-in.
                     var dayEvents = await _context.Schedules
@@ -574,8 +575,10 @@ namespace Raphael.Api.Services
                 {
                     // If there are other trips left, we just recalculate the sequence.
                     await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
-                }
-                
+                }*/
+
+                await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
