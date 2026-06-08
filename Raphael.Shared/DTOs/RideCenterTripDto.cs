@@ -11,7 +11,7 @@ namespace Raphael.Shared.DTOs
         public TimeSpan? FromTime { get; set; }
         public TimeSpan? ToTime { get; set; }
 
-        // Datos del Cliente
+        // Customer Data
         public string? RiderId { get; set; }
         [Required]
         public string CustomerFullName { get; set; }
@@ -21,13 +21,13 @@ namespace Raphael.Shared.DTOs
         public string? CustomerZip { get; set; }
         public string? CustomerGender { get; set; } = "Unknown";
 
-        // Referencias por Nombre
+        // References by Name
         [Required]
         public string SpaceTypeName { get; set; }
         [Required]
         public string FundingSourceName { get; set; }
 
-        // Datos del Viaje
+        // Trip Information
         [Required]
         public string PickupAddress { get; set; }
         public double PickupLatitude { get; set; }
