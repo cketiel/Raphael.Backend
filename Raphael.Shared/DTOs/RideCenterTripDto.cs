@@ -41,5 +41,10 @@ namespace Raphael.Shared.DTOs
         public string DropoffCity { get; set; }
         public string? Type { get; set; } // Appointment / Return
         public string? Authorization { get; set; }
+
+        public string? PickupComment { get; set; }
+        public string? DropoffComment { get; set; }
+        public string? NotificationEmail { get; set; }
+        public IFormFile? Attachment { get; set; }
     }
 }

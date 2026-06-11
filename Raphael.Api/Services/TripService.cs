@@ -118,6 +118,27 @@ namespace Raphael.Api.Services
                 trip.Authorization = dto.Authorization;
                 trip.IsCancelled = false;
 
+                trip.PickupComment = dto.PickupComment;
+                trip.DropoffComment = dto.DropoffComment;
+
+                // SAVE FILE IF EXISTS
+                if (dto.Attachment != null && dto.Attachment.Length > 0)
+                {
+                    using var ms = new MemoryStream();
+                    await dto.Attachment.CopyToAsync(ms);
+
+                    var newAttachment = new TripAttachment
+                    {
+                        Trip = trip, 
+                        FileName = dto.Attachment.FileName,
+                        FileContent = ms.ToArray(),
+                        ContentType = dto.Attachment.ContentType,
+                        NotificationEmail = dto.NotificationEmail,
+                        Created = DateTime.UtcNow
+                    };
+                    _context.TripAttachments.Add(newAttachment);
+                }
+
                 processedIds.Add(dto.TripId);
             }
 

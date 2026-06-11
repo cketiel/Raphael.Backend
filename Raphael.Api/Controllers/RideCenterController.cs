@@ -23,6 +23,7 @@ namespace Raphael.Api.Controllers
 
         /// <summary>
         /// Synchronizes a list of trips from Ryde Central.
+        /// Synchronizes trips using Form-Data to allow file uploads.
         /// </summary>
         /// <remarks>
         /// This endpoint performs an "Upsert" (Update or Insert) operation:
@@ -41,7 +42,8 @@ namespace Raphael.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> SyncBatch([FromBody] List<RideCenterTripDto> trips)
+        //To handle files (PDF/Word), the request format was changed from JSON to Multipart Form-Data. This was necessary because the JSON protocol is not efficient for sending binary files.
+        public async Task<IActionResult> SyncBatch([FromForm] List<RideCenterTripDto> trips) // Critical Change: Changed [FromBody] to [FromForm]. When files are sent, the data does not travel as a flat JSON in the body, but as a form with parts (multipart).
         {
             if (trips == null || !trips.Any())
             {
@@ -49,8 +51,7 @@ namespace Raphael.Api.Controllers
             }
 
             try
-            {
-                // This method should be implemented in your TripService
+            {               
                 var processedTripIds = await _tripService.UpsertRideCenterTripsAsync(trips);
 
                 return Ok(new
@@ -62,8 +63,7 @@ namespace Raphael.Api.Controllers
                 });
             }
             catch (Exception ex)
-            {
-                // Log the exception here
+            {               
                 return StatusCode(500, $"An error occurred during synchronization: {ex.Message}");
             }
         }
@@ -77,7 +77,7 @@ namespace Raphael.Api.Controllers
         [HttpPost("sync-single")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> SyncSingle([FromBody] RideCenterTripDto trip)
+        public async Task<IActionResult> SyncSingle([FromForm] RideCenterTripDto trip)
         {
             if (trip == null) return BadRequest("Trip data is required.");
 

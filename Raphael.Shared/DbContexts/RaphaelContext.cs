@@ -8,6 +8,7 @@ namespace Raphael.Shared.DbContexts
     {
         public RaphaelContext(DbContextOptions<RaphaelContext> options) : base(options) { }
 
+        public DbSet<TripAttachment> TripAttachments { get; set; }
         public DbSet<TripHistory> TripHistories { get; set; }
         public DbSet<GPS> GPSData { get; set; }
         public DbSet<RouteSuspension> RouteSuspensions { get; set; }
