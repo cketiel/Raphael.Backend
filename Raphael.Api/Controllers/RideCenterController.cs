@@ -22,7 +22,7 @@ namespace Raphael.Api.Controllers
         }
 
         /// <summary>
-        /// Synchronizes a list of trips from Ride Center.
+        /// Synchronizes a list of trips from Ryde Central.
         /// </summary>
         /// <remarks>
         /// This endpoint performs an "Upsert" (Update or Insert) operation:
@@ -69,7 +69,7 @@ namespace Raphael.Api.Controllers
         }
 
         /// <summary>
-        /// Synchronizes a single trip from Ride Center.
+        /// Synchronizes a single trip from Ryde Central.
         /// </summary>
         /// <param name="trip">The trip object to be synchronized.</param>
         /// <response code="200">The trip was successfully synchronized.</response>

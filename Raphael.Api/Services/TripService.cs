@@ -32,6 +32,9 @@ namespace Raphael.Api.Services
                     {
                         Name = dto.SpaceTypeName,
                         Description = "Auto-created via Integration",
+                        LoadTime = 0,
+                        UnloadTime = 0,
+                        CapacityTypeId = 1,
                         IsActive = true
                     };
                     _context.SpaceTypes.Add(spaceType);
