@@ -17,8 +17,37 @@ namespace Raphael.Api.Services
         {
             _context = context;
         }
-        
-        public async Task<List<string>> UpsertRideCenterTripsAsync(List<RideCenterTripDto> dtos)
+
+        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int integratorId)
+        {
+            var trips = await _context.Trips
+                .Where(t => externalTripIds.Contains(t.TripId) && t.IntegratorId == integratorId)
+                .ToListAsync();
+
+            foreach (var trip in trips)
+            {
+                trip.Status = TripStatus.Canceled;
+                trip.IsCancelled = true;
+            }
+            return await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int integratorId)
+        {
+            var query = _context.Trips
+                .Include(t => t.Customer)
+                .Where(t => t.IntegratorId == integratorId);
+
+            if (date.HasValue)
+                query = query.Where(t => t.Date.Date == date.Value.Date);
+
+            if (externalIds != null && externalIds.Any())
+                query = query.Where(t => externalIds.Contains(t.TripId));
+
+            return await query.ToListAsync();
+        }
+
+        public async Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int integratorId) 
         {
             var processedIds = new List<string>();
 
@@ -75,14 +104,14 @@ namespace Raphael.Api.Services
                         FundingSourceId = fundingSource.Id,
                         SpaceTypeId = spaceType.Id,
                         Created = DateTime.UtcNow,
-                        CreatedBy = "RideCenterSystem"
+                        CreatedBy = "RydeCentralSystem"
                     };
                     _context.Customers.Add(customer);
                     await _context.SaveChangesAsync();
                 }
 
-                // 4. Resolve Trip (Unique by TripId)
-                var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == dto.TripId);
+                // 4. Resolve Trip (Unique by TripId and by integrator)
+                var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == dto.TripId && t.IntegratorId == integratorId);
                 bool isNew = false;
 
                 if (trip == null)
@@ -91,6 +120,7 @@ namespace Raphael.Api.Services
                     trip = new Trip
                     {
                         TripId = dto.TripId,
+                        IntegratorId = integratorId,
                         Created = DateTime.UtcNow,
                         Status = TripStatus.Assigned
                     };

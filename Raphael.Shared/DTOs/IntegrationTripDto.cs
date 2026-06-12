@@ -2,7 +2,7 @@
 
 namespace Raphael.Shared.DTOs
 {
-    public class RideCenterTripDto
+    public class IntegrationTripDto
     {
         [Required]
         public string TripId { get; set; } 
@@ -46,5 +46,7 @@ namespace Raphael.Shared.DTOs
         public string? DropoffComment { get; set; }
         public string? NotificationEmail { get; set; }
         public IFormFile? Attachment { get; set; }
+
+        public string? Status { get; set; }
     }
 }

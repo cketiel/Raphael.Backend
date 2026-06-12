@@ -5,7 +5,9 @@ namespace Raphael.Api.Services
 {
     public interface ITripService
     {
-        Task<List<string>> UpsertRideCenterTripsAsync(List<RideCenterTripDto> dtos);
+        Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int integratorId);
+        Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int integratorId);
+        Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int integratorId);
         Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates);
         Task<List<TripReadDto>> GetAllAsync();
         Task<(List<TripReadDto> Trips, int TotalCount)> GetAllAsync(int pageNumber = 1, int pageSize = 20);

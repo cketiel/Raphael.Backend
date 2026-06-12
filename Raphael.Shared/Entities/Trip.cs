@@ -92,6 +92,10 @@ namespace Raphael.Shared.Entities
         public string? PickupCity { get; set; } // The city for the pickup location
         public string? DropoffCity { get; set; } // The city for the dropoff location
 
+        public int? IntegratorId { get; set; }
+        [ForeignKey("IntegratorId")]
+        public virtual Integrator? Integrator { get; set; }
+
     }
 }
 
