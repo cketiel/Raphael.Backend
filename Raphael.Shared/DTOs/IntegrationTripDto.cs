@@ -22,7 +22,17 @@ namespace Raphael.Shared.DTOs
         public string? CustomerGender { get; set; } = "Unknown";
 
         // References by Name
+        /// <summary>
+        /// Code representing the vehicle/space type required.
+        /// </summary>
+        /// <remarks>
+        /// Allowed values:
+        /// - **AMB**: Ambulatory (Patient can walk).
+        /// - **WCH**: WheelChair (Patient requires a wheelchair).
+        /// - **STR**: Stretcher (Patient requires a stretcher).
+        /// </remarks>
         [Required]
+        [RegularExpression("AMB|WCH|STR", ErrorMessage = "SpaceTypeName must be AMB, WCH, or STR")]
         public string SpaceTypeName { get; set; }
         [Required]
         public string FundingSourceName { get; set; }
@@ -39,7 +49,18 @@ namespace Raphael.Shared.DTOs
         public double Distance { get; set; }  // In miles
         public string PickupCity { get; set; }
         public string DropoffCity { get; set; }
-        public string? Type { get; set; } // Appointment / Return
+
+        /// <summary>
+        /// Type of the trip. This field is optional.
+        /// </summary>
+        /// <remarks>
+        /// If provided, it must be exactly one of the following:
+        /// - **Appointment**: Outgoing trip.
+        /// - **Return**: Returning trip.
+        /// If omitted, the system defaults to 'Appointment'.
+        /// </remarks>
+        [RegularExpression("Appointment|Return", ErrorMessage = "Type must be either 'Appointment' or 'Return'")]
+        public string? Type { get; set; }
         public string? Authorization { get; set; }
 
         public string? PickupComment { get; set; }
