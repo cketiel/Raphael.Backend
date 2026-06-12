@@ -33,7 +33,7 @@ namespace Raphael.Api.Controllers
         }
 
         /// <summary>
-        /// Synchronizes multiple trips in a single batch request.
+        /// Synchronizes multiple trips in a single batch request using Form-Data.
         /// </summary>
         /// <remarks>
         /// This endpoint performs an <b>Upsert</b> (Update or Insert) operation:
@@ -44,6 +44,14 @@ namespace Raphael.Api.Controllers
         /// <li>SpaceTypes and FundingSources are identified by their Name.</li>
         /// <li><b>Attachments:</b> You can upload Word or PDF files for each trip.</li>
         /// </ul>
+        /// <b>Attachment Handling:</b>
+        /// The 'Attachment' field expects a binary file (PDF or Word). When you upload a file:
+        /// <ul>
+        /// <li><b>FileContent:</b> This is the raw binary data of your file. Do not send as Base64; send as a binary part of the multipart form.</li>
+        /// <li><b>FileName:</b> Automatically extracted from the uploaded file's metadata.</li>
+        /// <li><b>ContentType:</b> Automatically detected (e.g., application/pdf).</li>
+        /// </ul>
+        /// <b>Batch Format:</b> For multiple trips, use indexed keys: trips[0].TripId, trips[0].Attachment, trips[1].TripId, etc.
         /// <b>Requirement:</b> This endpoint requires <i>multipart/form-data</i> because it handles binary file transfers.
         /// </remarks>
         /// <param name="trips">List of trip objects. Use indexed naming (e.g., trips[0].TripId, trips[0].Attachment).</param>
