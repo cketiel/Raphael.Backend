@@ -45,6 +45,12 @@ namespace Raphael.Api.Controllers
                 return Unauthorized("Invalid username or password.");
             }
 
+            // Check if the user is active
+            if (!user.IsActive)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "User account is disabled. Contact administrator." });
+            }
+
             // Here the JWT is generated and returned
             /*var token = _jwtService.GenerateToken(user); 
             return Ok(new { token });*/

@@ -1,5 +1,6 @@
 
 
+using AspNetCoreRateLimit;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -189,8 +190,20 @@ builder.Services.AddRateLimiter(options =>
 });
 
 
+// Needs memory to store request counters
+builder.Services.AddMemoryCache();
+
+// Load Rate Limiting Settings
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+
+// Inject the internal services of the library
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 var app = builder.Build();
+
+// Activate Rate Limiting
+app.UseIpRateLimiting();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
