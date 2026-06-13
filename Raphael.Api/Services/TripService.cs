@@ -76,7 +76,7 @@ namespace Raphael.Api.Services
                 {
                     fundingSource = new FundingSource
                     {
-                        Name = dto.FundingSourceName,
+                        Name = dto.FundingSourceName ?? "Unknown",
                         IsActive = true
                     };
                     _context.FundingSources.Add(fundingSource);
@@ -151,22 +151,51 @@ namespace Raphael.Api.Services
                 trip.PickupComment = dto.PickupComment;
                 trip.DropoffComment = dto.DropoffComment;
 
-                // SAVE FILE IF EXISTS
+                // --- IMPROVED ATTACHMENT LOGIC (UPSERT / DELETE) ---
+
+                // We look if the trip already has a file
+                var existingAttachment = await _context.TripAttachments.FirstOrDefaultAsync(a => a.TripId == trip.Id);
+
                 if (dto.Attachment != null && dto.Attachment.Length > 0)
                 {
+                    // Scenario: A file was sent (Create or Update)
                     using var ms = new MemoryStream();
                     await dto.Attachment.CopyToAsync(ms);
+                    byte[] fileData = ms.ToArray();
 
-                    var newAttachment = new TripAttachment
+                    if (existingAttachment == null)
                     {
-                        Trip = trip, 
-                        FileName = dto.Attachment.FileName,
-                        FileContent = ms.ToArray(),
-                        ContentType = dto.Attachment.ContentType,
-                        NotificationEmail = dto.NotificationEmail,
-                        Created = DateTime.UtcNow
-                    };
-                    _context.TripAttachments.Add(newAttachment);
+                        // INSERT: It didn't exist, we created it
+                        var newAttachment = new TripAttachment
+                        {
+                            Trip = trip,
+                            FileName = dto.Attachment.FileName,
+                            FileContent = fileData,
+                            ContentType = dto.Attachment.ContentType,
+                            NotificationEmail = dto.NotificationEmail,
+                            Created = DateTime.UtcNow
+                        };
+                        _context.TripAttachments.Add(newAttachment);
+                    }
+                    else
+                    {
+                        // UPDATE: It already existed, we replaced the data
+                        existingAttachment.FileName = dto.Attachment.FileName;
+                        existingAttachment.FileContent = fileData;
+                        existingAttachment.ContentType = dto.Attachment.ContentType;
+                        existingAttachment.NotificationEmail = dto.NotificationEmail;
+                        existingAttachment.Created = DateTime.UtcNow;
+                        _context.TripAttachments.Update(existingAttachment);
+                    }
+                }
+                else
+                {
+                    // Scenario: NO file was sent in the current request
+                    // If a file existed previously, Integrator (Ryde Central) wants to delete it
+                    if (existingAttachment != null)
+                    {
+                        _context.TripAttachments.Remove(existingAttachment);
+                    }
                 }
 
                 processedIds.Add(dto.TripId);
