@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
-using System.IO;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.Interfaces;
+using System.IO;
 
 namespace Raphael.Shared.Factories
 {
@@ -22,8 +23,20 @@ namespace Raphael.Shared.Factories
 
             optionsBuilder.UseSqlServer(connectionString);
 
-            return new RaphaelContext(optionsBuilder.Options);
+            var dummyUserService = new DesignTimeCurrentUserService();
+
+            return new RaphaelContext(optionsBuilder.Options, dummyUserService);
         }
+    }
+
+    // Clase auxiliar interna para que la fábrica funcione
+    // En tiempo de diseño (migraciones), asumimos que somos Milanes (Admin)
+    public class DesignTimeCurrentUserService : ICurrentUserService
+    {
+        public int? UserId => null;
+        public int? IntegratorId => null;
+        public int? ProviderId => null;
+        public bool IsMilanesInternal => true; // Para migraciones, actuar como admin global
     }
 }
 
