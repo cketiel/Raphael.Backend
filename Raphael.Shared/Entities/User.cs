@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities
 {
@@ -20,6 +21,14 @@ namespace Raphael.Shared.Entities
         public int RoleId { get; set; }
         public Role Role { get; set; }
         //public ICollection<VehicleRoute> VehicleRoutes { get; set; }
+
+        public int? IntegratorId { get; set; }
+        [ForeignKey("IntegratorId")]
+        public virtual Integrator? Integrator { get; set; }
+
+        public int? ProviderId { get; set; }
+        [ForeignKey("ProviderId")]
+        public virtual Provider? Provider { get; set; }
     }
 }
 

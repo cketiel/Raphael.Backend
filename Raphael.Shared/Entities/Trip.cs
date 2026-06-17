@@ -96,6 +96,10 @@ namespace Raphael.Shared.Entities
         [ForeignKey("IntegratorId")]
         public virtual Integrator? Integrator { get; set; }
 
+        public int? ProviderId { get; set; }
+        [ForeignKey("ProviderId")]
+        public virtual Provider? Provider { get; set; }
+
     }
 }
 

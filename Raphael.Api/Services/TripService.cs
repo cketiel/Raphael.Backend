@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Interfaces;
 using System.Linq;
 using System.Net;
 
@@ -12,10 +13,12 @@ namespace Raphael.Api.Services
     public class TripService : ITripService
     {
         private readonly RaphaelContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        public TripService(RaphaelContext context)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int integratorId)
@@ -465,7 +468,14 @@ namespace Raphael.Api.Services
                 Created = DateTime.UtcNow,
                 IsCancelled = false
             };
-          
+
+            // Si el usuario es de un Integrador (Booking), forzamos su ID
+            if (!_currentUserService.IsMilanesInternal && _currentUserService.IntegratorId != null)
+            {
+                trip.IntegratorId = _currentUserService.IntegratorId;
+                trip.ProviderId = null; // Por defecto lo hará Milanes
+            }
+
             try
             {
                 // Add to context

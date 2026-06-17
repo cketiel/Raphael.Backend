@@ -66,7 +66,9 @@ namespace Raphael.Api.Controllers
 
                  new Claim("UserId", user.Id.ToString()),
                  new Claim("Username", user.Username),
-                 new Claim("Role", user.RoleId.ToString())
+                 new Claim("Role", user.RoleId.ToString()),
+                 new Claim("UserIntegratorId", user.IntegratorId?.ToString() ?? ""),
+                 new Claim("UserProviderId", user.ProviderId?.ToString() ?? "")
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
@@ -89,6 +91,8 @@ namespace Raphael.Api.Controllers
                 username = user.Username,
                 //userfullname = user.FullName,
                 role = user.RoleId.ToString(),
+                integratorId = user.IntegratorId, 
+                providerId = user.ProviderId,
                 isSuccess = true
             });
         }

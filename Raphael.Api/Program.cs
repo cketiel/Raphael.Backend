@@ -18,6 +18,7 @@ using Raphael.Shared.Data;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Interfaces;
 using Raphael.Shared.Validators;
 using System.Reflection;
 using System.Text;
@@ -161,6 +162,9 @@ builder.Services.AddScoped<IGpsService, GpsService>();
 builder.Services.AddScoped<IProviderService, ProviderService>();
 
 builder.Services.AddScoped<ITripHistoryService, TripHistoryService>();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>

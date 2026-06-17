@@ -1,12 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.Entities;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Raphael.Shared.Interfaces;
 
 namespace Raphael.Shared.DbContexts
 {
     public class RaphaelContext : DbContext
     {
-        public RaphaelContext(DbContextOptions<RaphaelContext> options) : base(options) { }
+        private readonly ICurrentUserService _currentUserService;
+        //public RaphaelContext(DbContextOptions<RaphaelContext> options) : base(options) { }
+
+        public RaphaelContext(DbContextOptions<RaphaelContext> options, ICurrentUserService currentUserService)
+            : base(options)
+        {
+            _currentUserService = currentUserService;
+        }
 
         public DbSet<Integrator> Integrators { get; set; }
         public DbSet<TripAttachment> TripAttachments { get; set; }
@@ -221,6 +229,12 @@ namespace Raphael.Shared.DbContexts
                 .IsUnique()
                 .HasFilter("[IsCancelled] = 0") // Only apply the uniqueness rule if it is NOT canceled
                 .HasDatabaseName("IX_Trip_Unique_Active_Trip");
+
+            modelBuilder.Entity<Trip>().HasQueryFilter(t =>
+                _currentUserService.IsMilanesInternal ||
+                (_currentUserService.IntegratorId != null && t.IntegratorId == _currentUserService.IntegratorId) ||
+                (_currentUserService.ProviderId != null && t.ProviderId == _currentUserService.ProviderId)
+            );
         }
     }
 }
