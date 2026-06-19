@@ -166,6 +166,8 @@ builder.Services.AddScoped<ITripHistoryService, TripHistoryService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
+builder.Services.AddScoped<IIntegratorService, IntegratorService>();
+
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>
 {
