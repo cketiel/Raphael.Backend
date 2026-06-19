@@ -7,5 +7,10 @@ namespace Raphael.Api.Services
     {
         Task<ProviderDto?> GetContactProviderAsync();
         Task<bool> UpdateContactProviderAsync(ProviderDto providerDto);
+        Task<IEnumerable<ProviderDto>> GetAllAsync();
+        Task<ProviderDto> CreateAsync(ProviderDto dto);
+        Task<bool> UpdateAsync(int id, ProviderDto dto);
+        Task<bool> DeleteAsync(int id);
+
     }
 }

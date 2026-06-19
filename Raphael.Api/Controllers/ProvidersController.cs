@@ -47,5 +47,21 @@ namespace Raphael.Api.Controllers
 
             return NoContent(); // Hide the Text Customer and Send Dispatch Message actions
         }
+
+        [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _providerService.GetAllAsync());
+        [HttpPost]
+        public async Task<IActionResult> Create([FromForm] ProviderDto dto) 
+        {
+            var result = await _providerService.CreateAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromForm] ProviderDto dto) 
+        {
+            var success = await _providerService.UpdateAsync(id, dto);
+            return success ? Ok() : NotFound();
+        }
+        [HttpDelete("{id}")] public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
     }
 }
