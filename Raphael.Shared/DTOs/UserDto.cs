@@ -12,6 +12,11 @@ namespace Raphael.Shared.DTOs
         public bool IsActive { get; set; }
         public int RoleId { get; set; }
         public string RoleName { get; set; } = null!;
+
+        public int? IntegratorId { get; set; }
+        public string? IntegratorName { get; set; }
+        public int? ProviderId { get; set; }
+        public string? ProviderName { get; set; }
     }
 }
 

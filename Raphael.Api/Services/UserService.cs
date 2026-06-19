@@ -31,7 +31,11 @@ namespace Raphael.Api.Services
                     DriverLicense = u.DriverLicense,
                     IsActive = u.IsActive,
                     RoleId = u.RoleId,
-                    RoleName = u.Role.RoleName
+                    RoleName = u.Role.RoleName,
+                    IntegratorId = u.IntegratorId,
+                    IntegratorName = u.Integrator != null ? u.Integrator.Name : null,
+                    ProviderId = u.ProviderId,
+                    ProviderName = u.Provider != null ? u.Provider.Name : null
                 })
                 .ToListAsync();
         }
@@ -78,7 +82,9 @@ namespace Raphael.Api.Services
                     Email = dto.Email,
                     PhoneNumber = dto.PhoneNumber,
                     Address = dto.Address,
-                    DriverLicense = dto.DriverLicense
+                    DriverLicense = dto.DriverLicense,
+                    IntegratorId = dto.IntegratorId,
+                    ProviderId = dto.ProviderId
                 };
 
                 _context.Users.Add(user);
@@ -113,6 +119,9 @@ namespace Raphael.Api.Services
             user.Address = dto.Address;
             user.DriverLicense = dto.DriverLicense;
             user.IsActive = dto.IsActive;
+
+            user.IntegratorId = dto.IntegratorId;
+            user.ProviderId = dto.ProviderId;
 
             await _context.SaveChangesAsync();
 

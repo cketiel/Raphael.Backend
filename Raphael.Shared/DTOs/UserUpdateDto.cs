@@ -14,6 +14,9 @@ namespace Raphael.Shared.DTOs
         public string? DriverLicense { get; set; }
 
         public bool IsActive { get; set; }
+
+        public int? IntegratorId { get; set; }
+        public int? ProviderId { get; set; }
     }
 }
 

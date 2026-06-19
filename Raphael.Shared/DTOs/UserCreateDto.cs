@@ -12,6 +12,8 @@ namespace Raphael.Shared.DTOs
         public string? PhoneNumber { get; set; }
         public string? Address { get; set; }
         public string? DriverLicense { get; set; }
+        public int? IntegratorId { get; set; }
+        public int? ProviderId { get; set; }
     }
 }
 
