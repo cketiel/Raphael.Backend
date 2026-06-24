@@ -176,7 +176,9 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 "https://etamilanes.com",
-                "https://www.etamilanes.com"
+                "https://www.etamilanes.com",
+                "https://raphaeltransport.com/",
+                "https://www.raphaeltransport.com/"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
