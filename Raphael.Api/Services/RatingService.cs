@@ -15,12 +15,15 @@ namespace Raphael.Api.Services
         }
 
         public async Task<RatingReadDto?> GetByIdAsync(int id)
-        {
-            return await _context.Ratings
+        {         
+            var rating = await _context.Ratings
                 .Include(r => r.Customer)
                 .Include(r => r.Driver)
-                .Select(r => MapToDto(r))
                 .FirstOrDefaultAsync(r => r.Id == id);
+         
+            if (rating == null) return null;
+          
+            return MapToDto(rating);
         }
 
         public async Task<List<RatingReadDto>> GetByDriverIdAsync(int driverId)
