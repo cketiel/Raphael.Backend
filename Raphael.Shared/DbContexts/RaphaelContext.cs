@@ -16,6 +16,7 @@ namespace Raphael.Shared.DbContexts
             _currentUserService = currentUserService;
         }
 
+        public DbSet<Rating> Ratings { get; set; }
         public DbSet<Integrator> Integrators { get; set; }
         public DbSet<TripAttachment> TripAttachments { get; set; }
         public DbSet<TripHistory> TripHistories { get; set; }
@@ -52,7 +53,25 @@ namespace Raphael.Shared.DbContexts
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {            
+        {
+            modelBuilder.Entity<Rating>(entity =>
+            {
+                entity.HasOne(r => r.Trip)
+                    .WithMany()
+                    .HasForeignKey(r => r.TripId)
+                    .OnDelete(DeleteBehavior.Restrict); // Prevent cascading deletes if a Trip is deleted
+
+                entity.HasOne(r => r.Customer)
+                    .WithMany()
+                    .HasForeignKey(r => r.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.Driver)
+                    .WithMany()
+                    .HasForeignKey(r => r.DriverId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
             modelBuilder.Entity<VehicleRoute>()
                 .HasMany(v => v.Suspensions)
                 .WithOne(s => s.VehicleRoute)

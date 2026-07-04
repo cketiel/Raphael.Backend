@@ -168,6 +168,8 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 builder.Services.AddScoped<IIntegratorService, IntegratorService>();
 
+builder.Services.AddScoped<IRatingService, RatingService>();
+
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>
 {
