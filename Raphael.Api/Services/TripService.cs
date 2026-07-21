@@ -21,6 +21,185 @@ namespace Raphael.Api.Services
             _currentUserService = currentUserService;
         }
 
+        public async Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int integratorId)
+        {
+            var processedIds = new List<string>();
+
+            foreach (var dto in dtos)
+            {
+                // 1. Resolver SpaceType 
+                var spaceType = await _context.SpaceTypes.FirstOrDefaultAsync(s => s.Name == dto.SpaceTypeName);
+                if (spaceType == null)
+                {
+                    spaceType = new SpaceType
+                    {
+                        Name = dto.SpaceTypeName,
+                        Description = "Auto-created via Portal",
+                        LoadTime = 0,
+                        UnloadTime = 0,
+                        CapacityTypeId = 1,
+                        IsActive = true
+                    };
+                    _context.SpaceTypes.Add(spaceType);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 2. Resolver FundingSource
+                var fundingSource = await _context.FundingSources.FirstOrDefaultAsync(f => f.Name == dto.FundingSourceName);
+                if (fundingSource == null)
+                {
+                    fundingSource = new FundingSource { Name = dto.FundingSourceName ?? "Unknown", IsActive = true };
+                    _context.FundingSources.Add(fundingSource);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 3. Resolver Customer 
+                string effectiveRiderId = string.IsNullOrWhiteSpace(dto.RiderId)
+                    ? $"{dto.CustomerFullName} {dto.CustomerPhone}".Trim()
+                    : dto.RiderId;
+
+                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.RiderId == effectiveRiderId);
+                if (customer == null)
+                {
+                    customer = new Customer
+                    {
+                        RiderId = effectiveRiderId,
+                        FullName = dto.CustomerFullName,
+                        Phone = dto.CustomerPhone,
+                        Address = dto.CustomerAddress ?? "Portal Provided",
+                        City = dto.CustomerCity ?? "Unknown",
+                        Zip = dto.CustomerZip ?? "00000",
+                        State = "FL", // Default
+                        Gender = dto.CustomerGender ?? "Unknown",
+                        DOB = dto.CustomerDOB, 
+                        FundingSourceId = fundingSource.Id,
+                        SpaceTypeId = spaceType.Id,
+                        Created = DateTime.UtcNow,
+                        CreatedBy = "PortalUser"
+                    };
+                    _context.Customers.Add(customer);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 4. Procesar el Viaje Principal (Ida)
+                var mainTripInternalId = await ProcessSingleTripAsync(dto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, false);
+                processedIds.Add(dto.TripId ?? mainTripInternalId.ToString());
+
+                // 5. Si es Round Trip, procesar el Viaje de Regreso
+                if (dto.IsRoundTrip && dto.ReturnTime.HasValue)
+                {
+                    // Creamos un DTO "espejo" para el regreso
+                    var returnDto = new PortalTripDto
+                    {
+                        Date = dto.Date,
+                        FromTime = dto.ReturnTime,
+                        Type = TripType.Return,
+                        PickupAddress = dto.DropoffAddress,
+                        PickupLatitude = dto.DropoffLatitude,
+                        PickupLongitude = dto.DropoffLongitude,
+                        DropoffAddress = dto.PickupAddress,
+                        DropoffLatitude = dto.PickupLatitude,
+                        DropoffLongitude = dto.PickupLongitude,
+                        PickupCity = dto.DropoffCity,
+                        DropoffCity = dto.PickupCity,
+                        Distance = dto.Distance,
+                        Authorization = dto.Authorization,
+                        Attachment = dto.Attachment // Reutilizamos el mismo archivo si existe
+                    };
+
+                    await ProcessSingleTripAsync(returnDto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, true);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return processedIds;
+        }
+
+        // Método auxiliar privado para no repetir la lógica de mapeo y adjuntos
+        private async Task<int> ProcessSingleTripAsync(PortalTripDto dto, int customerId, int spaceTypeId, int fundingSourceId, int integratorId, bool isReturn)
+        {
+            // Buscar si existe por InternalId (Web) o TripId + IntegratorId (API)
+            Trip? trip = null;
+            if (dto.InternalId.HasValue)
+                trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == dto.InternalId && t.IntegratorId == integratorId);
+
+            if (trip == null && !string.IsNullOrEmpty(dto.TripId))
+                trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == dto.TripId && t.IntegratorId == integratorId);
+
+            if (trip == null)
+            {
+                trip = new Trip
+                {
+                    IntegratorId = integratorId,
+                    Created = DateTime.UtcNow,
+                    Status = TripStatus.Assigned
+                };
+                _context.Trips.Add(trip);
+            }
+
+            // Mapeo de Propiedades (Tu lógica de integración)
+            trip.Date = dto.Date;
+            trip.Day = dto.Date.DayOfWeek.ToString();
+            trip.FromTime = dto.FromTime;
+            trip.ToTime = dto.ToTime;
+            trip.CustomerId = customerId;
+            trip.SpaceTypeId = spaceTypeId;
+            trip.FundingSourceId = fundingSourceId;
+            trip.PickupAddress = dto.PickupAddress;
+            trip.PickupLatitude = dto.PickupLatitude;
+            trip.PickupLongitude = dto.PickupLongitude;
+            trip.DropoffAddress = dto.DropoffAddress;
+            trip.DropoffLatitude = dto.DropoffLatitude;
+            trip.DropoffLongitude = dto.DropoffLongitude;
+            trip.Distance = dto.Distance;
+            trip.PickupCity = dto.PickupCity;
+            trip.DropoffCity = dto.DropoffCity;
+            trip.Type = dto.Type ?? (isReturn ? TripType.Return : TripType.Appointment);
+            trip.Authorization = dto.Authorization;
+            trip.IsCancelled = false;
+            trip.PickupComment = dto.PickupComment;
+            trip.DropoffComment = dto.DropoffComment;
+
+            await _context.SaveChangesAsync();
+
+            // Requerimiento especial: Si no hay TripId (Manual), asignamos el ID autogenerado
+            if (string.IsNullOrEmpty(trip.TripId))
+            {
+                trip.TripId = trip.Id.ToString();
+                await _context.SaveChangesAsync();
+            }
+
+            // Lógica de Attachment 
+            var existingAttachment = await _context.TripAttachments.FirstOrDefaultAsync(a => a.TripId == trip.Id);
+            if (dto.Attachment != null && dto.Attachment.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await dto.Attachment.CopyToAsync(ms);
+                byte[] fileData = ms.ToArray();
+
+                if (existingAttachment == null)
+                {
+                    _context.TripAttachments.Add(new TripAttachment
+                    {
+                        TripId = trip.Id,
+                        FileName = dto.Attachment.FileName,
+                        FileContent = fileData,
+                        ContentType = dto.Attachment.ContentType,
+                        Created = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    existingAttachment.FileName = dto.Attachment.FileName;
+                    existingAttachment.FileContent = fileData;
+                    existingAttachment.ContentType = dto.Attachment.ContentType;
+                    existingAttachment.Created = DateTime.UtcNow;
+                }
+            }
+
+            return trip.Id;
+        }
+
         public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int integratorId)
         {
             var trips = await _context.Trips
