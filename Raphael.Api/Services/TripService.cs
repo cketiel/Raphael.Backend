@@ -718,7 +718,7 @@ namespace Raphael.Api.Services
             trip.Distance = dto.Distance;
             trip.ETA = dto.ETA;
             trip.WillCall = dto.WillCall;
-            trip.VehicleRouteId = (dto.VehicleRouteId == 0) ? null : dto.VehicleRouteId;
+            //trip.VehicleRouteId = (dto.VehicleRouteId == 0) ? null : dto.VehicleRouteId;
             trip.DriverNoShowReason = dto.DriverNoShowReason;
             trip.FundingSourceId = dto.FundingSourceId;
 
