@@ -6,7 +6,7 @@ using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Controllers
 {
-    [Authorize(Roles = "6")] // Booking
+    [Authorize(Roles = "6,1,3")] // Booking
     [ApiController]
     [Route("api/[controller]")]
     public class BookingPortalController : ControllerBase
