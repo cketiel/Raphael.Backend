@@ -27,7 +27,7 @@ namespace Raphael.Api.Services
 
             foreach (var dto in dtos)
             {
-                // 1. Resolver SpaceType 
+                // 1. Resolve SpaceType 
                 var spaceType = await _context.SpaceTypes.FirstOrDefaultAsync(s => s.Name == dto.SpaceTypeName);
                 if (spaceType == null)
                 {
@@ -44,7 +44,7 @@ namespace Raphael.Api.Services
                     await _context.SaveChangesAsync();
                 }
 
-                // 2. Resolver FundingSource
+                // 2. Resolve FundingSource
                 var fundingSource = await _context.FundingSources.FirstOrDefaultAsync(f => f.Name == dto.FundingSourceName);
                 if (fundingSource == null)
                 {
@@ -53,7 +53,7 @@ namespace Raphael.Api.Services
                     await _context.SaveChangesAsync();
                 }
 
-                // 3. Resolver Customer 
+                // 3. Resolve Customer 
                 string effectiveRiderId = string.IsNullOrWhiteSpace(dto.RiderId)
                     ? $"{dto.CustomerFullName} {dto.CustomerPhone}".Trim()
                     : dto.RiderId;
@@ -105,7 +105,9 @@ namespace Raphael.Api.Services
                         DropoffCity = dto.PickupCity,
                         Distance = dto.Distance,
                         Authorization = dto.Authorization,
-                        Attachment = dto.Attachment // Reutilizamos el mismo archivo si existe
+                        Attachment = dto.Attachment, // We reuse the same file if it exists.
+                        PickupComment = dto.RoundTripPickupComment,
+                        DropoffComment = dto.RoundTripDropoffComment
                     };
 
                     await ProcessSingleTripAsync(returnDto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, true);
@@ -116,10 +118,10 @@ namespace Raphael.Api.Services
             return processedIds;
         }
 
-        // Método auxiliar privado para no repetir la lógica de mapeo y adjuntos
+        // Private helper method to avoid duplicating mapping and attachment logic.
         private async Task<int> ProcessSingleTripAsync(PortalTripDto dto, int customerId, int spaceTypeId, int fundingSourceId, int integratorId, bool isReturn)
         {
-            // Buscar si existe por InternalId (Web) o TripId + IntegratorId (API)
+            // Check for existence using InternalId (Web) or TripId + IntegratorId (API).
             Trip? trip = null;
             if (dto.InternalId.HasValue)
                 trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == dto.InternalId && t.IntegratorId == integratorId);
@@ -138,7 +140,7 @@ namespace Raphael.Api.Services
                 _context.Trips.Add(trip);
             }
 
-            // Mapeo de Propiedades (Tu lógica de integración)
+            // Property Mapping 
             trip.Date = dto.Date;
             trip.Day = dto.Date.DayOfWeek.ToString();
             trip.FromTime = dto.FromTime;
@@ -163,14 +165,14 @@ namespace Raphael.Api.Services
 
             await _context.SaveChangesAsync();
 
-            // Requerimiento especial: Si no hay TripId (Manual), asignamos el ID autogenerado
+            // If there is no TripId (Manual), we assign the auto-generated ID.
             if (string.IsNullOrEmpty(trip.TripId))
             {
                 trip.TripId = trip.Id.ToString();
                 await _context.SaveChangesAsync();
             }
 
-            // Lógica de Attachment 
+            // Attachment Logic 
             var existingAttachment = await _context.TripAttachments.FirstOrDefaultAsync(a => a.TripId == trip.Id);
             if (dto.Attachment != null && dto.Attachment.Length > 0)
             {

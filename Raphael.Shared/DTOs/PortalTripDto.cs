@@ -20,5 +20,8 @@ namespace Raphael.Shared.DTOs
 
         // Campos obligatorios de Customer que podrían faltar en el DTO base
         public DateTime? CustomerDOB { get; set; }
+
+        public string? RoundTripPickupComment { get; set; }
+        public string? RoundTripDropoffComment { get; set; }
     }
 }
