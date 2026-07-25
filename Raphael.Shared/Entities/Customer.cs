@@ -37,6 +37,7 @@ namespace Raphael.Shared.Entities
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public ICollection<Trip> Trips { get; set; }
+        public int? IntegratorId { get; set; }
     }
 }
 

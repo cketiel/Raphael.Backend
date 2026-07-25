@@ -254,6 +254,12 @@ namespace Raphael.Shared.DbContexts
                 (_currentUserService.IntegratorId != null && t.IntegratorId == _currentUserService.IntegratorId) ||
                 (_currentUserService.ProviderId != null && t.ProviderId == _currentUserService.ProviderId)
             );
+
+            modelBuilder.Entity<Customer>().HasQueryFilter(c =>
+               _currentUserService.IsMilanesInternal ||
+               (_currentUserService.IntegratorId != null && c.IntegratorId == _currentUserService.IntegratorId) ||
+               (_currentUserService.ProviderId != null)
+           );
         }
     }
 }

@@ -75,7 +75,8 @@ namespace Raphael.Api.Services
                         FundingSourceId = fundingSource.Id,
                         SpaceTypeId = spaceType.Id,
                         Created = DateTime.UtcNow,
-                        CreatedBy = "PortalUser"
+                        CreatedBy = "PortalUser",
+                        IntegratorId = integratorId
                     };
                     _context.Customers.Add(customer);
                     await _context.SaveChangesAsync();
@@ -286,7 +287,8 @@ namespace Raphael.Api.Services
                         FundingSourceId = fundingSource.Id,
                         SpaceTypeId = spaceType.Id,
                         Created = DateTime.UtcNow,
-                        CreatedBy = "RydeCentralSystem"
+                        CreatedBy = "IntegrationSystem",
+                        IntegratorId = integratorId
                     };
                     _context.Customers.Add(customer);
                     await _context.SaveChangesAsync();
