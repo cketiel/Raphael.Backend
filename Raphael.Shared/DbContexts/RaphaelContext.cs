@@ -53,7 +53,13 @@ namespace Raphael.Shared.DbContexts
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
+        {          
+            modelBuilder.Entity<Integrator>()
+                .HasOne(i => i.FundingSource)
+                .WithMany() // A FundingSource can be associated with multiple integrators.
+                .HasForeignKey(i => i.FundingSourceId)
+                .OnDelete(DeleteBehavior.Restrict); // Do not delete FundingSource if the Integrator is deleted.
+
             modelBuilder.Entity<Rating>(entity =>
             {
                 entity.HasOne(r => r.Trip)

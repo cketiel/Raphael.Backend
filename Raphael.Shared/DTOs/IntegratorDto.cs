@@ -12,5 +12,8 @@ namespace Raphael.Shared.DTOs
         public DateTime Created { get; set; }
         // Extra property to know if the client wants to refresh the key
         public bool RegenerateApiKey { get; set; }
+
+        public int? FundingSourceId { get; set; }
+        public string? FundingSourceName { get; set; }
     }
 }

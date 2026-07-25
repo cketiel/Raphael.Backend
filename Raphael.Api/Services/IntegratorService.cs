@@ -17,13 +17,16 @@ namespace Raphael.Api.Services
         public async Task<IEnumerable<IntegratorDto>> GetAllAsync()
         {
             return await _context.Integrators
+                .Include(i => i.FundingSource)
                 .Select(i => new IntegratorDto
                 {
                     Id = i.Id,
                     Name = i.Name,
                     ApiKey = i.ApiKey,
                     IsActive = i.IsActive,
-                    Created = i.Created
+                    Created = i.Created,
+                    FundingSourceId = i.FundingSourceId,
+                    FundingSourceName = i.FundingSource != null ? i.FundingSource.Name : null
                 }).ToListAsync();
         }
 
@@ -37,7 +40,9 @@ namespace Raphael.Api.Services
                 Name = i.Name,
                 ApiKey = i.ApiKey,
                 IsActive = i.IsActive,
-                Created = i.Created
+                Created = i.Created,
+                FundingSourceId = i.FundingSourceId,
+                FundingSourceName = i.FundingSource != null ? i.FundingSource.Name : null
             };
         }
 
@@ -48,7 +53,8 @@ namespace Raphael.Api.Services
                 Name = dto.Name,
                 IsActive = true,
                 Created = DateTime.UtcNow,
-                ApiKey = GenerateKey() // Automatic generation
+                ApiKey = GenerateKey(), // Automatic generation
+                FundingSourceId = dto.FundingSourceId
             };
 
             _context.Integrators.Add(integrator);
@@ -65,6 +71,7 @@ namespace Raphael.Api.Services
 
             existing.Name = dto.Name;
             existing.IsActive = dto.IsActive;
+            existing.FundingSourceId = dto.FundingSourceId;
 
             if (dto.RegenerateApiKey)
             {
@@ -88,6 +95,15 @@ namespace Raphael.Api.Services
         {
             // Format: itg_ + long random string
             return "itg_" + Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+        }
+
+        public async Task<FundingSource?> GetFundingSourceByIntegratorIdAsync(int integratorId)
+        {
+            var integrator = await _context.Integrators
+                .Include(i => i.FundingSource)
+                .FirstOrDefaultAsync(i => i.Id == integratorId);
+
+            return integrator?.FundingSource;
         }
     }
 }

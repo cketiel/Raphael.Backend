@@ -11,5 +11,8 @@ namespace Raphael.Shared.Entities
         public string ApiKey { get; set; } // rc_live_...
         public bool IsActive { get; set; } = true;
         public DateTime Created { get; set; } = DateTime.UtcNow;
+        public int? FundingSourceId { get; set; }
+        public FundingSource? FundingSource { get; set; }
+
     }
 }

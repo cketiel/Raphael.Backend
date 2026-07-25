@@ -54,5 +54,14 @@ namespace Raphael.Api.Controllers
             var count = await _tripService.CancelIntegrationTripsAsync(externalIds, CurrentIntegratorId);
             return Ok(new { Success = true, CancelledCount = count });
         }
+
+        [HttpGet("my-funding-source")]
+        public async Task<IActionResult> GetMyFundingSource([FromServices] IIntegratorService integratorService)
+        {
+            var fundingSource = await integratorService.GetFundingSourceByIntegratorIdAsync(CurrentIntegratorId);
+            if (fundingSource == null) return NotFound("No funding source linked to this integrator.");
+
+            return Ok(fundingSource);
+        }
     }
 }
