@@ -19,14 +19,19 @@ namespace Raphael.Api.Controllers
             _tripService = tripService;
             _currentUserService = currentUserService;
         }
+        private int? CurrentIntegratorId => _currentUserService.IntegratorId;
 
-        private int CurrentIntegratorId => _currentUserService.IntegratorId ?? throw new UnauthorizedAccessException();
+        //private int CurrentIntegratorId => _currentUserService.IntegratorId ?? throw new UnauthorizedAccessException();
 
         [HttpPost("sync-single")]
         public async Task<IActionResult> SyncSingle([FromForm] PortalTripDto trip)
         {
             if (trip == null) return BadRequest("Trip data is required.");
-
+            // If it is neither an Integrator nor an Internal Administrator, then it is not authorized.
+            if (CurrentIntegratorId == null && !_currentUserService.IsMilanesInternal)
+            {
+                return Unauthorized("You do not have permission to perform this operation.");
+            }
             try
             {
                 // Llamamos al método pasando una lista de un solo elemento

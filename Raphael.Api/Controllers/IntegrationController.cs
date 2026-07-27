@@ -25,7 +25,7 @@ namespace Raphael.Api.Controllers
         /// <summary>
         /// Retrieves the Integrator ID stored in the HttpContext by the security filter.
         /// </summary>
-        private int CurrentIntegratorId => (int)HttpContext.Items["IntegratorId"]!;
+        private int? CurrentIntegratorId => (int)HttpContext.Items["IntegratorId"]!;
 
         public IntegrationController(ITripService tripService)
         {

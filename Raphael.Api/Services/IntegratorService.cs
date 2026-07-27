@@ -97,7 +97,7 @@ namespace Raphael.Api.Services
             return "itg_" + Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
         }
 
-        public async Task<FundingSource?> GetFundingSourceByIntegratorIdAsync(int integratorId)
+        public async Task<FundingSource?> GetFundingSourceByIntegratorIdAsync(int? integratorId)
         {
             var integrator = await _context.Integrators
                 .Include(i => i.FundingSource)

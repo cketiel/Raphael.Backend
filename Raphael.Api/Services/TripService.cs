@@ -21,7 +21,7 @@ namespace Raphael.Api.Services
             _currentUserService = currentUserService;
         }
 
-        public async Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int integratorId)
+        public async Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int? integratorId)
         {
             var processedIds = new List<string>();
 
@@ -119,7 +119,7 @@ namespace Raphael.Api.Services
         }
 
         // Private helper method to avoid duplicating mapping and attachment logic.
-        private async Task<int> ProcessSingleTripAsync(PortalTripDto dto, int customerId, int spaceTypeId, int fundingSourceId, int integratorId, bool isReturn)
+        private async Task<int> ProcessSingleTripAsync(PortalTripDto dto, int customerId, int spaceTypeId, int fundingSourceId, int? integratorId, bool isReturn)
         {
             // Check for existence using InternalId (Web) or TripId + IntegratorId (API).
             Trip? trip = null;
@@ -203,7 +203,7 @@ namespace Raphael.Api.Services
             return trip.Id;
         }
 
-        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int integratorId)
+        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId)
         {
             var trips = await _context.Trips
                 .Where(t => externalTripIds.Contains(t.TripId) && t.IntegratorId == integratorId)
@@ -217,7 +217,7 @@ namespace Raphael.Api.Services
             return await _context.SaveChangesAsync();
         }
 
-        public async Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int integratorId)
+        public async Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int? integratorId)
         {
             var query = _context.Trips
                 .Include(t => t.Customer)
@@ -232,7 +232,7 @@ namespace Raphael.Api.Services
             return await query.ToListAsync();
         }
 
-        public async Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int integratorId) 
+        public async Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId) 
         {
             var processedIds = new List<string>();
 
