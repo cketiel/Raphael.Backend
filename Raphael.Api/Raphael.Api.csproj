@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Raphael.Notification\Raphael.Notification.csproj" />
     <ProjectReference Include="..\Raphael.Shared\Raphael.Shared.csproj" />
     <ProjectReference Include="..\Raphael.Shared\Raphael.Shared.csproj" />
   </ItemGroup>
