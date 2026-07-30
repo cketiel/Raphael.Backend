@@ -17,10 +17,8 @@
     <Folder Include="Application\Services\" />
     <Folder Include="Domain\BusinessEvents\" />
     <Folder Include="Domain\Models\" />
-    <Folder Include="Domain\Enums\" />
     <Folder Include="Domain\Constants\" />
     <Folder Include="Domain\Abstractions\" />
-    <Folder Include="Domain\" />
     <Folder Include="Infrastructure\Utils\" />
     <Folder Include="Infrastructure\Templates\" />
     <Folder Include="Infrastructure\SignalR\" />
