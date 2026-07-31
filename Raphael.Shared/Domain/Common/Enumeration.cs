@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Raphael.Shared.Domain.Exceptions;
 
 namespace Raphael.Shared.Domain.Common;
 
@@ -10,7 +11,10 @@ public abstract class Enumeration : IComparable
 
     public string Name { get; }
 
-    protected Enumeration(int id, string code, string name)
+    protected Enumeration(
+        int id,
+        string code,
+        string name)
     {
         Id = id;
         Code = code;
@@ -26,7 +30,7 @@ public abstract class Enumeration : IComparable
             return false;
 
         return GetType() == other.GetType()
-            && Id == other.Id;
+               && Id == other.Id;
     }
 
     public override int GetHashCode()
@@ -35,32 +39,40 @@ public abstract class Enumeration : IComparable
     public int CompareTo(object? other)
     {
         if (other is not Enumeration enumeration)
-            throw new ArgumentException("Object is not an Enumeration.");
+            throw new ArgumentException(
+                $"Cannot compare {GetType().Name} with {other?.GetType().Name ?? "null"}.");
 
         return Id.CompareTo(enumeration.Id);
     }
 
-    public static IEnumerable<T> GetAll<T>()
+    public static IReadOnlyCollection<T> GetAll<T>()
         where T : Enumeration
     {
         return typeof(T)
             .GetFields(BindingFlags.Public |
                        BindingFlags.Static |
                        BindingFlags.DeclaredOnly)
-            .Select(f => f.GetValue(null))
-            .Cast<T>();
+            .Select(field => field.GetValue(null))
+            .Cast<T>()
+            .OrderBy(e => e.Id)
+            .ToList()
+            .AsReadOnly();
     }
 
     public static T FromId<T>(int id)
         where T : Enumeration
     {
-        return GetAll<T>().Single(x => x.Id == id);
+        return GetAll<T>()
+            .FirstOrDefault(e => e.Id == id)
+            ?? throw new InvalidEnumerationException(typeof(T), id.ToString());
     }
 
     public static T FromCode<T>(string code)
         where T : Enumeration
     {
         return GetAll<T>()
-            .Single(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(e =>
+                e.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidEnumerationException(typeof(T), code);
     }
 }
