@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Raphael.Notification.Domain.Rules;
+using Raphael.Shared.Entities.Notifications;
 
 namespace Raphael.Notification.Infrastructure.Persistence.Configurations;
 

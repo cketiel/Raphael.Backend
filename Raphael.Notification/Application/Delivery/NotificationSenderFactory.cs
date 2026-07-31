@@ -1,4 +1,4 @@
-﻿using Raphael.Notification.Domain.Definitions;
+﻿using Raphael.Shared.Definitions.Notifications;
 
 namespace Raphael.Notification.Application.Delivery;
 

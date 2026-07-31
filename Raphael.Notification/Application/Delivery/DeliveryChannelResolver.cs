@@ -1,5 +1,5 @@
-﻿using Raphael.Notification.Domain.Definitions;
-using Raphael.Notification.Domain.Rules;
+﻿using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Entities.Notifications;
 
 namespace Raphael.Notification.Application.Delivery;
 

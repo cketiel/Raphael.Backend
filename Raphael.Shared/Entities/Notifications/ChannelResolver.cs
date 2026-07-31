@@ -1,6 +1,4 @@
-﻿using Raphael.Notification.Domain.Rules;
-
-namespace Raphael.Notification.Domain.Engine;
+﻿namespace Raphael.Shared.Entities.Notifications;
 
 public class ChannelResolver
 {

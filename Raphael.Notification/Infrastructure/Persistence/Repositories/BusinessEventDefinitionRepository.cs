@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Notification.Application.Interfaces.Persistence;
-using Raphael.Notification.Domain.Events;
+using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.DbContexts;
 
 namespace Raphael.Notification.Infrastructure.Persistence.Repositories;

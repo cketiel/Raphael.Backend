@@ -1,4 +1,4 @@
-﻿using NotificationModel = Raphael.Notification.Domain.Models.Notification;
+﻿using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Notification.Application.Interfaces.Persistence;
 

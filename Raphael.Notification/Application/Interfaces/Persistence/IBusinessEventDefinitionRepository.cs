@@ -1,4 +1,4 @@
-﻿using Raphael.Notification.Domain.Events;
+﻿using Raphael.Shared.Entities.Notifications;
 
 namespace Raphael.Notification.Application.Interfaces.Persistence;
 

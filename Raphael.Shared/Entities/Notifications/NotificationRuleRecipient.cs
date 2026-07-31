@@ -1,6 +1,8 @@
-﻿using Raphael.Notification.Domain.Definitions;
+﻿
 
-namespace Raphael.Notification.Domain.Rules;
+using Raphael.Shared.Definitions.Notifications;
+
+namespace Raphael.Shared.Entities.Notifications;
 
 public class NotificationRuleRecipient
 {

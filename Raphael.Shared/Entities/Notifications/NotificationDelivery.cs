@@ -1,6 +1,6 @@
-﻿using Raphael.Notification.Domain.Definitions;
+﻿using Raphael.Shared.Definitions.Notifications;
 
-namespace Raphael.Notification.Domain.Models;
+namespace Raphael.Shared.Entities.Notifications;
 
 public class NotificationDelivery
 {

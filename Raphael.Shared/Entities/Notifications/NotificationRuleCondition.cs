@@ -1,4 +1,4 @@
-﻿namespace Raphael.Notification.Domain.Rules;
+﻿namespace Raphael.Shared.Entities.Notifications;
 
 public class NotificationRuleCondition
 {

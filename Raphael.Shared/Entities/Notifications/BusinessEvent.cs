@@ -1,4 +1,4 @@
-﻿namespace Raphael.Notification.Domain.Events;
+﻿namespace Raphael.Shared.Entities.Notifications;
 
 public class BusinessEvent
 {

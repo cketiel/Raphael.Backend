@@ -1,7 +1,7 @@
-﻿using Raphael.Notification.Domain.Events.Payloads;
-using Raphael.Notification.Domain.Factories;
-using NotificationModel = Raphael.Notification.Domain.Models.Notification;
-using Raphael.Notification.Domain.Rules;
+﻿using Raphael.Notification.Domain.Factories;
+using Raphael.Shared.Entities.Notifications;
+using Raphael.Shared.Entities.Notifications.Payloads;
+using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Notification.Domain.Engine;
 

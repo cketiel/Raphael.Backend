@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using NotificationModel = Raphael.Notification.Domain.Models.Notification;
+using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Notification.Infrastructure.Persistence.Configurations;
 

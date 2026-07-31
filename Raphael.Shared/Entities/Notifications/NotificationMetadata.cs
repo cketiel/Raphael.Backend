@@ -1,4 +1,4 @@
-﻿namespace Raphael.Notification.Domain.Models;
+﻿namespace Raphael.Shared.Entities.Notifications;
 
 public class NotificationMetadata
 {

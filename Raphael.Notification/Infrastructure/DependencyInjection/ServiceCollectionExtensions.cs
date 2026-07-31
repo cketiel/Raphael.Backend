@@ -5,6 +5,7 @@ using Raphael.Notification.Application.Interfaces.Persistence;
 using Raphael.Notification.Domain.Engine;
 using Raphael.Notification.Infrastructure.Delivery;
 using Raphael.Notification.Infrastructure.Persistence.Repositories;
+using Raphael.Shared.Entities.Notifications;
 
 
 namespace Raphael.Notification.Infrastructure.DependencyInjection;

@@ -1,5 +1,5 @@
-﻿using Raphael.Notification.Domain.Events.Payloads;
-using Raphael.Notification.Domain.Factories;
+﻿using Raphael.Notification.Domain.Factories;
+using Raphael.Shared.Entities.Notifications.Payloads;
 
 namespace Raphael.Notification.Domain.Processing;
 

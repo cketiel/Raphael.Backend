@@ -1,6 +1,6 @@
 ﻿using Raphael.Shared.Domain.Common;
 
-namespace Raphael.Notification.Domain.Definitions;
+namespace Raphael.Shared.Definitions.Notifications;
 
 public abstract class NotificationEnumeration : Enumeration
 {

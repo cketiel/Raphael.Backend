@@ -1,4 +1,4 @@
-﻿namespace Raphael.Notification.Domain.Definitions;
+﻿namespace Raphael.Shared.Definitions.Notifications;
 
 public sealed class DeliveryChannel : NotificationEnumeration
 {

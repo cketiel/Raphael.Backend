@@ -1,4 +1,4 @@
-﻿namespace Raphael.Notification.Domain.Events.Payloads;
+﻿namespace Raphael.Shared.Entities.Notifications.Payloads;
 
 public class NotificationEventPayload
 {
