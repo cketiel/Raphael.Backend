@@ -11,9 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Application\DTOs\" />
     <Folder Include="Application\RuleEngine\" />
-    <Folder Include="Application\Services\" />
     <Folder Include="Domain\Constants\" />
     <Folder Include="Domain\Abstractions\" />
     <Folder Include="Infrastructure\Utils\" />
