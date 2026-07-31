@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.Entities;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Interfaces;
+using Raphael.Shared.Persistence.Configurations;
 
 namespace Raphael.Shared.DbContexts
 {
@@ -44,6 +46,36 @@ namespace Raphael.Shared.DbContexts
         public DbSet<FundingSourceBillingItem> FundingSourceBillingItems { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
 
+        #region Notification Module
+
+        public DbSet<Notification> Notifications { get; set; }
+
+        public DbSet<NotificationRecipient> NotificationRecipients { get; set; }
+
+        public DbSet<NotificationDelivery> NotificationDeliveries { get; set; }
+
+        public DbSet<NotificationMetadata> NotificationMetadata { get; set; }
+
+        public DbSet<NotificationAction> NotificationActions { get; set; }
+
+
+        public DbSet<BusinessEventDefinition> BusinessEventDefinitions { get; set; }
+
+        public DbSet<BusinessEventGroup> BusinessEventGroups { get; set; }
+
+
+        public DbSet<NotificationRule> NotificationRules { get; set; }
+
+        public DbSet<NotificationRuleCondition> NotificationRuleConditions { get; set; }
+
+        public DbSet<NotificationRuleRecipient> NotificationRuleRecipients { get; set; }
+
+        public DbSet<NotificationRuleChannel> NotificationRuleChannels { get; set; }
+
+        public DbSet<NotificationRuleAction> NotificationRuleActions { get; set; }
+
+        #endregion
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
@@ -54,6 +86,7 @@ namespace Raphael.Shared.DbContexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {          
+
             modelBuilder.Entity<Integrator>()
                 .HasOne(i => i.FundingSource)
                 .WithMany() // A FundingSource can be associated with multiple integrators.
@@ -266,6 +299,112 @@ namespace Raphael.Shared.DbContexts
                (_currentUserService.IntegratorId != null && c.IntegratorId == _currentUserService.IntegratorId) ||
                (_currentUserService.ProviderId != null)
            );
+
+            #region Notification Module
+
+            // ======================================================
+            // Notification Aggregate
+            // ======================================================
+
+            modelBuilder.Entity<Notification>()
+                .HasMany<NotificationRecipient>()
+                .WithOne()
+                .HasForeignKey(nr => nr.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<Notification>()
+                .HasMany<NotificationDelivery>()
+                .WithOne()
+                .HasForeignKey(nd => nd.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<Notification>()
+                .HasMany<NotificationMetadata>()
+                .WithOne()
+                .HasForeignKey(nm => nm.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<Notification>()
+                .HasMany<NotificationAction>()
+                .WithOne()
+                .HasForeignKey(na => na.NotificationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            // ======================================================
+            // Notification Rules
+            // ======================================================
+
+            modelBuilder.Entity<NotificationRule>()
+                .HasOne(nr => nr.BusinessEventDefinition)
+                .WithMany()
+                .HasForeignKey(nr => nr.BusinessEventDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            modelBuilder.Entity<NotificationRuleCondition>()
+                .HasOne(c => c.NotificationRule)
+                .WithMany(r => r.Conditions)
+                .HasForeignKey(c => c.NotificationRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<NotificationRuleRecipient>()
+                .HasOne(r => r.NotificationRule)
+                .WithMany(nr => nr.Recipients)
+                .HasForeignKey(r => r.NotificationRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<NotificationRuleChannel>()
+                .HasOne(c => c.NotificationRule)
+                .WithMany(nr => nr.Channels)
+                .HasForeignKey(c => c.NotificationRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<NotificationRuleAction>()
+                .HasOne(a => a.NotificationRule)
+                .WithMany(nr => nr.Actions)
+                .HasForeignKey(a => a.NotificationRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            // ======================================================
+            // Business Event Hierarchy
+            // ======================================================
+
+            // BusinessEventCategory -> BusinessEventGroup
+
+            modelBuilder.Entity<BusinessEventGroup>()
+                .HasOne(bg => bg.Category)
+                .WithMany()
+                .HasForeignKey(bg => bg.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            // BusinessEventGroup -> BusinessEvent
+
+            modelBuilder.Entity<BusinessEvent>()
+                .HasOne(be => be.Group)
+                .WithMany()
+                .HasForeignKey(be => be.GroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            // BusinessEvent -> BusinessEventDefinition
+
+            modelBuilder.Entity<BusinessEventDefinition>()
+                .HasOne(bed => bed.BusinessEvent)
+                .WithMany()
+                .HasForeignKey(bed => bed.BusinessEventId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            #endregion
         }
     }
 }
