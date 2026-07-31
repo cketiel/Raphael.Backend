@@ -1,5 +1,11 @@
 ﻿using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Raphael.Notification.Application.Commands.CreateNotification;
+using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
+using Raphael.Notification.Application.Commands.MarkNotificationViewed;
+using Raphael.Notification.Application.Commands.ProcessBusinessEvent;
+using Raphael.Notification.Application.Queries.GetNotificationById;
+using Raphael.Notification.Application.Queries.GetRecipientNotifications;
 using Raphael.Notification.Application.Services;
 
 namespace Raphael.Notification.Application.DependencyInjection;
@@ -21,6 +27,16 @@ public static class NotificationApplicationExtensions
 
         services.AddScoped<NotificationEnumerationResolver>();
 
+        services.AddScoped<ProcessBusinessEventHandler>();
+
+        services.AddScoped<CreateNotificationHandler>();
+
+        services.AddScoped<GetNotificationByIdHandler>();
+
+        services.AddScoped<GetRecipientNotificationsHandler>();
+
+        services.AddScoped<MarkNotificationViewedHandler>();
+        services.AddScoped<MarkNotificationAcknowledgedHandler>();
 
         return services;
     }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Raphael.Notification.Application.Interfaces.Persistence;
+using Raphael.Notification.Infrastructure.Persistence;
 using Raphael.Notification.Infrastructure.Persistence.Repositories;
 
 namespace Raphael.Notification.Infrastructure.DependencyInjection;
@@ -24,6 +25,14 @@ public static class NotificationInfrastructureExtensions
         services.AddScoped<
             IBusinessEventDefinitionRepository,
             BusinessEventDefinitionRepository>();
+
+        services.AddScoped<
+            INotificationRecipientRepository,
+            NotificationRecipientRepository>();
+
+        services.AddScoped<
+            INotificationDeliveryRepository,
+            NotificationDeliveryRepository>();
 
         return services;
     }
