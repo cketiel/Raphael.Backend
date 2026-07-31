@@ -4,6 +4,9 @@ using Raphael.Notification.Application.Commands.CreateNotification;
 using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
 using Raphael.Notification.Application.Commands.MarkNotificationViewed;
 using Raphael.Notification.Application.Commands.ProcessBusinessEvent;
+using Raphael.Notification.Application.Interfaces.Engine;
+using Raphael.Notification.Application.Interfaces.Events;
+using Raphael.Notification.Application.Interfaces.Rules;
 using Raphael.Notification.Application.Queries.GetNotificationById;
 using Raphael.Notification.Application.Queries.GetRecipientNotifications;
 using Raphael.Notification.Application.Services;
@@ -37,6 +40,23 @@ public static class NotificationApplicationExtensions
 
         services.AddScoped<MarkNotificationViewedHandler>();
         services.AddScoped<MarkNotificationAcknowledgedHandler>();
+        services.AddScoped<
+            IBusinessEventPublisher,
+            BusinessEventPublisher>();
+
+        services.AddScoped<
+            INotificationEngine,
+            NotificationEngine>();
+
+        services.AddScoped<
+    INotificationRuleResolver,
+    NotificationRuleResolver>();
+
+        services.AddScoped<
+            INotificationRuleEvaluator,
+            NotificationRuleEvaluator>();
+
+        
 
         return services;
     }

@@ -7,4 +7,8 @@ public interface INotificationRuleRepository
     Task<NotificationRule?> GetActiveRuleAsync(
         string businessEventCode,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<NotificationRule>> GetActiveByBusinessEventCodeAsync(
+    string eventCode,
+    CancellationToken cancellationToken = default);
 }
