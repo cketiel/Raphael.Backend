@@ -1,6 +1,6 @@
 ﻿using Raphael.Notification.Application.DTOs;
 using Raphael.Notification.Application.Interfaces.Persistence;
-using Raphael.Shared.Entities.Notifications;
+using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Notification.Application.Services;
 
@@ -17,7 +17,7 @@ public class NotificationService
 
 
     public async Task<Guid> CreateAsync(
-        Notification notification,
+        NotificationModel notification,
         CancellationToken cancellationToken = default)
     {
         await _notificationRepository.AddAsync(

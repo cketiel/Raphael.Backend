@@ -26,6 +26,8 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Raphael.Notification.Application.DependencyInjection;
 using Raphael.Notification.Infrastructure.DependencyInjection;
+using Raphael.Notification.Infrastructure.Realtime.DependencyInjection;
+using Raphael.Notification.Infrastructure.Realtime.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +39,7 @@ builder.Services.AddScoped<IValidator<CustomerCreateDto>, CustomerCreateDtoValid
 builder.Services.AddControllers();
 builder.Services.AddNotificationApplication();
 builder.Services.AddNotificationInfrastructure();
+builder.Services.AddNotificationRealtime();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -101,6 +104,24 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -136,6 +157,11 @@ builder.Services.AddControllers(options =>
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });*/
+
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+});
 
 // Inject user services
 builder.Services.AddScoped<IUserService, UserService>();
@@ -183,11 +209,12 @@ builder.Services.AddCors(options =>
             .WithOrigins(
                 "https://etamilanes.com",
                 "https://www.etamilanes.com",
-                "https://raphaeltransport.com/",
-                "https://www.raphaeltransport.com/"
+                "https://raphaeltransport.com",
+                "https://www.raphaeltransport.com"
             )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -262,6 +289,8 @@ app.Use(async (context, next) =>
 
 
 app.UseAuthorization(); // Do you have permission?
+
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.MapControllers();
 
