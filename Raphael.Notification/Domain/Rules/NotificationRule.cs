@@ -38,6 +38,17 @@ public class NotificationRule
 
     public bool IsActive { get; private set; }
 
+    public ICollection<NotificationRuleCondition> Conditions { get; private set; }
+
+
+    public ICollection<NotificationRuleRecipient> Recipients { get; private set; }
+
+
+    public ICollection<NotificationRuleChannel> Channels { get; private set; }
+
+
+    public ICollection<NotificationRuleAction> Actions { get; private set; }
+
 
     private NotificationRule()
     {
@@ -88,8 +99,52 @@ public class NotificationRule
         Severity = severity;
 
         IsActive = true;
+        Conditions = new List<NotificationRuleCondition>();
+
+        Recipients = new List<NotificationRuleRecipient>();
+
+        Channels = new List<NotificationRuleChannel>();
+
+        Actions = new List<NotificationRuleAction>();
     }
 
+    public void AddCondition(
+        NotificationRuleCondition condition)
+    {
+        ArgumentNullException.ThrowIfNull(condition);
+
+        Conditions.Add(condition);
+    }
+
+
+
+    public void AddRecipient(
+        NotificationRuleRecipient recipient)
+    {
+        ArgumentNullException.ThrowIfNull(recipient);
+
+        Recipients.Add(recipient);
+    }
+
+
+
+    public void AddChannel(
+        NotificationRuleChannel channel)
+    {
+        ArgumentNullException.ThrowIfNull(channel);
+
+        Channels.Add(channel);
+    }
+
+
+
+    public void AddAction(
+        NotificationRuleAction action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        Actions.Add(action);
+    }
 
     public void Disable()
     {
