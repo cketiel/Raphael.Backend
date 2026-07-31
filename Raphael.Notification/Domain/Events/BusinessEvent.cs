@@ -4,20 +4,24 @@ public class BusinessEvent
 {
     public Guid Id { get; private set; }
 
+
     /// <summary>
     /// Unique identifier used by applications and services.
     /// Example: DRIVER_ROUTE_MODIFIED
     /// </summary>
     public string Code { get; private set; }
 
+
     public string Name { get; private set; }
+
 
     public string Description { get; private set; }
 
 
-    public Guid CategoryId { get; private set; }
+    public Guid GroupId { get; private set; }
 
-    public BusinessEventCategory Category { get; private set; }
+
+    public BusinessEventGroup Group { get; private set; }
 
 
     /// <summary>
@@ -40,7 +44,7 @@ public class BusinessEvent
         string code,
         string name,
         string description,
-        BusinessEventCategory category,
+        BusinessEventGroup group,
         string source)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -49,7 +53,7 @@ public class BusinessEvent
 
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
 
-        ArgumentNullException.ThrowIfNull(category);
+        ArgumentNullException.ThrowIfNull(group);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(source);
 
@@ -62,9 +66,9 @@ public class BusinessEvent
 
         Description = description;
 
-        Category = category;
+        Group = group;
 
-        CategoryId = category.Id;
+        GroupId = group.Id;
 
         Source = source;
 
