@@ -1,4 +1,5 @@
-﻿namespace Raphael.Notification.Domain.Definitions;
+﻿
+namespace Raphael.Notification.Domain.Definitions;
 
 public sealed class NotificationPriority : NotificationEnumeration
 {
@@ -6,7 +7,6 @@ public sealed class NotificationPriority : NotificationEnumeration
         new(
             1,
             "LOW",
-            "Low",
             "Low",
             "Low priority notification.",
             1,
@@ -16,8 +16,7 @@ public sealed class NotificationPriority : NotificationEnumeration
     public static readonly NotificationPriority Medium =
         new(
             2,
-            "MED",
-            "Medium",
+            "MEDIUM",
             "Medium",
             "Medium priority notification.",
             2,
@@ -29,7 +28,6 @@ public sealed class NotificationPriority : NotificationEnumeration
             3,
             "HIGH",
             "High",
-            "High",
             "High priority notification.",
             3,
             true,
@@ -38,61 +36,41 @@ public sealed class NotificationPriority : NotificationEnumeration
     public static readonly NotificationPriority Critical =
         new(
             4,
-            "CRT",
+            "CRITICAL",
             "Critical",
-            "Critical",
-            "Critical priority notification.",
+            "Critical notification requiring immediate attention.",
             4,
             true,
             TimeSpan.FromDays(180));
 
-    /*public string DisplayName { get; }
-
-    public string Description { get; }
-
-    public int SortOrder { get; }*/
-
+    /// <summary>
+    /// Indicates whether notifications with this priority
+    /// require explicit user acknowledgement.
+    /// </summary>
     public bool RequiresAcknowledgement { get; }
 
+    /// <summary>
+    /// Default retention period for notifications
+    /// with this priority.
+    /// </summary>
     public TimeSpan DefaultExpiration { get; }
 
-    public bool IsHighPriority =>
-        Id >= High.Id;
-
     private NotificationPriority(
-
-     int id,
-
-     string code,
-
-     string name,
-
-     string displayName,
-
-     string description,
-
-     int sortOrder,
-
-     bool requiresAcknowledgement,
-
-     TimeSpan defaultExpiration)
-
-     : base(
-
-         id,
-
-         code,
-
-         name,
-
-         displayName,
-
-         description,
-
-         sortOrder)
+        int id,
+        string code,
+        string name,
+        string description,
+        int sortOrder,
+        bool requiresAcknowledgement,
+        TimeSpan defaultExpiration)
+        : base(
+            id,
+            code,
+            name,
+            description,
+            sortOrder)
     {
         RequiresAcknowledgement = requiresAcknowledgement;
-
         DefaultExpiration = defaultExpiration;
     }
 }
