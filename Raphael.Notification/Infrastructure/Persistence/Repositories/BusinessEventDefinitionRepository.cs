@@ -5,7 +5,7 @@ using Raphael.Shared.DbContexts;
 
 namespace Raphael.Notification.Infrastructure.Persistence.Repositories;
 
-public class BusinessEventDefinitionRepository : IBusinessEventDefinitionRepository
+public class BusinessEventDefinitionRepository //: IBusinessEventDefinitionRepository
 {
     private readonly RaphaelContext _context;
 
@@ -15,7 +15,7 @@ public class BusinessEventDefinitionRepository : IBusinessEventDefinitionReposit
         _context = context;
     }
 
-    public async Task<BusinessEventDefinition?> GetByIdAsync(
+   /* public async Task<BusinessEventDefinition?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -91,5 +91,5 @@ public class BusinessEventDefinitionRepository : IBusinessEventDefinitionReposit
             .AnyAsync(
                 x => x.Id == id,
                 cancellationToken);
-    }
+    }*/
 }

@@ -5,7 +5,7 @@ using Raphael.Shared.DbContexts;
 
 namespace Raphael.Notification.Infrastructure.Persistence.Repositories;
 
-public class NotificationRepository : INotificationRepository
+public class NotificationRepository //: INotificationRepository
 {
     private readonly RaphaelContext _context;
 
@@ -14,7 +14,7 @@ public class NotificationRepository : INotificationRepository
         _context = context;
     }
 
-    public async Task<NotificationModel?> GetByIdAsync(
+    /*public async Task<NotificationModel?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -93,5 +93,5 @@ public class NotificationRepository : INotificationRepository
             .AnyAsync(
                 x => x.Id == id,
                 cancellationToken);
-    }
+    }*/
 }

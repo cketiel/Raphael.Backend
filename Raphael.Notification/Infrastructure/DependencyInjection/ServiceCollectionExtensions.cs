@@ -18,11 +18,11 @@ public static class ServiceCollectionExtensions
          * Repositories
          */
 
-        services.AddScoped<INotificationRepository, NotificationRepository>();
+        /*services.AddScoped<INotificationRepository, NotificationRepository>();
 
         services.AddScoped<INotificationRuleRepository, NotificationRuleRepository>();
 
-        services.AddScoped<IBusinessEventDefinitionRepository, BusinessEventDefinitionRepository>();
+        services.AddScoped<IBusinessEventDefinitionRepository, BusinessEventDefinitionRepository>();*/
 
 
 
