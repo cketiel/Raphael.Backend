@@ -1,9 +1,7 @@
-﻿using Microsoft.AspNetCore.Components.Forms;
-using Raphael.Shared.Domain.Common;
+﻿
+namespace Raphael.Notification.Domain.Definitions;
 
-namespace Raphael.Notification.Domain.Primitives;
-
-public sealed class NotificationSeverity : Enumeration
+public sealed class NotificationSeverity : NotificationEnumeration
 {
     public static readonly NotificationSeverity Information =
         new(
@@ -60,11 +58,11 @@ public sealed class NotificationSeverity : Enumeration
             true,
             true);
 
-    public string DisplayName { get; }
+    /*public string DisplayName { get; }
 
     public string Description { get; }
 
-    public int SortOrder { get; }
+    public int SortOrder { get; }*/
 
     public bool RequiresAttention { get; }
 
@@ -90,11 +88,8 @@ public sealed class NotificationSeverity : Enumeration
         int sortOrder,
         bool requiresAttention,
         bool requiresImmediateAction)
-        : base(id, code, name)
-    {
-        DisplayName = displayName;
-        Description = description;
-        SortOrder = sortOrder;
+        : base(id, code, name, displayName, description, sortOrder)
+    {      
         RequiresAttention = requiresAttention;
         RequiresImmediateAction = requiresImmediateAction;
     }

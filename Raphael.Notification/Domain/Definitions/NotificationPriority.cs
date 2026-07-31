@@ -1,8 +1,6 @@
-﻿using Raphael.Shared.Domain.Common;
+﻿namespace Raphael.Notification.Domain.Definitions;
 
-namespace Raphael.Notification.Domain.Primitives;
-
-public sealed class NotificationPriority : Enumeration
+public sealed class NotificationPriority : NotificationEnumeration
 {
     public static readonly NotificationPriority Low =
         new(
@@ -48,11 +46,11 @@ public sealed class NotificationPriority : Enumeration
             true,
             TimeSpan.FromDays(180));
 
-    public string DisplayName { get; }
+    /*public string DisplayName { get; }
 
     public string Description { get; }
 
-    public int SortOrder { get; }
+    public int SortOrder { get; }*/
 
     public bool RequiresAcknowledgement { get; }
 
@@ -62,20 +60,39 @@ public sealed class NotificationPriority : Enumeration
         Id >= High.Id;
 
     private NotificationPriority(
-        int id,
-        string code,
-        string name,
-        string displayName,
-        string description,
-        int sortOrder,
-        bool requiresAcknowledgement,
-        TimeSpan defaultExpiration)
-        : base(id, code, name)
+
+     int id,
+
+     string code,
+
+     string name,
+
+     string displayName,
+
+     string description,
+
+     int sortOrder,
+
+     bool requiresAcknowledgement,
+
+     TimeSpan defaultExpiration)
+
+     : base(
+
+         id,
+
+         code,
+
+         name,
+
+         displayName,
+
+         description,
+
+         sortOrder)
     {
-        DisplayName = displayName;
-        Description = description;
-        SortOrder = sortOrder;
         RequiresAcknowledgement = requiresAcknowledgement;
+
         DefaultExpiration = defaultExpiration;
     }
 }
