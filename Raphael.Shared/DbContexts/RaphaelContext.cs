@@ -57,6 +57,7 @@ namespace Raphael.Shared.DbContexts
         public DbSet<NotificationMetadata> NotificationMetadata { get; set; }
 
         public DbSet<NotificationAction> NotificationActions { get; set; }
+        public DbSet<BusinessEvent> BusinessEvents { get; set; }
 
 
         public DbSet<BusinessEventDefinition> BusinessEventDefinitions { get; set; }

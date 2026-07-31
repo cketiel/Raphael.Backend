@@ -5,29 +5,28 @@ using Raphael.Shared.Entities.Notifications;
 
 namespace Raphael.Notification.Infrastructure.Persistence.Repositories;
 
-public class BusinessEventDefinitionRepository
-    : IBusinessEventDefinitionRepository
+public class BusinessEventRepository : IBusinessEventRepository
 {
     private readonly RaphaelContext _context;
 
 
-    public BusinessEventDefinitionRepository(
+    public BusinessEventRepository(
         RaphaelContext context)
     {
         _context = context;
     }
 
 
-    public async Task<BusinessEventDefinition?> GetByCodeAsync(
+    public async Task<BusinessEvent?> GetByCodeAsync(
         string code,
         CancellationToken cancellationToken = default)
     {
-        return await _context.BusinessEventDefinitions
-            .Include(bed => bed.BusinessEvent)
+        return await _context.BusinessEvents
+            .Include(be => be.Group)
             .FirstOrDefaultAsync(
-                bed =>
-                    bed.Code == code &&
-                    bed.IsActive,
+                be =>
+                    be.Code == code &&
+                    be.IsActive,
                 cancellationToken);
     }
 }

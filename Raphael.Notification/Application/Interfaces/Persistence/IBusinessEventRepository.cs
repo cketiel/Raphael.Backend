@@ -2,9 +2,9 @@
 
 namespace Raphael.Notification.Application.Interfaces.Persistence;
 
-public interface IBusinessEventDefinitionRepository
+public interface IBusinessEventRepository
 {
-    Task<BusinessEventDefinition?> GetByCodeAsync(
+    Task<BusinessEvent?> GetByCodeAsync(
         string code,
         CancellationToken cancellationToken = default);
 }

@@ -28,9 +28,24 @@ public class Notification
 
     public DateTime? ExpiresAtUtc { get; private set; }
 
+    public ICollection<NotificationRecipient> Recipients { get; private set; }
+
+    public ICollection<NotificationDelivery> Deliveries { get; private set; }
+
+    public ICollection<NotificationMetadata> Metadata { get; private set; }
+
+    public ICollection<NotificationAction> Actions { get; private set; }
+
     private Notification()
     {
         // Required by EF Core
+        Recipients = new List<NotificationRecipient>();
+
+        Deliveries = new List<NotificationDelivery>();
+
+        Metadata = new List<NotificationMetadata>();
+
+        Actions = new List<NotificationAction>();
     }
 
     public Notification(
@@ -59,5 +74,12 @@ public class Notification
         Message = message;
         CreatedAtUtc = DateTime.UtcNow;
         ExpiresAtUtc = expiresAtUtc;
+        Recipients = new List<NotificationRecipient>();
+
+        Deliveries = new List<NotificationDelivery>();
+
+        Metadata = new List<NotificationMetadata>();
+
+        Actions = new List<NotificationAction>();
     }
 }

@@ -24,6 +24,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Raphael.Notification.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,7 @@ builder.Services.AddScoped<IValidator<CustomerCreateDto>, CustomerCreateDtoValid
 
 // SwaggerDoc
 builder.Services.AddControllers();
+builder.Services.AddNotificationInfrastructure();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
