@@ -1,4 +1,6 @@
 ﻿using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities.Notifications;
 
@@ -11,14 +13,34 @@ public class Notification
     /// Example: DRIVER_ROUTE_MODIFIED
     /// </summary>
     public string BusinessEventCode { get; private set; }
+    public int PriorityId { get; private set; }
 
-    public NotificationPriority Priority { get; private set; }
+    public int SeverityId { get; private set; }
+
+    public int TypeId { get; private set; }
+
+    public int StatusId { get; private set; }
+
+    [NotMapped]
+    public NotificationPriority Priority
+    => Enumeration.FromId<NotificationPriority>(PriorityId);
+    [NotMapped]
+    public NotificationSeverity Severity
+        => Enumeration.FromId<NotificationSeverity>(SeverityId);
+    [NotMapped]
+    public NotificationType Type
+        => Enumeration.FromId<NotificationType>(TypeId);
+    [NotMapped]
+    public NotificationStatus Status
+        => Enumeration.FromId<NotificationStatus>(StatusId);
+
+    /*public NotificationPriority Priority { get; private set; }
 
     public NotificationSeverity Severity { get; private set; }
 
     public NotificationType Type { get; private set; }
 
-    public NotificationStatus Status { get; private set; }
+    public NotificationStatus Status { get; private set; }*/
 
     public string Title { get; private set; }
 
@@ -66,11 +88,15 @@ public class Notification
 
         Id = Guid.NewGuid();
         BusinessEventCode = businessEventCode;
-        Priority = priority;
+        PriorityId = priority.Id;
+        SeverityId = severity.Id;
+        TypeId = type.Id;
+        StatusId = NotificationStatus.Created.Id;
+        /*Priority = priority;
         Severity = severity;
         Type = type;
         Status = NotificationStatus.Created;
-        Title = title;
+        Title = title;*/
         Message = message;
         CreatedAtUtc = DateTime.UtcNow;
         ExpiresAtUtc = expiresAtUtc;

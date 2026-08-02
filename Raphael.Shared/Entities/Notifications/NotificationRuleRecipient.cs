@@ -1,6 +1,8 @@
 ﻿
 
 using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities.Notifications;
 
@@ -14,8 +16,11 @@ public class NotificationRuleRecipient
 
     public NotificationRule NotificationRule { get; private set; }
 
-
-    public RecipientType RecipientType { get; private set; }
+    public int RecipientTypeId { get; private set; }
+    [NotMapped]
+    public RecipientType RecipientType
+    => Enumeration.FromId<RecipientType>(RecipientTypeId);
+    //public RecipientType RecipientType { get; private set; }
 
 
     /// <summary>
@@ -48,7 +53,8 @@ public class NotificationRuleRecipient
 
         NotificationRuleId = notificationRule.Id;
 
-        RecipientType = recipientType;
+        RecipientTypeId = recipientType.Id;
+        //RecipientType = recipientType;
 
         PriorityOrder = priorityOrder;
     }

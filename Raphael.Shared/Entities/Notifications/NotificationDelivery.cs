@@ -1,4 +1,6 @@
 ﻿using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities.Notifications;
 
@@ -7,10 +9,20 @@ public class NotificationDelivery
     public Guid Id { get; private set; }
 
     public Guid NotificationId { get; private set; }
+    public Notification Notification { get; private set; } = null!;
+    public int ChannelId { get; private set; }
 
-    public DeliveryChannel Channel { get; private set; }
+    public int StatusId { get; private set; }
+    [NotMapped]
+    public DeliveryChannel Channel
+    => Enumeration.FromId<DeliveryChannel>(ChannelId);
+    [NotMapped]
+    public NotificationStatus Status
+        => Enumeration.FromId<NotificationStatus>(StatusId);
 
-    public NotificationStatus Status { get; private set; }
+    /*public DeliveryChannel Channel { get; private set; }
+
+    public NotificationStatus Status { get; private set; }*/
 
     public DateTime? DeliveredAtUtc { get; private set; }
 
@@ -31,13 +43,16 @@ public class NotificationDelivery
 
         Id = Guid.NewGuid();
         NotificationId = notificationId;
-        Channel = channel;
-        Status = NotificationStatus.PendingDelivery;
+        ChannelId = channel.Id;
+        StatusId = NotificationStatus.PendingDelivery.Id;
+        /*Channel = channel;
+        Status = NotificationStatus.PendingDelivery;*/
     }
 
     public void MarkDelivered(string? externalMessageId = null)
     {
-        Status = NotificationStatus.Delivered;
+        StatusId = NotificationStatus.Delivered.Id;
+        //Status = NotificationStatus.Delivered;
         DeliveredAtUtc = DateTime.UtcNow;
         ExternalMessageId = externalMessageId;
         FailureReason = null;
@@ -46,8 +61,8 @@ public class NotificationDelivery
     public void MarkFailed(string failureReason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(failureReason);
-
-        Status = NotificationStatus.Cancelled;
+        StatusId = NotificationStatus.Cancelled.Id;
+        //Status = NotificationStatus.Cancelled;
         FailureReason = failureReason;
     }
 }

@@ -1,4 +1,6 @@
 ﻿using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities.Notifications;
 
@@ -12,8 +14,11 @@ public class NotificationRuleChannel
 
     public NotificationRule NotificationRule { get; private set; }
 
-
-    public DeliveryChannel Channel { get; private set; }
+    public int ChannelId { get; private set; }
+    [NotMapped]
+    public DeliveryChannel Channel
+    => Enumeration.FromId<DeliveryChannel>(ChannelId);
+    //public DeliveryChannel Channel { get; private set; }
 
 
     /// <summary>
@@ -52,8 +57,8 @@ public class NotificationRuleChannel
         NotificationRule = notificationRule;
 
         NotificationRuleId = notificationRule.Id;
-
-        Channel = channel;
+        ChannelId = channel.Id;
+        //Channel = channel;
 
         PriorityOrder = priorityOrder;
 

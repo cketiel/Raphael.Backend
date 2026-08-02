@@ -1,4 +1,6 @@
 ﻿using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities.Notifications;
 
@@ -25,14 +27,27 @@ public class NotificationRule
 
     public string Description { get; private set; }
 
+    public int PriorityId { get; private set; }
 
-    public NotificationType NotificationType { get; private set; }
+    public int SeverityId { get; private set; }
+
+    public int TypeId { get; private set; }
+    [NotMapped]
+    public NotificationPriority Priority
+    => Enumeration.FromId<NotificationPriority>(PriorityId);
+    [NotMapped]
+    public NotificationSeverity Severity
+        => Enumeration.FromId<NotificationSeverity>(SeverityId);
+    [NotMapped]
+    public NotificationType NotificationType
+        => Enumeration.FromId<NotificationType>(TypeId);
+    /*public NotificationType NotificationType { get; private set; }
 
 
     public NotificationPriority Priority { get; private set; }
 
 
-    public NotificationSeverity Severity { get; private set; }
+    public NotificationSeverity Severity { get; private set; }*/
 
 
     public bool IsActive { get; private set; }
@@ -91,11 +106,17 @@ public class NotificationRule
 
         Description = description;
 
-        NotificationType = notificationType;
+        PriorityId = priority.Id;
+
+        SeverityId = severity.Id;
+
+        TypeId = notificationType.Id;
+
+        /*NotificationType = notificationType;
 
         Priority = priority;
 
-        Severity = severity;
+        Severity = severity;*/
 
         IsActive = true;
         Conditions = new List<NotificationRuleCondition>();

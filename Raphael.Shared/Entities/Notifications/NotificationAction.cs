@@ -5,6 +5,7 @@ public class NotificationAction
     public Guid Id { get; private set; }
 
     public Guid NotificationId { get; private set; }
+    public Notification Notification { get; private set; } = null!;
 
     /// <summary>
     /// Unique action identifier interpreted by client applications.

@@ -5,6 +5,7 @@ public class NotificationMetadata
     public Guid Id { get; private set; }
 
     public Guid NotificationId { get; private set; }
+    public Notification Notification { get; private set; } = null!;
 
     public string Key { get; private set; }
 

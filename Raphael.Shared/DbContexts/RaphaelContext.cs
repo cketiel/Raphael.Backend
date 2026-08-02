@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Domain.Common;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Interfaces;
@@ -308,30 +311,30 @@ namespace Raphael.Shared.DbContexts
             // ======================================================
 
             modelBuilder.Entity<Notification>()
-                .HasMany<NotificationRecipient>()
-                .WithOne()
-                .HasForeignKey(nr => nr.NotificationId)
+                .HasMany(n => n.Recipients)
+                .WithOne(r => r.Notification)
+                .HasForeignKey(r => r.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
             modelBuilder.Entity<Notification>()
-                .HasMany<NotificationDelivery>()
-                .WithOne()
-                .HasForeignKey(nd => nd.NotificationId)
+                .HasMany(n => n.Deliveries)
+                .WithOne(d => d.Notification)
+                .HasForeignKey(d => d.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
             modelBuilder.Entity<Notification>()
-                .HasMany<NotificationMetadata>()
-                .WithOne()
-                .HasForeignKey(nm => nm.NotificationId)
+                .HasMany(n => n.Metadata)
+                .WithOne(m => m.Notification)
+                .HasForeignKey(m => m.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
             modelBuilder.Entity<Notification>()
-                .HasMany<NotificationAction>()
-                .WithOne()
-                .HasForeignKey(na => na.NotificationId)
+                .HasMany(n => n.Actions)
+                .WithOne(a => a.Notification)
+                .HasForeignKey(a => a.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
@@ -403,7 +406,7 @@ namespace Raphael.Shared.DbContexts
                 .WithMany()
                 .HasForeignKey(bed => bed.BusinessEventId)
                 .OnDelete(DeleteBehavior.Restrict);
-
+        
 
             #endregion
         }
