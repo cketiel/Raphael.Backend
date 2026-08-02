@@ -33,4 +33,24 @@ public class NotificationRuleRepository : INotificationRuleRepository
                     r.BusinessEventDefinition.Code == businessEventCode,
                 cancellationToken);
     }
+    public async Task<IReadOnlyCollection<NotificationRule>>
+       GetActiveByBusinessEventCodeAsync(
+           string eventCode,
+           CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventCode);
+
+
+        return await _context.NotificationRules
+            .Include(r => r.BusinessEventDefinition)
+                .ThenInclude(bed => bed.BusinessEvent)
+            .Include(r => r.Conditions)
+            .Include(r => r.Recipients)
+            .Include(r => r.Channels)
+            .Include(r => r.Actions)
+            .Where(r =>
+                r.IsActive &&
+                r.BusinessEventDefinition.Code == eventCode)
+            .ToListAsync(cancellationToken);
+    }
 }
