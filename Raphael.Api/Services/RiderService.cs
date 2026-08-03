@@ -63,12 +63,50 @@ namespace Raphael.Api.Services
         }
 
         public async Task<IEnumerable<ScheduleDto>> GetMySchedulesAsync(int customerId, DateTime date)
+        {           
+            return await _context.Schedules
+                .AsNoTracking()
+                .Include(s => s.Trip)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
+                .Where(s => s.Date.HasValue && s.Date.Value.Date == date.Date) 
+                .Where(s => s.Trip != null && s.Trip.CustomerId == customerId) 
+                .OrderBy(s => s.Sequence)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,                 
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute != null && s.VehicleRoute.Driver != null ? s.VehicleRoute.Driver.FullName : "N/A",
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    Performed = s.Performed,
+                    EventType = s.EventType,
+                    Run = s.VehicleRoute != null ? s.VehicleRoute.Name : "N/A",
+                    Vehicle = (s.VehicleRoute != null && s.VehicleRoute.Vehicle != null) ? s.VehicleRoute.Vehicle.Name : "N/A",
+                    Patient = s.Trip != null ? s.Trip.Customer.FullName : s.Name
+                })
+                .ToListAsync();
+        }
+        public async Task<IEnumerable<ScheduleDto>> GetMySchedulesAsyncError(int customerId, DateTime date)
         {
             return await _context.Schedules
                 .AsNoTracking()
                 .Include(s => s.Trip)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
-                .Where(s => s.Trip.CustomerId == customerId && s.Date == date.Date)
+                .Where(s => s.Trip.CustomerId == customerId && (!s.TripId.HasValue || s.Trip.Date.Date == date.Date))
                 .OrderBy(s => s.Sequence)
                 .Select(s => MapToScheduleDto(s))
                 .ToListAsync();

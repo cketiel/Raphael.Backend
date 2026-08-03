@@ -10,6 +10,7 @@ using Raphael.Notification.Application.Interfaces.Rules;
 using Raphael.Notification.Application.Queries.GetNotificationById;
 using Raphael.Notification.Application.Queries.GetRecipientNotifications;
 using Raphael.Notification.Application.Services;
+using Raphael.Notification.Application.Interfaces.Factories;
 
 namespace Raphael.Notification.Application.DependencyInjection;
 
@@ -49,14 +50,16 @@ public static class NotificationApplicationExtensions
             NotificationEngine>();
 
         services.AddScoped<
-    INotificationRuleResolver,
-    NotificationRuleResolver>();
+            INotificationRuleResolver,
+            NotificationRuleResolver>();
 
         services.AddScoped<
             INotificationRuleEvaluator,
             NotificationRuleEvaluator>();
 
-        
+        services.AddScoped<
+            INotificationFactory,
+            NotificationFactory>();
 
         return services;
     }
