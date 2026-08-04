@@ -62,7 +62,7 @@ namespace Raphael.Shared.DbContexts
         public DbSet<NotificationAction> NotificationActions { get; set; }
         public DbSet<BusinessEvent> BusinessEvents { get; set; }
 
-
+        public DbSet<BusinessEventCategory> BusinessEventCategories { get; set; }
         public DbSet<BusinessEventDefinition> BusinessEventDefinitions { get; set; }
 
         public DbSet<BusinessEventGroup> BusinessEventGroups { get; set; }

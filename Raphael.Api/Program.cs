@@ -14,20 +14,21 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Raphael.Api.Services;
 using Raphael.Api.Settings;
+using Raphael.Notification.Application.DependencyInjection;
+using Raphael.Notification.Infrastructure.DependencyInjection;
+using Raphael.Notification.Infrastructure.Realtime.DependencyInjection;
+using Raphael.Notification.Infrastructure.Realtime.Hubs;
 using Raphael.Shared.Data;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
+using Raphael.Shared.Services;
 using Raphael.Shared.Validators;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using Raphael.Notification.Application.DependencyInjection;
-using Raphael.Notification.Infrastructure.DependencyInjection;
-using Raphael.Notification.Infrastructure.Realtime.DependencyInjection;
-using Raphael.Notification.Infrastructure.Realtime.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -202,6 +203,8 @@ builder.Services.AddScoped<IRatingService, RatingService>();
 
 builder.Services.AddScoped<IRiderService, RiderService>();
 
+builder.Services.AddScoped<BusinessEventCatalogSeeder>();
+
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>
 {
@@ -212,7 +215,9 @@ builder.Services.AddCors(options =>
                 "https://etamilanes.com",
                 "https://www.etamilanes.com",
                 "https://raphaeltransport.com",
-                "https://www.raphaeltransport.com"
+                "https://www.raphaeltransport.com",
+                "http://localhost:8081", // Expo Metro Bundler
+                "http://localhost:19006"  // Web Expo
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -301,10 +306,13 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+    var seeder = scope.ServiceProvider.GetRequiredService<BusinessEventCatalogSeeder>();
+    
     try
     {
         var initializer = services.GetRequiredService<IDbInitializer>();
         initializer.Initialize();
+        await seeder.SeedAsync();
     }
     catch (Exception ex)
     {
