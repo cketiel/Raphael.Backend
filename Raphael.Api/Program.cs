@@ -305,14 +305,12 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-    var seeder = scope.ServiceProvider.GetRequiredService<BusinessEventCatalogSeeder>();
+    var loggerFactory = services.GetRequiredService<ILoggerFactory>();    
     
     try
     {
         var initializer = services.GetRequiredService<IDbInitializer>();
-        initializer.Initialize();
-        await seeder.SeedAsync();
+        initializer.Initialize();      
     }
     catch (Exception ex)
     {

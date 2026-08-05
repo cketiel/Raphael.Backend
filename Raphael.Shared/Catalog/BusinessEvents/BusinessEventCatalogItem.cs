@@ -24,4 +24,7 @@ public sealed class BusinessEventCatalogItem
 
 
     public string Source { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+
+    public bool GeneratesNotification { get; init; } = true;
 }

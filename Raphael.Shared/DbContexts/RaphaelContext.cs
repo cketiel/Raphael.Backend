@@ -7,6 +7,7 @@ using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Persistence.Configurations;
+using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Shared.DbContexts
 {
@@ -51,7 +52,7 @@ namespace Raphael.Shared.DbContexts
 
         #region Notification Module
 
-        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<NotificationModel> Notifications { get; set; }
 
         public DbSet<NotificationRecipient> NotificationRecipients { get; set; }
 
@@ -310,28 +311,28 @@ namespace Raphael.Shared.DbContexts
             // Notification Aggregate
             // ======================================================
 
-            modelBuilder.Entity<Notification>()
+            modelBuilder.Entity<NotificationModel>()
                 .HasMany(n => n.Recipients)
                 .WithOne(r => r.Notification)
                 .HasForeignKey(r => r.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
-            modelBuilder.Entity<Notification>()
+            modelBuilder.Entity<NotificationModel>()
                 .HasMany(n => n.Deliveries)
                 .WithOne(d => d.Notification)
                 .HasForeignKey(d => d.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
-            modelBuilder.Entity<Notification>()
+            modelBuilder.Entity<NotificationModel>()
                 .HasMany(n => n.Metadata)
                 .WithOne(m => m.Notification)
                 .HasForeignKey(m => m.NotificationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
 
-            modelBuilder.Entity<Notification>()
+            modelBuilder.Entity<NotificationModel>()
                 .HasMany(n => n.Actions)
                 .WithOne(a => a.Notification)
                 .HasForeignKey(a => a.NotificationId)
@@ -406,7 +407,10 @@ namespace Raphael.Shared.DbContexts
                 .WithMany()
                 .HasForeignKey(bed => bed.BusinessEventId)
                 .OnDelete(DeleteBehavior.Restrict);
-        
+
+            modelBuilder.Entity<BusinessEventCategory>()
+                .ToTable("BusinessEventCategory");
+
 
             #endregion
         }

@@ -5,27 +5,38 @@ using Raphael.Shared.Entities.Notifications;
 
 namespace Raphael.Shared.Services;
 
-public class BusinessEventCatalogSeeder
+public sealed class BusinessEventCatalogSeeder
 {
     private readonly RaphaelContext _context;
 
-
-    public BusinessEventCatalogSeeder(
-        RaphaelContext context)
+    public BusinessEventCatalogSeeder(RaphaelContext context)
     {
         _context = context;
     }
 
-
-    public async Task SeedAsync()
+    public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
+        var categories = await _context.BusinessEventCategories
+            .ToDictionaryAsync(x => x.Code, cancellationToken);
+
+        var groups = await _context.BusinessEventGroups
+            .Include(x => x.Category)
+            .ToDictionaryAsync(x => x.Code, cancellationToken);
+
+        var events = await _context.BusinessEvents
+            .Include(x => x.Group)
+            .ToDictionaryAsync(x => x.Code, cancellationToken);
+
+        var definitions = await _context.BusinessEventDefinitions
+            .ToDictionaryAsync(x => x.Code, cancellationToken);
+
         foreach (var item in BusinessEventCatalog.Events)
         {
-            var category = await _context.BusinessEventCategories
-                .FirstOrDefaultAsync(x => x.Code == item.CategoryCode);
+            // -----------------------------
+            // Category
+            // -----------------------------
 
-
-            if (category == null)
+            if (!categories.TryGetValue(item.CategoryCode, out var category))
             {
                 category = new BusinessEventCategory(
                     item.CategoryCode,
@@ -34,16 +45,14 @@ public class BusinessEventCatalogSeeder
 
                 _context.BusinessEventCategories.Add(category);
 
-                await _context.SaveChangesAsync();
+                categories.Add(category.Code, category);
             }
 
+            // -----------------------------
+            // Group
+            // -----------------------------
 
-
-            var group = await _context.BusinessEventGroups
-                .FirstOrDefaultAsync(x => x.Code == item.GroupCode);
-
-
-            if (group == null)
+            if (!groups.TryGetValue(item.GroupCode, out var group))
             {
                 group = new BusinessEventGroup(
                     category,
@@ -53,16 +62,14 @@ public class BusinessEventCatalogSeeder
 
                 _context.BusinessEventGroups.Add(group);
 
-                await _context.SaveChangesAsync();
+                groups.Add(group.Code, group);
             }
 
+            // -----------------------------
+            // Business Event
+            // -----------------------------
 
-
-            var businessEvent = await _context.BusinessEvents
-                .FirstOrDefaultAsync(x => x.Code == item.EventCode);
-
-
-            if (businessEvent == null)
+            if (!events.TryGetValue(item.EventCode, out var businessEvent))
             {
                 businessEvent = new BusinessEvent(
                     item.EventCode,
@@ -73,8 +80,30 @@ public class BusinessEventCatalogSeeder
 
                 _context.BusinessEvents.Add(businessEvent);
 
-                await _context.SaveChangesAsync();
+                events.Add(businessEvent.Code, businessEvent);
+            }
+
+            // -----------------------------
+            // Business Event Definition
+            // -----------------------------
+
+            if (!definitions.ContainsKey(item.EventCode))
+            {
+                var definition = new BusinessEventDefinition(
+                    businessEvent,
+                    item.EventCode,
+                    item.EventName,
+                    //item.DisplayName,
+                    item.EventDescription,
+                    true);
+                    //item.GeneratesNotification);
+
+                _context.BusinessEventDefinitions.Add(definition);
+
+                definitions.Add(definition.Code, definition);
             }
         }
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }
