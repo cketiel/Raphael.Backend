@@ -204,6 +204,7 @@ builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<IRiderService, RiderService>();
 
 builder.Services.AddScoped<BusinessEventCatalogSeeder>();
+builder.Services.AddScoped<NotificationRuleCatalogSeeder>();
 
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>

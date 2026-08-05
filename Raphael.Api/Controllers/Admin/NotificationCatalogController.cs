@@ -10,11 +10,13 @@ namespace Raphael.Api.Controllers.Admin;
 public sealed class NotificationCatalogController : ControllerBase
 {
     private readonly BusinessEventCatalogSeeder _businessEventCatalogSeeder;
+    private readonly NotificationRuleCatalogSeeder _notificationRuleCatalogSeeder;
 
     public NotificationCatalogController(
-        BusinessEventCatalogSeeder businessEventCatalogSeeder)
+        BusinessEventCatalogSeeder businessEventCatalogSeeder, NotificationRuleCatalogSeeder notificationRuleCatalogSeeder)
     {
         _businessEventCatalogSeeder = businessEventCatalogSeeder;
+        _notificationRuleCatalogSeeder = notificationRuleCatalogSeeder;
     }
 
     // This endpoint is commented out to prevent accidental execution. Uncomment it if you want to enable the seeding of business events.
@@ -44,4 +46,30 @@ public sealed class NotificationCatalogController : ControllerBase
             });
         }
     }*/
+
+    [AllowAnonymous]
+    [HttpPost("notification-rules")]
+    public async Task<IActionResult> SeedNotificationRules(
+    CancellationToken cancellationToken)
+    {
+        
+        try
+        {
+            await _notificationRuleCatalogSeeder.SeedAsync(cancellationToken);
+
+            return Ok(new
+            {
+                Message = "Notification Rule Catalog synchronized successfully."
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new
+            {
+                ex.Message,
+                Inner = ex.InnerException?.Message,
+                Stack = ex.StackTrace
+            });
+        }
+    }
 }
