@@ -64,4 +64,18 @@ public class NotificationRuleChannel
 
         IsRequired = isRequired;
     }
+
+    public void Update(
+    DeliveryChannel channel,
+    int priorityOrder,
+    bool isRequired)
+    {
+        ArgumentNullException.ThrowIfNull(channel);
+        ArgumentOutOfRangeException.ThrowIfLessThan(priorityOrder, 1);
+
+        ChannelId = channel.Id;
+        PriorityOrder = priorityOrder;
+        IsRequired = isRequired;
+    }
+
 }

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Raphael.Api.Services;
+using Raphael.Api.Services.Admin;
 using Raphael.Api.Settings;
 using Raphael.Notification.Application.DependencyInjection;
 using Raphael.Notification.Infrastructure.DependencyInjection;
@@ -205,6 +206,7 @@ builder.Services.AddScoped<IRiderService, RiderService>();
 
 builder.Services.AddScoped<BusinessEventCatalogSeeder>();
 builder.Services.AddScoped<NotificationRuleCatalogSeeder>();
+builder.Services.AddScoped<NotificationRuleService>();
 
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>

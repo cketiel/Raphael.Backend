@@ -1,30 +1,14 @@
 ﻿namespace Raphael.Notification.Application.DTOs;
 
-public sealed class NotificationRuleDto
+public sealed class UpdateNotificationRuleDto
 {
     public Guid Id { get; init; }
 
-    public string Code { get; init; } = string.Empty;
-
-    public string Name { get; init; } = string.Empty;
-
-    public string Description { get; init; } = string.Empty;
-
-    public Guid BusinessEventDefinitionId { get; init; }
-
-    public string BusinessEventCode { get; init; } = string.Empty;
-
     public int NotificationTypeId { get; init; }
-
-    public string NotificationTypeName { get; init; } = string.Empty;
 
     public int PriorityId { get; init; }
 
-    public string PriorityName { get; init; } = string.Empty;
-
     public int SeverityId { get; init; }
-
-    public string SeverityName { get; init; } = string.Empty;
 
     public bool IsActive { get; init; }
 

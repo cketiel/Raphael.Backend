@@ -1,16 +1,8 @@
 ﻿namespace Raphael.Notification.Application.DTOs;
 
-public sealed class BusinessEventDto
+public sealed class UpdateBusinessEventDto
 {
     public Guid Id { get; init; }
-
-    public Guid BusinessEventId { get; init; }
-
-    public string Category { get; init; } = string.Empty;
-
-    public string Group { get; init; } = string.Empty;
-
-    public string Code { get; init; } = string.Empty;
 
     public string DisplayName { get; init; } = string.Empty;
 

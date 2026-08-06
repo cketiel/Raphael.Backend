@@ -83,4 +83,26 @@ public class BusinessEventDefinition
     {
         IsActive = true;
     }
+
+    public void SetActive(bool active)
+    {
+        if (IsActive == active)
+            return;
+
+        IsActive = active;
+    }
+
+    public void Update(
+    string displayName,
+    string description,
+    bool generatesNotification)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+
+        DisplayName = displayName;
+        Description = description;
+        GeneratesNotification = generatesNotification;
+    }
+
 }

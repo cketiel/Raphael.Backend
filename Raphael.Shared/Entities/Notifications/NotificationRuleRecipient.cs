@@ -58,4 +58,16 @@ public class NotificationRuleRecipient
 
         PriorityOrder = priorityOrder;
     }
+
+    public void Update(
+    RecipientType recipientType,
+    int priorityOrder)
+    {
+        ArgumentNullException.ThrowIfNull(recipientType);
+        ArgumentOutOfRangeException.ThrowIfLessThan(priorityOrder, 1);
+
+        RecipientTypeId = recipientType.Id;
+        PriorityOrder = priorityOrder;
+    }
+
 }

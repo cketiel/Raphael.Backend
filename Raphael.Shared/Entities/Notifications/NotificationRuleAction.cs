@@ -62,4 +62,17 @@ public class NotificationRuleAction
 
         Order = order;
     }
+
+    public void Update(
+    string actionCode,
+    string? parameters,
+    int order)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionCode);
+        ArgumentOutOfRangeException.ThrowIfLessThan(order, 1);
+
+        ActionCode = actionCode;
+        Parameters = parameters;
+        Order = order;
+    }
 }

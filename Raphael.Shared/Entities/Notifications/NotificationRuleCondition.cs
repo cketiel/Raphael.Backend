@@ -76,4 +76,22 @@ public class NotificationRuleCondition
 
         Order = order;
     }
+    public void Update(
+    string field,
+    string operatorName,
+    string value,
+    int order)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(field);
+        ArgumentException.ThrowIfNullOrWhiteSpace(operatorName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        ArgumentOutOfRangeException.ThrowIfLessThan(order, 1);
+
+        Field = field;
+        Operator = operatorName;
+        Value = value;
+        Order = order;
+    }
+
+
 }

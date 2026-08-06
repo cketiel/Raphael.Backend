@@ -176,4 +176,49 @@ public class NotificationRule
     {
         IsActive = true;
     }
+
+    public void SetActive(bool active)
+    {
+        if (IsActive == active)
+            return;
+
+        IsActive = active;
+    }
+
+    public void ChangePriority(NotificationPriority priority)
+    {
+        ArgumentNullException.ThrowIfNull(priority);
+
+        PriorityId = priority.Id;
+    }
+
+    public void ChangeSeverity(NotificationSeverity severity)
+    {
+        ArgumentNullException.ThrowIfNull(severity);
+
+        SeverityId = severity.Id;
+    }
+
+    public void ChangeNotificationType(NotificationType notificationType)
+    {
+        ArgumentNullException.ThrowIfNull(notificationType);
+
+        TypeId = notificationType.Id;
+    }
+
+    public void UpdateConfiguration(
+    NotificationType notificationType,
+    NotificationPriority priority,
+    NotificationSeverity severity)
+    {
+        ArgumentNullException.ThrowIfNull(notificationType);
+        ArgumentNullException.ThrowIfNull(priority);
+        ArgumentNullException.ThrowIfNull(severity);
+
+        TypeId = notificationType.Id;
+
+        PriorityId = priority.Id;
+
+        SeverityId = severity.Id;
+    }
 }

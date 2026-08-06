@@ -86,4 +86,12 @@ public class BusinessEvent
     {
         IsActive = true;
     }
+
+    public void SetActive(bool active)
+    {
+        if (IsActive == active)
+            return;
+
+        IsActive = active;
+    }
 }
