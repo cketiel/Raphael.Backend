@@ -1,30 +1,39 @@
-﻿using Raphael.Notification.Application.DTOs;
-using Raphael.Notification.Application.Interfaces.Persistence;
-using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
+﻿using Raphael.Notification.Application.Interfaces.Engine;
+using Raphael.Notification.Application.Interfaces.Events;
 
 namespace Raphael.Notification.Application.Services;
 
-public class NotificationService
+public sealed class NotificationService
 {
-    private readonly INotificationRepository _notificationRepository;
-
+    private readonly INotificationEngine _notificationEngine;
 
     public NotificationService(
-        INotificationRepository notificationRepository)
+        INotificationEngine notificationEngine)
     {
-        _notificationRepository = notificationRepository;
+        _notificationEngine = notificationEngine;
     }
 
-
-    public async Task<Guid> CreateAsync(
-        NotificationModel notification,
+    public async Task PublishAsync(
+        string eventCode,
+        Guid aggregateId,
+        Dictionary<string, object?> data,
+        Guid? performedByUserId = null,
         CancellationToken cancellationToken = default)
     {
-        await _notificationRepository.AddAsync(
-            notification,
+        var context = new BusinessEventContext
+        {
+            EventCode = eventCode,
+            AggregateId = aggregateId,
+            PerformedByUserId = performedByUserId
+        };
+
+        foreach (var item in data)
+        {
+            context.Data[item.Key] = item.Value;
+        }
+
+        await _notificationEngine.ProcessAsync(
+            context,
             cancellationToken);
-
-
-        return notification.Id;
     }
 }

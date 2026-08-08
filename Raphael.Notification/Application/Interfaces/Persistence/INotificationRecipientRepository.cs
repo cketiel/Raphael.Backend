@@ -12,4 +12,7 @@ public interface INotificationRecipientRepository
     Task UpdateAsync(
         NotificationRecipient recipient,
         CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(
+        CancellationToken cancellationToken = default);
 }

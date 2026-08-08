@@ -66,15 +66,26 @@ public class NotificationRecipient
 
     public void MarkViewed()
     {
-        StatusId = NotificationStatus.Viewed.Id;
-        //Status = NotificationStatus.Viewed;
+        if (ViewedAtUtc.HasValue)
+            return;
+
         ViewedAtUtc = DateTime.UtcNow;
+
+        StatusId = NotificationStatus.Viewed.Id;
     }
 
-    public void Acknowledge()
+    public void MarkAcknowledged()
     {
-        StatusId = NotificationStatus.Acknowledged.Id;
-        //Status = NotificationStatus.Acknowledged;
+        if (AcknowledgedAtUtc.HasValue)
+            return;
+
+        if (!ViewedAtUtc.HasValue)
+        {
+            ViewedAtUtc = DateTime.UtcNow;
+        }
+
         AcknowledgedAtUtc = DateTime.UtcNow;
+
+        StatusId = NotificationStatus.Acknowledged.Id;
     }
 }

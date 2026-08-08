@@ -12,4 +12,11 @@ public interface INotificationDeliveryRepository
     Task UpdateAsync(
         NotificationDelivery delivery,
         CancellationToken cancellationToken = default);
+
+    Task AddAsync(
+    NotificationDelivery delivery,
+    CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(
+        CancellationToken cancellationToken = default);
 }

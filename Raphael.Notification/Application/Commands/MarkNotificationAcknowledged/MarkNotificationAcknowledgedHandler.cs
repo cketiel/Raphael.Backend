@@ -1,41 +1,45 @@
 ﻿using Raphael.Notification.Application.Interfaces.Persistence;
+using Raphael.Notification.Application.Interfaces.Realtime;
 
 namespace Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
 
-public class MarkNotificationAcknowledgedHandler
+public sealed class MarkNotificationAcknowledgedHandler
 {
-    private readonly INotificationRecipientRepository _repository;
-
+    private readonly INotificationRecipientRepository _recipientRepository;
+    private readonly INotificationDispatcher _dispatcher;
 
     public MarkNotificationAcknowledgedHandler(
-        INotificationRecipientRepository repository)
+        INotificationRecipientRepository recipientRepository,
+        INotificationDispatcher dispatcher)
     {
-        _repository = repository;
+        _recipientRepository = recipientRepository;
+        _dispatcher = dispatcher;
     }
-
 
     public async Task Handle(
         MarkNotificationAcknowledgedCommand command,
         CancellationToken cancellationToken = default)
     {
         var recipient =
-            await _repository.GetByIdAsync(
+            await _recipientRepository.GetByIdAsync(
                 command.NotificationRecipientId,
                 cancellationToken);
 
-
         if (recipient == null)
-        {
-            throw new KeyNotFoundException(
-                "Notification recipient not found.");
-        }
+            return;
 
+        recipient.MarkAcknowledged();
 
-        recipient.Acknowledge();
+        await _recipientRepository.SaveChangesAsync(
+            cancellationToken);
 
+        await _dispatcher.NotifyAcknowledgedAsync(
+            recipient.RecipientId,
+            recipient.Id,
+            cancellationToken);
 
-        await _repository.UpdateAsync(
-            recipient,
+        await _dispatcher.RefreshNotificationsAsync(
+            recipient.RecipientId,
             cancellationToken);
     }
 }

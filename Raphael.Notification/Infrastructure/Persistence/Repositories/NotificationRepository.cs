@@ -27,6 +27,14 @@ public class NotificationRepository : INotificationRepository
     }
 
 
+    public async Task SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(
+            cancellationToken);
+    }
+
+
     public async Task<NotificationModel?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)

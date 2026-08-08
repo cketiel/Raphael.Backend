@@ -1,17 +1,25 @@
+using Microsoft.EntityFrameworkCore;
+using Raphael.Notification.Application.Helpers;
+using Raphael.Notification.Application.Interfaces.Events;
+using Raphael.Notification.Application.Services;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
-using Microsoft.EntityFrameworkCore;
+using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Services
 {
     public class ScheduleService : IScheduleService
     {
         private readonly RaphaelContext _context;
+        private readonly NotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public ScheduleService(RaphaelContext context)
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService)
         {
             _context = context;
+            _notificationService = notificationService;
+            _currentUserService = currentUserService;
         }
         public async Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber)
         {
@@ -509,6 +517,21 @@ namespace Raphael.Api.Services
                 // 6. Save all changes and confirm the transaction.
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                await _notificationService.PublishAsync(
+                     eventCode: "TRIP_SCHEDULED",
+                     aggregateId: UserIdentifierConverter.ToGuid(tripToRoute.Id),
+                     performedByUserId: _currentUserService.UserId.HasValue
+                            ? UserIdentifierConverter.ToGuid(_currentUserService.UserId.Value)
+                            : null,
+                     data: new Dictionary<string, object?>
+                     {
+                         ["TripId"] = tripToRoute.Id,
+                         ["RiderId"] = tripToRoute.CustomerId,
+                         ["VehicleRouteId"] = request.VehicleRouteId,
+                         ["Trip"] = tripToRoute
+                     });
+
             }
             catch (Exception)
             {

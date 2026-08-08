@@ -1,13 +1,19 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services;
 using Raphael.Notification.Application.DTOs;
+using Raphael.Notification.Application.Helpers;
+using Raphael.Notification.Application.Services;
 using Raphael.Notification.Infrastructure.Realtime.Contracts;
 using Raphael.Notification.Infrastructure.Realtime.Hubs;
 using Raphael.Notification.Infrastructure.Realtime.Models;
+using Raphael.Shared.DbContexts;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.Interfaces;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Raphael.Api.Controllers
@@ -20,17 +26,54 @@ namespace Raphael.Api.Controllers
 
         private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
 
-        public RiderController(IRiderService riderService, IHubContext<NotificationHub, INotificationClient> hubContext)
+        private readonly NotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly RaphaelContext _context;
+
+        public RiderController(IRiderService riderService, IHubContext<NotificationHub, INotificationClient> hubContext, NotificationService notificationService, ICurrentUserService currentUserService, RaphaelContext context)
         {
             _riderService = riderService;
             _hubContext = hubContext;
+            _notificationService = notificationService;
+            _currentUserService = currentUserService;
+            _context = context;
         }
 
-        [AllowAnonymous] // <--- Ahora es público para facilitar tus pruebas
+        [AllowAnonymous]
+        [HttpPost("test-trip-schedule/{targetCustomerId}")]
+        public async Task<IActionResult> SendTestTripSchedule(int targetCustomerId, [FromQuery] string message)
+        {
+            var tripToRoute = await _context.Trips
+                .Include(t => t.Customer)
+                .Include(t => t.FundingSource)
+                .Include(t => t.SpaceType)
+                .FirstOrDefaultAsync(t => t.Id == 27138);
+
+            await _notificationService.PublishAsync(
+                    eventCode: "TRIP_SCHEDULED",
+                    aggregateId: UserIdentifierConverter.ToGuid(tripToRoute.Id),
+                    performedByUserId: UserIdentifierConverter.ToGuid(2),
+                    data: new Dictionary<string, object?>
+                    {
+                        ["TripId"] = tripToRoute.Id,
+                        ["RiderId"] = tripToRoute.CustomerId,
+                        ["VehicleRouteId"] = tripToRoute.VehicleRouteId,
+                        ["Trip"] = tripToRoute
+                    });
+
+            return Ok(new
+            {
+                Info = "Notificación enviada correctamente",
+                TripId = tripToRoute.Id,
+                Payload = tripToRoute
+            });
+        }
+
+        [AllowAnonymous] 
         [HttpPost("test-notification-anonymous/{targetCustomerId}")]
         public async Task<IActionResult> SendTestNotificationAnonymous(int targetCustomerId, [FromQuery] string message)
         {
-            // 1. Construir el DTO (Usamos tus modelos de Raphael.Notification)
+            // 1. Construir el DTO 
             var notificationDto = new NotificationDto
             {
                 Id = Guid.NewGuid(),
@@ -38,7 +81,7 @@ namespace Raphael.Api.Controllers
                 Title = "Raphael Dispatch",
                 Message = message ?? "El conductor está en camino a su ubicación.",
                 Priority = NotificationPriority.High.Name,
-                Severity = NotificationSeverity.Warning.Name, // Esto debería activar un Warning en la App
+                Severity = NotificationSeverity.Critical.Name, // Esto debería activar un Warning en la App
                 Type = NotificationType.Alert.Name,
                 Status = NotificationStatus.Delivered.Name,
                 CreatedAtUtc = DateTime.UtcNow

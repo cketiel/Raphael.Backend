@@ -38,4 +38,20 @@ public class NotificationDeliveryRepository
         await _context.SaveChangesAsync(
             cancellationToken);
     }
+
+    public async Task AddAsync(
+    NotificationDelivery delivery,
+    CancellationToken cancellationToken = default)
+    {
+        await _context.NotificationDeliveries.AddAsync(
+            delivery,
+            cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
 }

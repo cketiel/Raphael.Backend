@@ -17,6 +17,15 @@ public class NotificationRecipientRepository
         _context = context;
     }
 
+    public async Task AddAsync(
+       NotificationRecipient recipient,
+       CancellationToken cancellationToken = default)
+    {
+        await _context.NotificationRecipients.AddAsync(
+            recipient,
+            cancellationToken);
+    }
+
 
     public async Task<NotificationRecipient?> GetByIdAsync(
         Guid id,
@@ -37,5 +46,11 @@ public class NotificationRecipientRepository
 
         await _context.SaveChangesAsync(
             cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

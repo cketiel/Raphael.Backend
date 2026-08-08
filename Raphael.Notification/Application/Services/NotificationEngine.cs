@@ -70,6 +70,7 @@ public sealed class NotificationEngine
                 notification,
                 cancellationToken);
 
+            await _notificationRepository.SaveChangesAsync(cancellationToken);
 
 
             var dto =

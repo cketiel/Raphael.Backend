@@ -95,8 +95,8 @@ public class Notification
         /*Priority = priority;
         Severity = severity;
         Type = type;
-        Status = NotificationStatus.Created;
-        Title = title;*/
+        Status = NotificationStatus.Created;*/
+        Title = title;
         Message = message;
         CreatedAtUtc = DateTime.UtcNow;
         ExpiresAtUtc = expiresAtUtc;
