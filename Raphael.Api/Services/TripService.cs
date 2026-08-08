@@ -1,6 +1,8 @@
 using Azure;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Notification.Application.Helpers;
+using Raphael.Notification.Application.Services;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
@@ -14,11 +16,13 @@ namespace Raphael.Api.Services
     {
         private readonly RaphaelContext _context;
         private readonly ICurrentUserService _currentUserService;
+        private readonly NotificationService _notificationService;      
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService  )
         {
             _context = context;
             _currentUserService = currentUserService;
+            _notificationService = notificationService;
         }
 
         public async Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int? integratorId)
@@ -1229,6 +1233,43 @@ namespace Raphael.Api.Services
 
             await _context.SaveChangesAsync();
           
+            return true;
+        }
+
+        public async Task<bool> StartTripAsync(int id, TimeSpan? travel)
+        {
+            var trip = await _context.Trips
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (trip == null)
+                return false;
+
+            if (trip.Status == TripStatus.Started)
+                throw new InvalidOperationException(
+                    "The trip has already been started.");
+
+            if (trip.Status != TripStatus.Scheduled)
+                throw new InvalidOperationException(
+                    "The trip cannot be started because it is not scheduled.");
+
+            trip.Status = TripStatus.Started;
+
+            await _context.SaveChangesAsync();
+
+            await _notificationService.PublishAsync(
+                eventCode: "DRIVER_STARTED_TRIP",
+                aggregateId: UserIdentifierConverter.ToGuid(trip.Id),
+                performedByUserId: _currentUserService.UserId.HasValue
+                    ? UserIdentifierConverter.ToGuid(_currentUserService.UserId.Value)
+                    : null,
+                data: new Dictionary<string, object?>
+                {
+                    ["TripId"] = trip.Id,
+                    ["RiderId"] = trip.CustomerId,
+                    ["Travel"] = travel.HasValue ? travel.Value : null
+                    //["Trip"] = trip
+                });
+
             return true;
         }
         private bool IsUniqueConstraintViolation(DbUpdateException ex)

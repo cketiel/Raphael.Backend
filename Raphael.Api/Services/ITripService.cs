@@ -1,5 +1,6 @@
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using System.Diagnostics;
 
 namespace Raphael.Api.Services
 {
@@ -26,6 +27,7 @@ namespace Raphael.Api.Services
         Task<bool> UncancelAsync(int id);
         Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto);
         Task<bool> AssignRunAsync(int id, int? vehicleRouteId);
+        Task<bool> StartTripAsync(int id, TimeSpan? travel);
     }
 
 }

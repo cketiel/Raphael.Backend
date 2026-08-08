@@ -430,6 +430,41 @@ namespace Raphael.Api.Controllers
            
         }
 
+        [HttpPost("{id}/start")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> StartTrip(int id, [FromQuery] TimeSpan? travel)
+        {
+            try
+            {
+                var success = await _tripService.StartTripAsync(id, travel);
+
+                if (!success)
+                {
+                    return NotFound(new
+                    {
+                        Message = $"Trip with ID {id} not found or cannot be started."
+                    });
+                }
+
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    $"Internal server error: {ex.Message}");
+            }
+        }
+
     }// end class
 }
 

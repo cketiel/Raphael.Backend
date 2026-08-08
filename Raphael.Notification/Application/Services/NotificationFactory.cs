@@ -40,8 +40,25 @@ public sealed class NotificationFactory
 
                 title = "Driver Started Trip";
 
-                message =
-                    "Your driver is on the way to your pickup location.";
+                var travel = context.Data.TryGetValue(
+                    "Travel",
+                    out var travelValue)
+                    ? travelValue as TimeSpan?
+                    : null;
+
+                if (travel.HasValue)
+                {
+                    var totalMinutes = (int)Math.Ceiling(
+                        travel.Value.TotalMinutes);
+
+                    message =
+                        $"Your driver is on the way to your pickup location. Your transportation will arrive in {totalMinutes} minutes.";
+                }
+                else
+                {
+                    message =
+                        "Your driver is on the way to your pickup location.";
+                }
 
                 break;
 
