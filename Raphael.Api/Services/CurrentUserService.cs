@@ -12,6 +12,7 @@ namespace Raphael.Api.Services
         }
 
         public int? UserId => GetClaimAsInt("UserId");
+        public string? UserName => GetClaimValue("Username");
         public int? IntegratorId => GetClaimAsInt("UserIntegratorId");
         public int? ProviderId => GetClaimAsInt("UserProviderId");
  
@@ -21,6 +22,10 @@ namespace Raphael.Api.Services
         {
             var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(type)?.Value;
             return int.TryParse(claim, out var result) ? result : null;
+        }
+        private string? GetClaimValue(string type)
+        {
+            return _httpContextAccessor.HttpContext?.User?.FindFirst(type)?.Value;
         }
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Controllers
@@ -13,29 +14,74 @@ namespace Raphael.Api.Controllers
     {
         private readonly ITripService _tripService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ITripHistoryService _historyService;
 
-        public BookingPortalController(ITripService tripService, ICurrentUserService currentUserService)
+        public BookingPortalController(
+            ITripService tripService,
+            ICurrentUserService currentUserService,
+            ITripHistoryService historyService) 
         {
             _tripService = tripService;
             _currentUserService = currentUserService;
+            _historyService = historyService;
         }
-        private int? CurrentIntegratorId => _currentUserService.IntegratorId;
 
-        //private int CurrentIntegratorId => _currentUserService.IntegratorId ?? throw new UnauthorizedAccessException();
+        private int? CurrentIntegratorId => _currentUserService.IntegratorId;
 
         [HttpPost("sync-single")]
         public async Task<IActionResult> SyncSingle([FromForm] PortalTripDto trip)
         {
             if (trip == null) return BadRequest("Trip data is required.");
+
             // If it is neither an Integrator nor an Internal Administrator, then it is not authorized.
             if (CurrentIntegratorId == null && !_currentUserService.IsMilanesInternal)
             {
                 return Unauthorized("You do not have permission to perform this operation.");
             }
+
             try
             {
-                // Llamamos al método pasando una lista de un solo elemento
+                bool isEdit = trip.InternalId.HasValue && trip.InternalId > 0;
+                string oldStatus = "N/A";
+
+                // --- RESTRICCIÓN DE SEGURIDAD PARA EDICIÓN ---
+                if (isEdit)
+                {                  
+                    var existingTrip = await _tripService.GetByIdAsync(trip.InternalId.Value);
+
+                    if (existingTrip == null) return NotFound("Trip not found.");
+
+                    // Solo permitir editar si el estado es Accepted o Assigned                   
+                    var status = existingTrip.Status?.Trim();
+                    if (status != "Accepted" && status != "Assigned")
+                    {
+                        return BadRequest($"Restricted: Trips in '{status}' status cannot be edited via portal. Only Accepted or Assigned.");
+                    }
+                    oldStatus = status;
+                }
+               
                 var results = await _tripService.UpsertPortalTripsAsync(new List<PortalTripDto> { trip }, CurrentIntegratorId);
+
+                // --- REGISTRO EN HISTORIAL (TripHistory) ---
+                if (results != null && results.Any())
+                {
+                    foreach (var idStr in results)
+                    {
+                        if (int.TryParse(idStr, out int tripIdInt))
+                        {
+                            await _historyService.PostHistory(new TripHistory
+                            {
+                                TripId = tripIdInt,
+                                User = _currentUserService.UserName ?? "PortalUser",
+                                Field = "PortalSync",
+                                PriorValue = isEdit ? $"Status: {oldStatus}" : "New Trip",
+                                NewValue = isEdit ? "Trip Updated" : "Trip Created",
+                                ChangeDate = DateTime.Now
+                            });
+                        }
+                    }
+                }
+
                 return Ok(new { Success = true, TripIds = results });
             }
             catch (Exception ex)
@@ -52,12 +98,54 @@ namespace Raphael.Api.Controllers
             return Ok(trips);
         }
 
-        // 3. Cancelar múltiples viajes
         [HttpPost("cancel-multiple")]
         public async Task<IActionResult> CancelMultiple([FromBody] List<string> externalIds)
         {
-            var count = await _tripService.CancelIntegrationTripsAsync(externalIds, CurrentIntegratorId);
-            return Ok(new { Success = true, CancelledCount = count });
+            if (externalIds == null || !externalIds.Any()) return BadRequest("No IDs provided.");
+
+            try
+            {
+                // --- RESTRICCIÓN DE SEGURIDAD PARA CANCELACIÓN ---
+                // Obtenemos los detalles de los viajes para validar sus estados actuales
+                var tripDetails = await _tripService.GetIntegrationTripDetailsAsync(null, externalIds, CurrentIntegratorId);
+
+                // Estados permitidos para cancelar
+                var allowedStatuses = new List<string> { "Accepted", "Assigned", "Scheduled" };
+
+                // Filtramos solo los IDs que cumplen la condición de estado
+                var validIdsToCancel = tripDetails
+                    .Where(t => allowedStatuses.Contains(t.Status ?? ""))
+                    .Select(t => t.TripId)
+                    .ToList();
+
+                if (!validIdsToCancel.Any())
+                {
+                    return BadRequest("The selected trips cannot be canceled because their current status does not allow it.");
+                }
+
+                // Ejecutamos la cancelación solo para los permitidos
+                var count = await _tripService.CancelIntegrationTripsAsync(validIdsToCancel, CurrentIntegratorId);
+
+                // --- REGISTRO EN HISTORIAL ---
+                foreach (var trip in tripDetails.Where(t => validIdsToCancel.Contains(t.TripId)))
+                {
+                    await _historyService.PostHistory(new TripHistory
+                    {
+                        TripId = trip.Id,
+                        User = _currentUserService.UserName ?? "PortalUser",
+                        Field = "Status",
+                        PriorValue = trip.Status,
+                        NewValue = "Canceled",
+                        ChangeDate = DateTime.Now
+                    });
+                }
+
+                return Ok(new { Success = true, CancelledCount = count, Attempted = externalIds.Count });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error: {ex.Message}");
+            }
         }
 
         [HttpGet("my-funding-source")]
