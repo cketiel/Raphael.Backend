@@ -139,7 +139,7 @@ namespace Raphael.Api.Services
                 {
                     IntegratorId = integratorId,
                     Created = DateTime.UtcNow,
-                    Status = TripStatus.Assigned
+                    Status = TripStatus.Accepted
                 };
                 _context.Trips.Add(trip);
             }
