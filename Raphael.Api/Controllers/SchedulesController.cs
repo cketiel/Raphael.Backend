@@ -210,6 +210,30 @@ namespace Raphael.Api.Controllers
         public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionRangeReport(
             [FromQuery] DateTime startDate,
             [FromQuery] DateTime endDate,
+            [FromQuery] string? fundingSourceIds,
+            [FromQuery] string? vehicleRouteIds) // 
+        {
+            List<int>? fsIds = null;
+            if (!string.IsNullOrEmpty(fundingSourceIds))
+            {
+                fsIds = fundingSourceIds.Split(',').Select(int.Parse).ToList();
+            }
+
+            List<int>? vrIds = null;
+            if (!string.IsNullOrEmpty(vehicleRouteIds)) // 
+            {
+                vrIds = vehicleRouteIds.Split(',').Select(int.Parse).ToList();
+            }
+
+            // Actualizar la llamada al servicio para incluir vrIds
+            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, fsIds, vrIds);
+            return Ok(reportData);
+        }
+
+        [HttpGet("reports/production-range2")]
+        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionRangeReport2(
+            [FromQuery] DateTime startDate,
+            [FromQuery] DateTime endDate,
             [FromQuery] string? fundingSourceIds)
         {
             List<int>? ids = null;
@@ -219,7 +243,7 @@ namespace Raphael.Api.Controllers
             }
 
             // Call a new service method or update the existing one to handle ranges
-            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, ids);
+            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync2(startDate, endDate, ids);
             return Ok(reportData);
         }
 

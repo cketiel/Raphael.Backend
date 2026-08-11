@@ -34,6 +34,7 @@ namespace Raphael.Shared.Factories
     public class DesignTimeCurrentUserService : ICurrentUserService
     {
         public int? UserId => null;
+        public string? UserName => null;
         public int? IntegratorId => null;
         public int? ProviderId => null;
         public bool IsMilanesInternal => true; // Para migraciones, actuar como admin global
