@@ -38,6 +38,9 @@ namespace Raphael.Shared.Entities
         public double? Longitude { get; set; }
         public ICollection<Trip> Trips { get; set; }
         public int? IntegratorId { get; set; }
+
+        // New column for Push Notifications
+        public string? PushToken { get; set; }
     }
 }
 

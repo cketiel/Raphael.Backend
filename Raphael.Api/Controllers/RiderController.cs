@@ -40,6 +40,18 @@ namespace Raphael.Api.Controllers
         }
 
         [AllowAnonymous]
+        //[Authorize(Roles = "Rider")]
+        [HttpPost("test-real-push")]
+        public async Task<IActionResult> TestPush([FromQuery] string message)
+        {
+            var customerId = GetCurrentCustomerId();
+            var result = await _riderService.SendTestPushAsync(customerId, message);
+
+            // We ALWAYS return an Ok(result) so you can read the Expo JSON in Swagger.
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
         [HttpPost("test-trip-schedule/{targetCustomerId}")]
         public async Task<IActionResult> SendTestTripSchedule(int targetCustomerId, [FromQuery] string message)
         {
@@ -191,6 +203,19 @@ namespace Raphael.Api.Controllers
             return success ? Ok() : BadRequest("Invalid rating submission.");
         }
 
+        [Authorize(Roles = "Rider")]
+        [HttpPost("profile/push-token")]
+        public async Task<IActionResult> UpdatePushToken([FromBody] PushTokenRequest request)
+        {
+            var customerId = GetCurrentCustomerId();
+            if (customerId == 0) return Unauthorized();
+
+            var success = await _riderService.SavePushTokenAsync(customerId, request.Token);
+            return success ? Ok() : BadRequest("Could not save token.");
+        }
+
+        // Simple DTO for the request
+        public class PushTokenRequest { public string Token { get; set; } = string.Empty; }
         private int GetCurrentCustomerId() => int.Parse(User.FindFirst("CustomerId")?.Value ?? "0");
     }
 }

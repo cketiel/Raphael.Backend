@@ -11,5 +11,7 @@ namespace Raphael.Api.Services
         Task<bool> ActivateWillCallAsync(int tripId, int customerId);
         Task<bool> UpdateProfileAsync(int customerId, CustomerCreateDto dto);
         Task<bool> SubmitRatingAsync(RatingCreateDto dto, int customerId);
+        Task<bool> SavePushTokenAsync(int customerId, string token);
+        Task<ExpoPushResult> SendTestPushAsync(int customerId, string message);
     }
 }

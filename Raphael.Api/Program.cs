@@ -208,6 +208,10 @@ builder.Services.AddScoped<BusinessEventCatalogSeeder>();
 builder.Services.AddScoped<NotificationRuleCatalogSeeder>();
 builder.Services.AddScoped<NotificationRuleService>();
 
+// Register HttpClient for the Expo service
+builder.Services.AddHttpClient<IExpoPushService, ExpoPushService>();
+
+
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>
 {

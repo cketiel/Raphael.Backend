@@ -20,39 +20,115 @@ namespace Raphael.Api.Services
     {
         private readonly RaphaelContext _context;
         private readonly JwtSettings _jwtSettings;
+        private readonly IExpoPushService _expoPushService;
 
         private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
 
-        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext)
+        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService    )
         {
             _context = context;
             _jwtSettings = jwtOptions.Value;
             _hubContext = hubContext;
+            _expoPushService = expoPushService;
         }
 
-       /* private async Task NotifyRiderStatusChange(int customerId, string title, string message)
+        public async Task<ExpoPushResult> SendTestPushAsync(int customerId, string message)
         {
-            // Usamos el grupo que creamos en el Hub
-            await _hubContext.Clients.Group($"Customer_{customerId}")
-                .ReceiveNotification(new NotificationModel
-                { // Asumiendo que tienes un NotificationModel
-                    Title = title,
-                    Message = message,
-                    CreatedAt = DateTime.UtcNow
-                });
+            var customer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId);
+            if (customer == null || string.IsNullOrEmpty(customer.PushToken))
+            {
+                return new ExpoPushResult { Success = false, ErrorMessage = "Token not found in Database." };
+            }
+
+            return await _expoPushService.SendPushNotificationWithDetailsAsync(
+                //"ExponentPushToken[AA74PVN3PpPqY6KABDVth_]",
+                customer.PushToken,
+                "Raphael Test",
+                message,
+                new { tripId = 101 }
+            );
+        }
+        /*public async Task<bool> SendTestPushAsync(int customerId, string message)
+        {
+            // 1. Search for the patient and their token
+            var customer = await _context.Customers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == customerId);
+
+            if (customer == null || string.IsNullOrEmpty(customer.PushToken))
+            {
+                return false; // There is no one to send.
+            }
+
+            // 2. Trigger the notification via Expo
+            return await _expoPushService.SendPushNotificationAsync(
+                customer.PushToken,
+                "Raphael Update",
+                message,
+                new { tripId = 101, type = "test" } 
+            );
         }*/
+
+        public async Task<bool> SavePushTokenAsync(int customerId, string token)
+        {
+            var customer = await _context.Customers.FindAsync(customerId);
+            if (customer == null) return false;
+
+            customer.PushToken = token;
+
+            try
+            {
+                return await _context.SaveChangesAsync() > 0;
+            }
+            catch (Exception ex)
+            {
+                // Loguear error
+                return false;
+            }
+        }
+
+        /* private async Task NotifyRiderStatusChange(int customerId, string title, string message)
+         {
+             // Usamos el grupo que creamos en el Hub
+             await _hubContext.Clients.Group($"Customer_{customerId}")
+                 .ReceiveNotification(new NotificationModel
+                 { // Asumiendo que tienes un NotificationModel
+                     Title = title,
+                     Message = message,
+                     CreatedAt = DateTime.UtcNow
+                 });
+         }*/
 
         public async Task<RiderAuthResponse?> IdentifyAsync(RiderIdentifyRequest request)
         {
-            var cleanPhone = Regex.Replace(request.Phone, @"[^\d]", "");
+            // 1. Phone number cleanup (digits only)
+            var cleanRequestPhone = Regex.Replace(request.Phone, @"[^\d]", "");
+            var requestName = request.FullName.Trim().ToLower();
 
+            // 2. Query with Strict Equality
+            // We use Replace on the server side to compare only the numbers.
             var customer = await _context.Customers
                 .Include(c => c.SpaceType)
                 .Include(c => c.FundingSource)
-                .FirstOrDefaultAsync(c => c.FullName.ToLower() == request.FullName.ToLower()
-                                     && (c.Phone.Contains(cleanPhone) || c.MobilePhone.Contains(cleanPhone)));
+                .FirstOrDefaultAsync(c =>
+                    c.FullName.ToLower() == requestName &&
+                    (
+                        // Attempt 1: Direct comparison (if they are already clean in the DB)
+                        c.Phone == cleanRequestPhone ||
+                        c.MobilePhone == cleanRequestPhone ||
 
-            if (customer == null) return null;
+                        // Attempt 2: Dynamic SQL cleaning to ensure an exact digit match
+                        c.Phone.Replace("-", "").Replace("(", "").Replace(")", "").Replace(" ", "") == cleanRequestPhone ||
+                        c.MobilePhone.Replace("-", "").Replace("(", "").Replace(")", "").Replace(" ", "") == cleanRequestPhone
+                    )
+                );
+
+            // 3. Additional security validation
+            if (customer == null)
+            {
+                // Log failed attempt for audit purposes
+                return null;
+            }
 
             return new RiderAuthResponse
             {
