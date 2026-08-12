@@ -485,3 +485,8 @@ $RECYCLE.BIN/
 
 # Protect the password of the database connection
 appsettings.Production.json
+
+# --- RAPHAEL SECURITY ---
+# Firebase Admin SDK private keys
+firebase-adminsdk.json
+*.firebase-adminsdk.json

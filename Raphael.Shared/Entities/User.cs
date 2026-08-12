@@ -29,6 +29,9 @@ namespace Raphael.Shared.Entities
         public int? ProviderId { get; set; }
         [ForeignKey("ProviderId")]
         public virtual Provider? Provider { get; set; }
+
+        // Token for native push notifications (FCM/APNs)
+        public string? PushToken { get; set; }
     }
 }
 

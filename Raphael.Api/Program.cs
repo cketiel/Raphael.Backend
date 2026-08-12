@@ -211,6 +211,9 @@ builder.Services.AddScoped<NotificationRuleService>();
 // Register HttpClient for the Expo service
 builder.Services.AddHttpClient<IExpoPushService, ExpoPushService>();
 
+builder.Services.AddSingleton<IFirebaseMessagingService, FirebaseMessagingService>();
+builder.Services.AddScoped<IDriverService, DriverService>();
+
 
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>
