@@ -30,8 +30,8 @@ namespace Raphael.Api.Services
             {
                 string priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
 
-                trip.FromTime = DateTime.Now.TimeOfDay;
-                trip.Status = TripStatus.Waiting;
+                trip.FromTime = DateTime.Now.TimeOfDay; // When Will Call is activated, the pickup time is updated to the current time.
+                trip.Status = TripStatus.Waiting; // When Will Call is activated, the status changes to "Waiting" for the driver.
                 trip.WillCall = false; // Mark WillCall as false since it's now activated
 
                 string newValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
@@ -43,10 +43,11 @@ namespace Raphael.Api.Services
                     Date = DateTime.UtcNow.Date,
                     Time = DateTime.UtcNow.TimeOfDay
                 });
+                // Make an entry in the history log to track who activated a Will Call and when.
                 _context.TripHistories.Add(new TripHistory
                 {
                     TripId = trip.Id,
-                    User = "RaphaelCustomerServiceBot",
+                    User = "Bot - RaphaelCustomerServiceBot",
                     Field = "WillCall",
                     PriorValue = priorValue,
                     NewValue = newValue,

@@ -228,24 +228,48 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
-        public async Task<bool> ActivateWillCallAsync(int tripId, int customerId)
+        public async Task<bool> ActivateWillCallAsync(int tripId, int customerId, string customerName)
         {
             var trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == tripId && t.CustomerId == customerId);
             if (trip == null || !trip.WillCall) return false;
 
-            trip.FromTime = DateTime.Now.TimeOfDay;
-            trip.Status = TripStatus.Waiting; // Al activar Will Call, el estado pasa a Waiting para el Driver
-
-            _context.TripLogs.Add(new TripLog
+            try
             {
-                TripId = trip.Id,
-                Status = TripStatus.Waiting,
-                Date = DateTime.UtcNow.Date,
-                Time = DateTime.UtcNow.TimeOfDay
-            });
+                string user = !string.IsNullOrEmpty(customerName) ? customerName : "Unknown Customer";
+                string priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
 
-            await _context.SaveChangesAsync();
-            return true;
+                trip.FromTime = DateTime.Now.TimeOfDay; // When Will Call is activated, the pickup time is updated to the current time.
+                trip.Status = TripStatus.Waiting; // When Will Call is activated, the status changes to "Waiting" for the driver.
+                trip.WillCall = false; // Mark WillCall as false since it's now activated
+
+                string newValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
+                user = $"Rider - {user}";
+                _context.TripLogs.Add(new TripLog
+                {
+                    TripId = trip.Id,
+                    Status = TripStatus.Waiting,
+                    Date = DateTime.UtcNow.Date,
+                    Time = DateTime.UtcNow.TimeOfDay
+                });
+                // Make an entry in the history log to track who activated a Will Call and when.
+                _context.TripHistories.Add(new TripHistory
+                {
+                    TripId = trip.Id,
+                    User = user,
+                    Field = "WillCall",
+                    PriorValue = priorValue,
+                    NewValue = newValue,
+                    ChangeDate = DateTime.Now
+                });
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+          
         }
 
         public async Task<bool> UpdateProfileAsync(int customerId, CustomerCreateDto dto)
@@ -293,6 +317,7 @@ namespace Raphael.Api.Services
                 new Claim(JwtRegisteredClaimNames.Sub, customer.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.UniqueName, customer.FullName),
                 new Claim("CustomerId", customer.Id.ToString()),
+                new Claim("CustomerName", customer.FullName),
                 new Claim(ClaimTypes.Role, "Rider")
             };
 

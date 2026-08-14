@@ -181,7 +181,8 @@ namespace Raphael.Api.Controllers
         public async Task<IActionResult> WillCall(int tripId)
         {
             var customerId = GetCurrentCustomerId();
-            var success = await _riderService.ActivateWillCallAsync(tripId, customerId);
+            var customerName = GetCurrentCustomerName();
+            var success = await _riderService.ActivateWillCallAsync(tripId, customerId, customerName);
             return success ? Ok() : BadRequest("Could not activate Will Call.");
         }
 
@@ -217,5 +218,6 @@ namespace Raphael.Api.Controllers
         // Simple DTO for the request
         public class PushTokenRequest { public string Token { get; set; } = string.Empty; }
         private int GetCurrentCustomerId() => int.Parse(User.FindFirst("CustomerId")?.Value ?? "0");
+        private string GetCurrentCustomerName() => User.FindFirst("CustomerName")?.Value ?? "";
     }
 }
