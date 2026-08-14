@@ -1612,7 +1612,8 @@ namespace Raphael.Api.Services
                 string pName = patientFullName.ToLower().Trim();
                 query = query.Where(s =>
                     s.Trip.Customer.FullName.ToLower().Contains(pName) &&
-                    (s.Trip.Customer.Phone == phone || s.Trip.Customer.MobilePhone == phone) &&
+                    (s.Trip.Customer.Phone.Replace("-", "").Replace(" ", "").Replace("(", "").Replace(")", "") == phone ||
+                    s.Trip.Customer.MobilePhone.Replace("-", "").Replace(" ", "").Replace("(", "").Replace(")", "") == phone) &&
                     s.Date.Value.Date == date.Value.Date
                 );
             }
