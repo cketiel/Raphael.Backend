@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Raphael.Api.Models;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
 using Raphael.Api.Settings;
@@ -81,6 +82,27 @@ builder.Services.AddSwaggerGen(options =>
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     options.IncludeXmlComments(xmlPath);
+
+    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Description = "API Key needed to access Bot endpoints. Example: 'X-Api-Key: YOUR_KEY'",
+        In = ParameterLocation.Header,
+        Name = "X-Api-Key",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "ApiKeyScheme"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" },
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
 });
 
 // Bind JwtSettings
@@ -214,6 +236,11 @@ builder.Services.AddHttpClient<IExpoPushService, ExpoPushService>();
 builder.Services.AddSingleton<IFirebaseMessagingService, FirebaseMessagingService>();
 builder.Services.AddScoped<IDriverService, DriverService>();
 
+// Map appsettings to the BotSettings class
+builder.Services.Configure<BotSettings>(builder.Configuration.GetSection("BotSettings"));
+// Register the security filter
+builder.Services.AddScoped<ApiKeyAuthFilter>();
+builder.Services.AddScoped<IBotService, BotService>();
 
 // Allow requests from the etamilanes.com domain
 builder.Services.AddCors(options =>
