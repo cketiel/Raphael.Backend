@@ -272,6 +272,62 @@ namespace Raphael.Api.Services
           
         }
 
+        public async Task<bool> CancelTripAsync(int tripId, int customerId, string customerName)
+        {
+            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == tripId && t.CustomerId == customerId);
+            
+            if (trip == null)
+            {
+                return false; // Trip not found
+            }
+
+            // You cannot cancel a trip that has already been completed or cancelled or Billed or Payed.
+            if (trip.Status == TripStatus.Finished || trip.Status == TripStatus.Canceled || trip.Status == TripStatus.Billed || trip.Status == TripStatus.Payed)
+            {
+                return false;// CANNOT_CANCEL
+            }
+
+            try
+            {
+                string user = !string.IsNullOrEmpty(customerName) ? customerName : "Unknown Customer";
+                string priorValue = $"trip.Status={trip.Status}, trip.IsCancelled={trip.IsCancelled}";
+
+                trip.Status = TripStatus.Canceled;
+                trip.IsCancelled = true;
+
+                string newValue = $"trip.Status={trip.Status}, trip.IsCancelled={trip.IsCancelled}";
+                user = $"Rider - {user}";
+
+                // Create the status change log.
+                var tripLog = new TripLog
+                {
+                    TripId = trip.Id,
+                    Status = TripStatus.Canceled,
+                    Date = DateTime.UtcNow.Date,
+                    Time = DateTime.UtcNow.TimeOfDay
+                };
+                _context.TripLogs.Add(tripLog);
+                _context.TripHistories.Add(new TripHistory
+                {
+                    TripId = trip.Id,
+                    User = user,
+                    Field = "Status",
+                    PriorValue = priorValue,
+                    NewValue = newValue,
+                    ChangeDate = DateTime.Now
+                });
+
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+
+        }
+
         public async Task<bool> UpdateProfileAsync(int customerId, CustomerCreateDto dto)
         {
             var customer = await _context.Customers.FindAsync(customerId);

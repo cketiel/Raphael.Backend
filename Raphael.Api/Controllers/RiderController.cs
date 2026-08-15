@@ -187,6 +187,16 @@ namespace Raphael.Api.Controllers
         }
 
         [Authorize(Roles = "Rider")]
+        [HttpPost("trips/{tripId}/cancel-trip")]
+        public async Task<IActionResult> CancelTrip(int tripId)
+        {
+            var customerId = GetCurrentCustomerId();
+            var customerName = GetCurrentCustomerName();
+            var success = await _riderService.CancelTripAsync(tripId, customerId, customerName);
+            return success ? Ok() : BadRequest("The trip could not be cancelled.");
+        }
+
+        [Authorize(Roles = "Rider")]
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] CustomerCreateDto dto)
         {
