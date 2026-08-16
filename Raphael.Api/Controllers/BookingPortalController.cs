@@ -62,6 +62,9 @@ namespace Raphael.Api.Controllers
                
                 var results = await _tripService.UpsertPortalTripsAsync(new List<PortalTripDto> { trip }, CurrentIntegratorId);
 
+                string user = _currentUserService.UserName ?? "PortalUser";
+                user = $"BookingWeb - {user}";
+
                 // --- REGISTRO EN HISTORIAL (TripHistory) ---
                 if (results != null && results.Any())
                 {
@@ -72,7 +75,7 @@ namespace Raphael.Api.Controllers
                             await _historyService.PostHistory(new TripHistory
                             {
                                 TripId = tripIdInt,
-                                User = _currentUserService.UserName ?? "PortalUser",
+                                User = user,
                                 Field = "PortalSync",
                                 PriorValue = isEdit ? $"Status: {oldStatus}" : "New Trip",
                                 NewValue = isEdit ? "Trip Updated" : "Trip Created",
@@ -126,13 +129,16 @@ namespace Raphael.Api.Controllers
                 // Ejecutamos la cancelación solo para los permitidos
                 var count = await _tripService.CancelIntegrationTripsAsync(validIdsToCancel, CurrentIntegratorId);
 
+                string user = _currentUserService.UserName ?? "PortalUser";
+                user = $"BookingWeb - {user}";
+
                 // --- REGISTRO EN HISTORIAL ---
                 foreach (var trip in tripDetails.Where(t => validIdsToCancel.Contains(t.TripId)))
                 {
                     await _historyService.PostHistory(new TripHistory
                     {
                         TripId = trip.Id,
-                        User = _currentUserService.UserName ?? "PortalUser",
+                        User = user,
                         Field = "Status",
                         PriorValue = trip.Status,
                         NewValue = "Canceled",

@@ -98,7 +98,7 @@ namespace Raphael.Api.Services
                 _context.TripHistories.Add(new TripHistory
                 {
                     TripId = trip.Id,
-                    User = "RaphaelCustomerServiceBot",
+                    User = "Bot - RaphaelCustomerServiceBot",
                     Field = "Status",
                     PriorValue = priorValue,
                     NewValue = newValue,

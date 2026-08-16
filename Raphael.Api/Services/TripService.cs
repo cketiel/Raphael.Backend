@@ -7,6 +7,7 @@ using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 
@@ -207,16 +208,47 @@ namespace Raphael.Api.Services
             return trip.Id;
         }
 
-        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId)
+        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId, string? integratorName)
         {
             var trips = await _context.Trips
                 .Where(t => externalTripIds.Contains(t.TripId) && t.IntegratorId == integratorId)
                 .ToListAsync();
 
+            string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
+            user = $"Integrator - {user}";
+
             foreach (var trip in trips)
             {
+                if (trip.Status == TripStatus.Finished || trip.Status == TripStatus.Canceled)
+                {
+                    continue;
+                }
+
+                string priorValue = $"trip.Status={trip.Status}, trip.IsCancelled={trip.IsCancelled}";
+
                 trip.Status = TripStatus.Canceled;
                 trip.IsCancelled = true;
+
+                string newValue = $"trip.Status={trip.Status}, trip.IsCancelled={trip.IsCancelled}";
+
+                // Creamos el registro de log para cada viaje cancelado
+                var tripLog = new TripLog
+                {
+                    TripId = trip.Id,
+                    Status = TripStatus.Canceled,
+                    Date = DateTime.UtcNow.Date,
+                    Time = DateTime.UtcNow.TimeOfDay,                 
+                };
+                _context.TripLogs.Add(tripLog);
+                _context.TripHistories.Add(new TripHistory
+                {
+                    TripId = trip.Id,
+                    User = user,
+                    Field = "Status",
+                    PriorValue = priorValue,
+                    NewValue = newValue,
+                    ChangeDate = DateTime.Now
+                });
             }
             return await _context.SaveChangesAsync();
         }
@@ -236,7 +268,7 @@ namespace Raphael.Api.Services
             return await query.ToListAsync();
         }
 
-        public async Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId) 
+        public async Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId, string? integratorName) 
         {
             var processedIds = new List<string>();
 
@@ -389,6 +421,19 @@ namespace Raphael.Api.Services
                 }
 
                 processedIds.Add(dto.TripId);
+
+                string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
+                user = $"Integrator - {user}";
+
+                _context.TripHistories.Add(new TripHistory
+                {
+                    TripId = trip.Id,
+                    User = user,
+                    Field = "IntegrationSync",
+                    PriorValue = isNew ? "N/A": "Trip Created",
+                    NewValue = isNew ? "Trip Created" : "Trip Updated",
+                    ChangeDate = DateTime.Now
+                });
             }
 
             await _context.SaveChangesAsync();
@@ -1064,7 +1109,7 @@ namespace Raphael.Api.Services
         }
 
         // Ahora se cancelan las 2 patas: A y B, es decir, el viaje principal y los relacionados del mismo cliente para el mismo día.
-        public async Task<bool> CancelByDriverAsync(int id, string reason)
+        public async Task<bool> CancelByDriverAsync(int id, string reason, string driverName)
         {
             // 1. Buscamos el viaje principal
             var trip = await _context.Trips.FindAsync(id);
@@ -1095,13 +1140,25 @@ namespace Raphael.Api.Services
             var tripsToCancel = new List<Trip> { trip };
             tripsToCancel.AddRange(relatedTrips);
 
+            string user = !string.IsNullOrEmpty(driverName) ? driverName : "Unknown Driver";
+            user = $"Driver - {user}";
+
             // 4. Procesamos la cancelación para cada uno
             foreach (var t in tripsToCancel)
             {
+                if (t.Status == TripStatus.Finished || t.Status == TripStatus.Canceled)
+                {
+                    continue;
+                }
+
+                string priorValue = $"trip.Status={t.Status}, trip.IsCancelled={t.IsCancelled}";
+
                 t.Status = TripStatus.Canceled;
                 t.IsCancelled = true;
                 t.DriverNoShowReason = reason;
 
+                string newValue = $"trip.Status={t.Status}, trip.IsCancelled={t.IsCancelled}, trip.DriverNoShowReason={reason}";
+                
                 // Creamos el registro de log para cada viaje cancelado
                 var tripLog = new TripLog
                 {
@@ -1113,6 +1170,15 @@ namespace Raphael.Api.Services
                     // Notes = t.Id == id ? $"Directly cancelled: {reason}" : $"Auto-cancelled due to main trip {id} cancellation."
                 };
                 _context.TripLogs.Add(tripLog);
+                _context.TripHistories.Add(new TripHistory
+                {
+                    TripId = t.Id,
+                    User = user,
+                    Field = "Status",
+                    PriorValue = priorValue,
+                    NewValue = newValue,
+                    ChangeDate = DateTime.Now
+                });
             }
 
             // 5. Guardamos todos los cambios en una sola transacción

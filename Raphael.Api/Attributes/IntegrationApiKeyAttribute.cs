@@ -27,6 +27,7 @@ namespace Raphael.Api.Attributes
 
             // We save the integrator ID in the request context
             context.HttpContext.Items["IntegratorId"] = integrator.Id;
+            context.HttpContext.Items["IntegratorName"] = integrator.Name;
             await next();
         }
     }

@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Attributes;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
+using Raphael.Shared.Interfaces;
+using System.Collections.Generic;
 using System.Net.Mime;
 
 namespace Raphael.Api.Controllers
@@ -21,15 +24,19 @@ namespace Raphael.Api.Controllers
     public class IntegrationController : ControllerBase
     {
         private readonly ITripService _tripService;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly ITripHistoryService _historyService;
 
         /// <summary>
         /// Retrieves the Integrator ID stored in the HttpContext by the security filter.
         /// </summary>
-        private int? CurrentIntegratorId => (int)HttpContext.Items["IntegratorId"]!;
-
-        public IntegrationController(ITripService tripService)
+        private int? CurrentIntegratorId => (int)HttpContext.Items["IntegratorId"]!; 
+        private string? CurrentIntegratorName => (string)HttpContext.Items["IntegratorName"]!;
+        public IntegrationController(ITripService tripService, ICurrentUserService currentUserService, ITripHistoryService tripHistoryService)
         {
             _tripService = tripService;
+            _currentUserService = currentUserService;
+            _historyService = tripHistoryService;
         }
 
         /// <summary>
@@ -72,9 +79,9 @@ namespace Raphael.Api.Controllers
             }
 
             try
-            {               
-                var processedTripIds = await _tripService.UpsertIntegrationTripsAsync(trips, CurrentIntegratorId);
-
+            {              
+                var processedTripIds = await _tripService.UpsertIntegrationTripsAsync(trips, CurrentIntegratorId, CurrentIntegratorName);
+         
                 return Ok(new
                 {
                     Success = true,
@@ -132,7 +139,7 @@ namespace Raphael.Api.Controllers
 
             try
             {
-                var count = await _tripService.CancelIntegrationTripsAsync(externalIds, CurrentIntegratorId);
+                var count = await _tripService.CancelIntegrationTripsAsync(externalIds, CurrentIntegratorId, CurrentIntegratorName);
                 return Ok(new
                 {
                     Success = true,

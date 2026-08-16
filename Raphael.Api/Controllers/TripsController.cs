@@ -1,9 +1,10 @@
 
-using Raphael.Shared.DTOs;
-using Raphael.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services;
+using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Controllers
 {
@@ -12,10 +13,12 @@ namespace Raphael.Api.Controllers
     public class TripsController : ControllerBase
     {
         private readonly ITripService _tripService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public TripsController(ITripService tripService)
+        public TripsController(ITripService tripService, ICurrentUserService currentUserService)
         {
             _tripService = tripService;
+            _currentUserService = currentUserService;
         }
 
         [HttpPut("update-types")]
@@ -353,7 +356,8 @@ namespace Raphael.Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var success = await _tripService.CancelByDriverAsync(id, dto.Reason);
+            string driverName = _currentUserService.UserName ?? "DriverUser";
+            var success = await _tripService.CancelByDriverAsync(id, dto.Reason, driverName);
             if (!success)
             {
                 // It could be because the trip was not found or was already cancelled/ended
