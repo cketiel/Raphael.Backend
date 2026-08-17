@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services;
+using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
+using Raphael.Notification.Application.Commands.MarkNotificationViewed;
 using Raphael.Notification.Application.DTOs;
 using Raphael.Notification.Application.Helpers;
+using Raphael.Notification.Application.Queries.GetRecipientNotifications;
 using Raphael.Notification.Application.Services;
 using Raphael.Notification.Infrastructure.Realtime.Contracts;
 using Raphael.Notification.Infrastructure.Realtime.Hubs;
@@ -29,14 +32,23 @@ namespace Raphael.Api.Controllers
         private readonly NotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
         private readonly RaphaelContext _context;
+        private readonly GetRecipientNotificationsHandler _getRecipientNotificationsHandler;
+        private readonly MarkNotificationViewedHandler _markViewedHandler;
+        private readonly MarkNotificationAcknowledgedHandler _markAcknowledgedHandler;
 
-        public RiderController(IRiderService riderService, IHubContext<NotificationHub, INotificationClient> hubContext, NotificationService notificationService, ICurrentUserService currentUserService, RaphaelContext context)
+        public RiderController(IRiderService riderService, IHubContext<NotificationHub, INotificationClient> hubContext, NotificationService notificationService, ICurrentUserService currentUserService, RaphaelContext context,
+                GetRecipientNotificationsHandler getRecipientNotificationsHandler, 
+                MarkNotificationViewedHandler markNotificationViewedHandler,
+                MarkNotificationAcknowledgedHandler markNotificationAcknowledgedHandler)
         {
             _riderService = riderService;
             _hubContext = hubContext;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
             _context = context;
+            _getRecipientNotificationsHandler = getRecipientNotificationsHandler;
+            _markViewedHandler = markNotificationViewedHandler;
+            _markAcknowledgedHandler = markNotificationAcknowledgedHandler;
         }
 
         [AllowAnonymous]
@@ -224,6 +236,43 @@ namespace Raphael.Api.Controllers
             var success = await _riderService.SavePushTokenAsync(customerId, request.Token);
             return success ? Ok() : BadRequest("Could not save token.");
         }
+
+        #region Notification Management
+
+        [Authorize(Roles = "Rider")]
+        [HttpGet("notifications")]
+        public async Task<IActionResult> GetMyNotifications(CancellationToken ct)
+        {
+            var customerId = GetCurrentCustomerId();
+            if (customerId == 0) return Unauthorized();
+
+            // We convert the INT CustomerId to a GUID to make it compatible with your existing handler.
+            var recipientGuid = UserIdentifierConverter.ToGuid(customerId);
+
+            var query = new GetRecipientNotificationsQuery(recipientGuid);
+            var result = await _getRecipientNotificationsHandler.Handle(query, ct);
+
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Rider")]
+        [HttpPost("notifications/{recipientRecordId:guid}/view")]
+        public async Task<IActionResult> MarkMyNotificationViewed(Guid recipientRecordId, CancellationToken ct)
+        {
+            // The handler already knows what to do with the receipt record ID.
+            await _markViewedHandler.Handle(new MarkNotificationViewedCommand(recipientRecordId), ct);
+            return NoContent();
+        }
+
+        [Authorize(Roles = "Rider")]
+        [HttpPost("notifications/{recipientRecordId:guid}/acknowledge")]
+        public async Task<IActionResult> MarkMyNotificationAcknowledged(Guid recipientRecordId, CancellationToken ct)
+        {
+            await _markAcknowledgedHandler.Handle(new MarkNotificationAcknowledgedCommand(recipientRecordId), ct);
+            return NoContent();
+        }
+
+        #endregion
 
         // Simple DTO for the request
         public class PushTokenRequest { public string Token { get; set; } = string.Empty; }

@@ -46,7 +46,20 @@ public class GetRecipientNotificationsHandler
 
                 CreatedAtUtc = notification.CreatedAtUtc,
 
-                ExpiresAtUtc = notification.ExpiresAtUtc
+                ExpiresAtUtc = notification.ExpiresAtUtc,
+
+                // Map the recipients 
+                Recipients = notification.Recipients
+                .Where(r => r.RecipientId == query.RecipientId) 
+                .Select(r => new NotificationRecipientDto
+                {
+                    Id = r.Id, 
+                    RecipientId = r.RecipientId,
+                    Status = r.Status.Name,
+                    ViewedAtUtc = r.ViewedAtUtc,
+                    DeliveredAtUtc = r.DeliveredAtUtc,
+                    AcknowledgedAtUtc = r.AcknowledgedAtUtc
+                }).ToList()
             })
             .ToList();
     }
