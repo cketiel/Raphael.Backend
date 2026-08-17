@@ -79,8 +79,11 @@ namespace Raphael.Api.Controllers
             }
 
             try
-            {              
-                var processedTripIds = await _tripService.UpsertIntegrationTripsAsync(trips, CurrentIntegratorId, CurrentIntegratorName);
+            {
+                string user = !string.IsNullOrEmpty(CurrentIntegratorName) ? CurrentIntegratorName : "Unknown Integrator";
+                user = $"Integrator - {user}";
+
+                var processedTripIds = await _tripService.UpsertIntegrationTripsAsync(trips, CurrentIntegratorId, user);
          
                 return Ok(new
                 {

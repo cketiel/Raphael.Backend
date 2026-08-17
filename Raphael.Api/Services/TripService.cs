@@ -214,8 +214,8 @@ namespace Raphael.Api.Services
                 .Where(t => externalTripIds.Contains(t.TripId) && t.IntegratorId == integratorId)
                 .ToListAsync();
 
-            string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
-            user = $"Integrator - {user}";
+            /*string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
+            user = $"Integrator - {user}";*/
 
             foreach (var trip in trips)
             {
@@ -243,7 +243,7 @@ namespace Raphael.Api.Services
                 _context.TripHistories.Add(new TripHistory
                 {
                     TripId = trip.Id,
-                    User = user,
+                    User = integratorName,
                     Field = "Status",
                     PriorValue = priorValue,
                     NewValue = newValue,

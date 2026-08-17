@@ -126,11 +126,13 @@ namespace Raphael.Api.Controllers
                     return BadRequest("The selected trips cannot be canceled because their current status does not allow it.");
                 }
 
-                // Ejecutamos la cancelación solo para los permitidos
-                var count = await _tripService.CancelIntegrationTripsAsync(validIdsToCancel, CurrentIntegratorId);
-
                 string user = _currentUserService.UserName ?? "PortalUser";
                 user = $"BookingWeb - {user}";
+
+                // Ejecutamos la cancelación solo para los permitidos
+                var count = await _tripService.CancelIntegrationTripsAsync(validIdsToCancel, CurrentIntegratorId, user);
+
+                
 
                 // --- REGISTRO EN HISTORIAL ---
                 foreach (var trip in tripDetails.Where(t => validIdsToCancel.Contains(t.TripId)))
