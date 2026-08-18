@@ -1332,8 +1332,8 @@ namespace Raphael.Api.Services
                 {
                     ["TripId"] = trip.Id,
                     ["RiderId"] = trip.CustomerId,
-                    ["Travel"] = travel.HasValue ? travel.Value : null
-                    //["Trip"] = trip
+                    ["Travel"] = travel.HasValue ? travel.Value : null,
+                    ["Trip"] = trip
                 });
 
             return true;

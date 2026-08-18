@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Raphael.Notification.Application.Delivery;
+using Raphael.Notification.Application.Interfaces.Delivery;
 using Raphael.Notification.Application.Interfaces.Persistence;
+using Raphael.Notification.Infrastructure.Delivery;
 using Raphael.Notification.Infrastructure.Persistence;
 using Raphael.Notification.Infrastructure.Persistence.Repositories;
 
@@ -34,8 +37,9 @@ public static class NotificationInfrastructureExtensions
             INotificationDeliveryRepository,
             NotificationDeliveryRepository>();
 
-        
-
+        services.AddHttpClient<IExpoPushService, ExpoPushService>();
+        services.AddScoped<INotificationSender, PushSender>();
+        services.AddScoped<INotificationSender, InAppSender>();
 
         return services;
     }

@@ -1,10 +1,12 @@
-﻿using Raphael.Notification.Application.DTOs;
+﻿using Raphael.Notification.Application.Delivery;
+using Raphael.Notification.Application.DTOs;
 using Raphael.Notification.Application.Interfaces.Engine;
 using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Interfaces.Factories;
 using Raphael.Notification.Application.Interfaces.Persistence;
 using Raphael.Notification.Application.Interfaces.Realtime;
 using Raphael.Notification.Application.Interfaces.Rules;
+using Raphael.Shared.Definitions.Notifications;
 
 namespace Raphael.Notification.Application.Services;
 
@@ -16,20 +18,22 @@ public sealed class NotificationEngine
     private readonly INotificationFactory _notificationFactory;
     private readonly INotificationRepository _notificationRepository;
     private readonly INotificationDispatcher _dispatcher;
-
+    private readonly NotificationDeliveryService _deliveryService;
 
     public NotificationEngine(
         INotificationRuleResolver ruleResolver,
         INotificationRuleEvaluator ruleEvaluator,
         INotificationFactory notificationFactory,
         INotificationRepository notificationRepository,
-        INotificationDispatcher dispatcher)
+        INotificationDispatcher dispatcher,
+        NotificationDeliveryService deliveryService)
     {
         _ruleResolver = ruleResolver;
         _ruleEvaluator = ruleEvaluator;
         _notificationFactory = notificationFactory;
         _notificationRepository = notificationRepository;
         _dispatcher = dispatcher;
+        _deliveryService = deliveryService;
     }
 
 
@@ -80,10 +84,32 @@ public sealed class NotificationEngine
 
             foreach (var recipient in notification.Recipients)
             {
+                // In-App / SignalR
                 await _dispatcher.SendNotificationAsync(
                     recipient.RecipientId,
                     dto,
                     cancellationToken);
+
+                // Push
+                var pushChannels =
+                    rule.Channels
+                        .Where(x => x.Channel == DeliveryChannel.Push)
+                        .ToList();
+
+                if (pushChannels.Any())
+                {
+                    await _deliveryService.DeliverAsync(
+                        notification,
+                        recipient,
+                        pushChannels,
+                        cancellationToken);
+                }
+
+                /*await _deliveryService.DeliverAsync(
+                notification,
+                recipient,
+                rule.Channels,
+                cancellationToken);*/
             }
         }
     }

@@ -28,7 +28,8 @@ public static class NotificationRuleCatalog
 
             Recipients =
             [
-                RecipientType.Rider
+                RecipientType.Rider,
+                RecipientType.Integration
             ],
 
             Channels =
@@ -55,9 +56,9 @@ public static class NotificationRuleCatalog
 
             BusinessEventCode = "DRIVER_STARTED_TRIP",
 
-            Type = NotificationType.Notice,
+            Type = NotificationType.Alert,
 
-            Priority = NotificationPriority.Medium,
+            Priority = NotificationPriority.High,
 
             Severity = NotificationSeverity.Information,
 
@@ -93,7 +94,7 @@ public static class NotificationRuleCatalog
 
             Priority = NotificationPriority.High,
 
-            Severity = NotificationSeverity.Information,
+            Severity = NotificationSeverity.Critical,
 
             Recipients =
             [
@@ -131,7 +132,8 @@ public static class NotificationRuleCatalog
 
             Recipients =
             [
-                RecipientType.Rider
+                RecipientType.Rider,
+                RecipientType.Integration
             ],
 
             Channels =
@@ -164,7 +166,9 @@ public static class NotificationRuleCatalog
 
             Recipients =
             [
-                RecipientType.Rider
+                RecipientType.Rider,
+                RecipientType.Integration//,
+                //RecipientType.DesktopUser
             ],
 
             Channels =
@@ -197,7 +201,8 @@ public static class NotificationRuleCatalog
 
             Recipients =
             [
-                RecipientType.Rider
+                RecipientType.Rider,
+                RecipientType.Integration,
             ],
 
             Channels =
@@ -245,7 +250,7 @@ public static class NotificationRuleCatalog
         },*/
 
 
-        new()
+        /*new()
         {
             RuleCode = "RULE_ROUTE_MODIFIED_RIDER",
 
@@ -277,7 +282,7 @@ public static class NotificationRuleCatalog
             [
                 "VIEW_TRIP"
             ]
-        },
+        },*/
 
 
         new()
@@ -286,7 +291,7 @@ public static class NotificationRuleCatalog
 
             RuleName = "Will Call Activated - Rider",
 
-            Description = "Notifies the rider that the trip has been activated as Will Call.",
+            Description = "Notifies the rider that the trip has been activated as Will Call.", // 2 casos: 1. el rider llama, el dispatcher activa el will call(manualmente). hora activado + 1 hora margen. pickup y dropoff. 2. el rider llama, el bot activa el will call (automaticamente). hora activado + 1 hora margen. pickup y dropoff.
 
             BusinessEventCode = "WILL_CALL_ACTIVATED",
 
@@ -353,11 +358,11 @@ public static class NotificationRuleCatalog
 
         new()
         {
-            RuleCode = "RULE_WILL_CALL_ACTIVATED_DESKTOP",
+            RuleCode = "RULE_WILL_CALL_ACTIVATED_DESKTOP", // 
 
             RuleName = "Will Call Activated - Desktop",
 
-            Description = "Notifies dispatchers that a rider has activated a Will Call request.",
+            Description = "Notifies dispatchers that a rider has activated a Will Call request.",// el Rider activo mediante Raphael.Rider. tripId.
 
             BusinessEventCode = "WILL_CALL_ACTIVATED",
 
@@ -392,6 +397,37 @@ public static class NotificationRuleCatalog
             Description = "Notifies dispatchers that a driver cancelled a trip.",
 
             BusinessEventCode = "DRIVER_CANCELLED_TRIP",
+
+            Type = NotificationType.Alert,
+
+            Priority = NotificationPriority.Critical,
+
+            Severity = NotificationSeverity.Warning,
+
+            Recipients =
+            [
+                RecipientType.DesktopUser
+            ],
+
+            Channels =
+            [
+                DeliveryChannel.InApp
+            ],
+
+            Actions =
+            [
+                "OPEN_TRIP"
+            ]
+        },
+        new()
+        {
+            RuleCode = "RULE_RIDER_CANCELLED_TRIP_DESKTOP",
+
+            RuleName = "Rider Cancelled Trip - Desktop",
+
+            Description = "Notifies dispatchers that a river cancelled a trip.",
+
+            BusinessEventCode = "RIDER_CANCELLED_TRIP",
 
             Type = NotificationType.Alert,
 
@@ -813,7 +849,7 @@ public static class NotificationRuleCatalog
 
             RuleName = "Will Call Activated",
 
-            Description = "Notifies the driver that a Will Call trip is ready for dispatch.",
+            Description = "Notifies the driver that a Will Call trip is ready for dispatch.",// 2 casos: o lo activa el rider o el dispatcher.
 
             BusinessEventCode = "WILL_CALL_ACTIVATED",
 
