@@ -54,12 +54,35 @@ public static class NotificationRetentionPolicy
     }
 
     /// <summary>
-    /// Longest retention of them all. Used by the cleanup job, which works on whole
-    /// notifications and must not delete a row somebody can still legitimately read.
+    /// Longest retention of them all. Anything a patient or an integration could read,
+    /// and the fallback for rows that carry no audience.
     /// </summary>
     public static TimeSpan LongestPurgeWindow()
     {
         return TimeSpan.FromDays(30);
+    }
+
+    /// <summary>
+    /// Audiences that only ever involve staff, purged on the shorter window.
+    /// </summary>
+    /// <remarks>
+    /// They are the bulk of what the system writes: six of the eight wired events produce
+    /// an office notice. Keeping them as long as a patient's record would multiply by four
+    /// the size of the largest category, for notices whose whole purpose expired with the
+    /// shift they belonged to.
+    /// </remarks>
+    public static IReadOnlyList<RecipientType> ShortLivedAudiences =>
+    [
+        RecipientType.DesktopUser,
+        RecipientType.Driver
+    ];
+
+    /// <summary>
+    /// Purge window that applies when every audience of a notification is short lived.
+    /// </summary>
+    public static TimeSpan ShortestPurgeWindow()
+    {
+        return PurgeAfterExpiry(RecipientType.DesktopUser);
     }
 
     /// <summary>

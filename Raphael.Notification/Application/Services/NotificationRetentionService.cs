@@ -93,18 +93,55 @@ public sealed class NotificationRetentionService
     /// with it: the relationships cascade.
     /// </summary>
     /// <remarks>
-    /// The cutoff uses the most generous window of all audiences rather than each row's
-    /// own. A notification can be addressed to several, and deleting on the shortest one
-    /// would take a patient's record away because an office copy had aged out.
+    /// Two passes, because the window depends on who the notification was for. A notice
+    /// only ever seen by staff goes after a week; anything a patient or an integration
+    /// could read stays a month.
+    ///
+    /// <para>
+    /// A notification is only ever purged on the short window when <b>every</b> one of its
+    /// audiences is short lived. Otherwise deleting on the shortest would take a patient's
+    /// record away because an office copy had aged out.
+    /// </para>
+    ///
+    /// <para>
+    /// Archived notifications are never deleted. Archiving is somebody deciding a record
+    /// is worth keeping, and a cleanup that overrides that decision makes the state a lie.
+    /// </para>
     /// </remarks>
     private async Task<int> PurgeAsync(CancellationToken cancellationToken)
     {
-        var cutoff = DateTime.UtcNow
-            .Subtract(NotificationRetentionPolicy.LongestPurgeWindow());
+        var now = DateTime.UtcNow;
 
-        return await _context.Notifications
-            .Where(n => (n.ExpiresAtUtc != null && n.ExpiresAtUtc <= cutoff)
-                        || (n.ExpiresAtUtc == null && n.CreatedAtUtc <= cutoff))
+        var shortLivedTypeIds = NotificationRetentionPolicy.ShortLivedAudiences
+            .Select(x => x.Id)
+            .ToArray();
+
+        var shortCutoff = now.Subtract(
+            NotificationRetentionPolicy.ShortestPurgeWindow());
+
+        var longCutoff = now.Subtract(
+            NotificationRetentionPolicy.LongestPurgeWindow());
+
+        //
+        // Staff-only notices. The bulk of the table.
+        //
+        var deleted = await _context.Notifications
+            .Where(n => n.StatusId != NotificationStatus.Archived.Id)
+            .Where(n => n.Recipients.Any()
+                        && !n.Recipients.Any(r =>
+                            !shortLivedTypeIds.Contains(r.RecipientTypeId)))
+            .Where(n => (n.ExpiresAtUtc ?? n.CreatedAtUtc) <= shortCutoff)
             .ExecuteDeleteAsync(cancellationToken);
+
+        //
+        // Everything else: anything a patient or an integration could read, plus rows
+        // left without an audience by older versions.
+        //
+        deleted += await _context.Notifications
+            .Where(n => n.StatusId != NotificationStatus.Archived.Id)
+            .Where(n => (n.ExpiresAtUtc ?? n.CreatedAtUtc) <= longCutoff)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return deleted;
     }
 }
