@@ -8,7 +8,7 @@ namespace Raphael.Api.Services
 
         public DriverService(RaphaelContext context) => _context = context;
 
-        public async Task<bool> UpdatePushTokenAsync(Guid userId, string token)
+        public async Task<bool> UpdatePushTokenAsync(int userId, string token)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;

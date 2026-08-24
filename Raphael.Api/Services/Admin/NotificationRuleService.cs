@@ -126,6 +126,71 @@ public sealed class NotificationRuleService
 
 
 
+    /// <summary>
+    /// Switches every rule of a business event group on or off at once.
+    /// </summary>
+    /// <remarks>
+    /// Notifications are silenced by family, not one by one. If the cancellation notices
+    /// turn out to be wrong or too noisy, somebody has to be able to stop all of them in
+    /// one action, at three in the morning, without picking rules off a list.
+    /// </remarks>
+    /// <returns>How many rules changed.</returns>
+    public async Task<int> SetGroupActiveAsync(
+        string groupCode,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        var rules = await _context.NotificationRules
+            .Include(x => x.BusinessEventDefinition)
+                .ThenInclude(x => x.BusinessEvent)
+                    .ThenInclude(x => x.Group)
+            .Where(x => x.BusinessEventDefinition.BusinessEvent.Group.Code == groupCode)
+            .ToListAsync(cancellationToken);
+
+
+        foreach (var rule in rules)
+        {
+            rule.SetActive(isActive);
+        }
+
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+
+        return rules.Count;
+    }
+
+
+
+    /// <summary>
+    /// Switches every rule of one business event on or off, whatever its audience.
+    /// </summary>
+    /// <returns>How many rules changed.</returns>
+    public async Task<int> SetEventActiveAsync(
+        string businessEventCode,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        var rules = await _context.NotificationRules
+            .Include(x => x.BusinessEventDefinition)
+            .Where(x => x.BusinessEventDefinition.Code == businessEventCode)
+            .ToListAsync(cancellationToken);
+
+
+        foreach (var rule in rules)
+        {
+            rule.SetActive(isActive);
+        }
+
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+
+        return rules.Count;
+    }
+
+
+
     public async Task<bool> UpdateGeneratesNotificationAsync(
         Guid businessEventDefinitionId,
         bool generatesNotification)

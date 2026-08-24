@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Raphael.Notification.Application.DTOs;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Persistence;
@@ -18,7 +18,8 @@ public class NotificationDispatcher : INotificationDispatcher
 
     public NotificationDispatcher(
         IHubContext<NotificationHub, INotificationClient> hubContext,
-        IConnectionManager connectionManager, INotificationDeliveryRepository deliveryRepository)
+        IConnectionManager connectionManager,
+        INotificationDeliveryRepository deliveryRepository)
     {
         _hubContext = hubContext;
         _connectionManager = connectionManager;
@@ -26,58 +27,19 @@ public class NotificationDispatcher : INotificationDispatcher
     }
 
     public async Task SendNotificationAsync(
-    Guid userId,
-    NotificationDto notification,
-    CancellationToken cancellationToken = default)
+        Guid recipientId,
+        RecipientType recipientType,
+        NotificationDto notification,
+        CancellationToken cancellationToken = default)
     {
-        bool delivered = false;
+        var delivered = await SendAsync(
+            recipientId,
+            recipientType,
+            client => client.ReceiveNotification(notification));
 
-        //
-        // Desktop users
-        //
-
-        var connections =
-            await _connectionManager.GetUserConnectionsAsync(userId);
-
-        if (connections.Any())
-        {
-            var tasks =
-                connections.Select(c =>
-                    _hubContext
-                        .Clients
-                        .Client(c.ConnectionId)
-                        .ReceiveNotification(notification));
-
-            await Task.WhenAll(tasks);
-
-            delivered = true;
-        }
-
-        //
-        // Rider
-        //
-
-        var customerId =
-            UserIdentifierConverter.ToInt(userId);
-
-        var groupName =
-            $"Customer_{customerId}";
-
-        await _hubContext
-            .Clients
-            .Group(groupName)
-            .ReceiveNotification(notification);
-
-        delivered = true;
-
-        //
-        // Delivery Record
-        //
-
-        var delivery =
-            new NotificationDelivery(
-                notification.Id,
-                DeliveryChannel.InApp);
+        var delivery = new NotificationDelivery(
+            notification.Id,
+            DeliveryChannel.InApp);
 
         if (delivered)
             delivery.MarkDelivered();
@@ -93,64 +55,115 @@ public class NotificationDispatcher : INotificationDispatcher
     }
 
     public async Task RefreshNotificationsAsync(
-        Guid userId,
+        Guid recipientId,
+        RecipientType recipientType,
         CancellationToken cancellationToken = default)
     {
-        var connections =
-            await _connectionManager.GetUserConnectionsAsync(userId);
-
-        if (!connections.Any())
-            return;
-
-        var tasks = connections
-            .Select(connection =>
-                _hubContext
-                    .Clients
-                    .Client(connection.ConnectionId)
-                    .RefreshNotifications());
-
-        await Task.WhenAll(tasks);
+        await SendAsync(
+            recipientId,
+            recipientType,
+            client => client.RefreshNotifications());
     }
 
     public async Task NotifyViewedAsync(
-        Guid userId,
+        Guid recipientId,
+        RecipientType recipientType,
         Guid notificationRecipientId,
         CancellationToken cancellationToken = default)
     {
-        var connections =
-            await _connectionManager.GetUserConnectionsAsync(userId);
-
-        if (!connections.Any())
-            return;
-
-        var tasks = connections
-            .Select(connection =>
-                _hubContext
-                    .Clients
-                    .Client(connection.ConnectionId)
-                    .NotificationViewed(notificationRecipientId));
-
-        await Task.WhenAll(tasks);
+        await SendAsync(
+            recipientId,
+            recipientType,
+            client => client.NotificationViewed(notificationRecipientId));
     }
 
     public async Task NotifyAcknowledgedAsync(
-        Guid userId,
+        Guid recipientId,
+        RecipientType recipientType,
         Guid notificationRecipientId,
         CancellationToken cancellationToken = default)
     {
+        await SendAsync(
+            recipientId,
+            recipientType,
+            client => client.NotificationAcknowledged(notificationRecipientId));
+    }
+
+    /// <summary>
+    /// Routes one message to its destination and reports whether anything was actually sent.
+    /// </summary>
+    /// <remarks>
+    /// Riders and integrations are reached through their own SignalR group; the dispatch
+    /// office through the shared broadcast group; a concrete internal user through the
+    /// connections registered for it. Sending to every destination at once, as this class
+    /// used to, put office notices on patients' phones.
+    /// </remarks>
+    private async Task<bool> SendAsync(
+        Guid recipientId,
+        RecipientType recipientType,
+        Func<INotificationClient, Task> send)
+    {
+        ArgumentNullException.ThrowIfNull(recipientType);
+
+        //
+        // Rider (Raphael.Rider)
+        //
+        if (recipientType.Id == RecipientType.Rider.Id)
+        {
+            var customerId = UserIdentifierConverter.ToInt(recipientId);
+
+            if (customerId <= 0)
+                return false;
+
+            await send(
+                _hubContext.Clients.Group(
+                    NotificationGroups.Customer(customerId)));
+
+            return true;
+        }
+
+        //
+        // External integration
+        //
+        if (recipientType.Id == RecipientType.Integration.Id)
+        {
+            var integratorId = UserIdentifierConverter.ToInt(recipientId);
+
+            if (integratorId <= 0)
+                return false;
+
+            await send(
+                _hubContext.Clients.Group(
+                    NotificationGroups.Integrator(integratorId)));
+
+            return true;
+        }
+
+        //
+        // Whole dispatch office: one stored notification, one broadcast
+        //
+        if (UserIdentifierConverter.IsDesktopAudience(recipientId))
+        {
+            await send(
+                _hubContext.Clients.Group(
+                    NotificationGroups.DesktopAudience));
+
+            return true;
+        }
+
+        //
+        // One concrete internal user: a dispatcher or a driver
+        //
         var connections =
-            await _connectionManager.GetUserConnectionsAsync(userId);
+            await _connectionManager.GetUserConnectionsAsync(recipientId);
 
-        if (!connections.Any())
-            return;
+        if (connections.Count == 0)
+            return false;
 
-        var tasks = connections
-            .Select(connection =>
-                _hubContext
-                    .Clients
-                    .Client(connection.ConnectionId)
-                    .NotificationAcknowledged(notificationRecipientId));
+        await Task.WhenAll(
+            connections.Select(connection =>
+                send(_hubContext.Clients.Client(connection.ConnectionId))));
 
-        await Task.WhenAll(tasks);
+        return true;
     }
 }

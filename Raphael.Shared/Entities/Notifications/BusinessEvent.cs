@@ -94,4 +94,27 @@ public class BusinessEvent
 
         IsActive = active;
     }
+
+    /// <summary>
+    /// Refreshes the descriptive fields from the catalog. The code is the identity and
+    /// never changes: renaming it would orphan every rule and every stored notification
+    /// that points at it.
+    /// </summary>
+    public void Update(
+        string name,
+        string description,
+        string source)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+
+        Name = name;
+
+        Description = description;
+
+        Source = source;
+    }
 }

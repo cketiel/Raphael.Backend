@@ -70,6 +70,16 @@ public sealed class NotificationEngine
                     context);
 
 
+            // A rule whose audience is not concerned by this particular event resolves to
+            // no recipient: the trip belongs to no integration, or no driver had taken it
+            // yet. Storing that row would fill the table with notifications nobody can
+            // ever read, which is exactly what the retention policy is fighting.
+            if (notification.Recipients.Count == 0)
+            {
+                continue;
+            }
+
+
             await _notificationRepository.AddAsync(
                 notification,
                 cancellationToken);
@@ -87,6 +97,7 @@ public sealed class NotificationEngine
                 // In-App / SignalR
                 await _dispatcher.SendNotificationAsync(
                     recipient.RecipientId,
+                    recipient.RecipientType,
                     dto,
                     cancellationToken);
 

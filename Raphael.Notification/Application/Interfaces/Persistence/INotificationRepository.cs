@@ -18,7 +18,13 @@ public interface INotificationRepository
         CancellationToken cancellationToken = default);
 
 
+    /// <summary>
+    /// Inbox of one recipient. The recipient type is part of the filter on purpose:
+    /// the identifier alone does not tell a patient apart from a dispatcher.
+    /// Expired notifications are left out.
+    /// </summary>
     Task<IReadOnlyList<NotificationModel>> GetByRecipientAsync(
         Guid recipientId,
+        int recipientTypeId,
         CancellationToken cancellationToken = default);
 }

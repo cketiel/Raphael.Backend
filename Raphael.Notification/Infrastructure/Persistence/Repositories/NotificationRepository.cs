@@ -52,12 +52,18 @@ public class NotificationRepository : INotificationRepository
 
     public async Task<IReadOnlyList<NotificationModel>> GetByRecipientAsync(
         Guid recipientId,
+        int recipientTypeId,
         CancellationToken cancellationToken = default)
     {
+        var now = DateTime.UtcNow;
+
         return await _context.Notifications
             .Include(n => n.Recipients)
             .Where(n => n.Recipients
-                .Any(r => r.RecipientId == recipientId))
+                .Any(r => r.RecipientId == recipientId
+                          && r.RecipientTypeId == recipientTypeId))
+            .Where(n => n.ExpiresAtUtc == null
+                        || n.ExpiresAtUtc > now)
             .OrderByDescending(n => n.CreatedAtUtc)
             .ToListAsync(cancellationToken);
     }

@@ -2,6 +2,6 @@
 {
     public interface IDriverService
     {
-        Task<bool> UpdatePushTokenAsync(Guid userId, string token);
+        Task<bool> UpdatePushTokenAsync(int userId, string token);
     }
 }

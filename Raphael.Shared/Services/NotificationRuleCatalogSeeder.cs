@@ -46,15 +46,28 @@ public sealed class NotificationRuleCatalogSeeder
                 cancellationToken);
 
 
+        // Checked up front and all at once. A rule pointing at an event that does not
+        // exist aborts the whole synchronisation, and reporting only the first one turns
+        // fixing the catalog into one deploy per missing event.
+        var missing = NotificationRuleCatalog.Rules
+            .Select(x => x.BusinessEventCode)
+            .Where(code => !definitions.ContainsKey(code))
+            .Distinct()
+            .OrderBy(code => code)
+            .ToList();
+
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Business Event Definitions not found: " +
+                string.Join(", ", missing) +
+                ". Run the business event catalog synchronization first.");
+        }
+
+
         foreach (var item in NotificationRuleCatalog.Rules)
         {
-            if (!definitions.TryGetValue(
-                item.BusinessEventCode,
-                out var businessEventDefinition))
-            {
-                throw new InvalidOperationException(
-                    $"Business Event Definition '{item.BusinessEventCode}' was not found.");
-            }
+            var businessEventDefinition = definitions[item.BusinessEventCode];
 
 
             // =====================================================
@@ -81,6 +94,11 @@ public sealed class NotificationRuleCatalogSeeder
                 SeedChannels(rule, item);
 
                 SeedActions(rule, item);
+
+                SeedConditions(rule, item);
+
+
+                rule.SetActive(item.Enabled);
 
 
                 rules.Add(rule.Code, rule);
@@ -118,7 +136,11 @@ public sealed class NotificationRuleCatalogSeeder
                 severity);
 
 
-            rule.SetActive(true);
+            // The catalog decides whether a rule is on. This used to force every rule
+            // active on each synchronisation, which silently switched back on anything
+            // an administrator had turned off, and left rules alive for events nobody
+            // publishes: those write notifications with no recipient at all.
+            rule.SetActive(item.Enabled);
 
 
             UpdateRecipients(rule, item);
@@ -126,6 +148,8 @@ public sealed class NotificationRuleCatalogSeeder
             UpdateChannels(rule, item);
 
             UpdateActions(rule, item);
+
+            UpdateConditions(rule, item);
         }
 
 
@@ -201,6 +225,55 @@ public sealed class NotificationRuleCatalogSeeder
 
             order++;
         }
+    }
+
+
+
+    /// <summary>
+    /// Conditions were declared in the catalog but never written to the database, so a
+    /// rule that depended on one applied unconditionally. The wired events express their
+    /// audience through the payload instead, but the mechanism has to work for the ones
+    /// that will need it.
+    /// </summary>
+    private void SeedConditions(
+        NotificationRule rule,
+        NotificationRuleCatalogItem item)
+    {
+        var order = 1;
+
+        foreach (var condition in item.Conditions)
+        {
+            var ruleCondition =
+                new NotificationRuleCondition(
+                    rule,
+                    condition.Field,
+                    condition.Operator,
+                    condition.Value,
+                    order);
+
+
+            rule.AddCondition(ruleCondition);
+
+            _context.NotificationRuleConditions.Add(ruleCondition);
+
+            order++;
+        }
+    }
+
+
+
+    private void UpdateConditions(
+        NotificationRule rule,
+        NotificationRuleCatalogItem item)
+    {
+        _context.NotificationRuleConditions.RemoveRange(
+            rule.Conditions);
+
+
+        rule.Conditions.Clear();
+
+
+        SeedConditions(rule, item);
     }
 
 

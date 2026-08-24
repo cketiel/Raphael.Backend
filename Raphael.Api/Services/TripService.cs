@@ -1,9 +1,11 @@
 using Azure;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services.Notifications;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Services;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
@@ -17,13 +19,15 @@ namespace Raphael.Api.Services
     {
         private readonly RaphaelContext _context;
         private readonly ICurrentUserService _currentUserService;
-        private readonly NotificationService _notificationService;      
+        private readonly NotificationService _notificationService;
+        private readonly ITripNotificationPublisher _tripNotifications;
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService  )
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications)
         {
             _context = context;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
+            _tripNotifications = tripNotifications;
         }
 
         public async Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int? integratorId)
@@ -208,11 +212,19 @@ namespace Raphael.Api.Services
             return trip.Id;
         }
 
-        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId, string? integratorName)
+        /// <param name="cancelledBy">
+        /// Which actor is cancelling. The same method serves the Booking Portal, where a
+        /// facility acts through a JWT, and the Integration API, where an external system
+        /// acts through its API Key. Both carry an IntegratorId, so it cannot be inferred:
+        /// the patient must be told who dropped their ride.
+        /// </param>
+        public async Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId, string? integratorName, string cancelledBy = CancelledByTypes.Integrator)
         {
             var trips = await _context.Trips
                 .Where(t => externalTripIds.Contains(t.TripId) && t.IntegratorId == integratorId)
                 .ToListAsync();
+
+            var cancelled = new List<(Trip Trip, string PreviousStatus)>();
 
             /*string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
             user = $"Integrator - {user}";*/
@@ -226,6 +238,8 @@ namespace Raphael.Api.Services
 
                 string priorValue = $"trip.Status={trip.Status}, trip.IsCancelled={trip.IsCancelled}";
 
+                cancelled.Add((trip, trip.Status));
+
                 trip.Status = TripStatus.Canceled;
                 trip.IsCancelled = true;
 
@@ -237,7 +251,7 @@ namespace Raphael.Api.Services
                     TripId = trip.Id,
                     Status = TripStatus.Canceled,
                     Date = DateTime.UtcNow.Date,
-                    Time = DateTime.UtcNow.TimeOfDay,                 
+                    Time = DateTime.UtcNow.TimeOfDay,
                 };
                 _context.TripLogs.Add(tripLog);
                 _context.TripHistories.Add(new TripHistory
@@ -250,7 +264,18 @@ namespace Raphael.Api.Services
                     ChangeDate = DateTime.Now
                 });
             }
-            return await _context.SaveChangesAsync();
+
+            var affected = await _context.SaveChangesAsync();
+
+            foreach (var (cancelledTrip, previousStatus) in cancelled)
+            {
+                await _tripNotifications.TripCancelledAsync(
+                    cancelledTrip,
+                    cancelledBy,
+                    previousStatus);
+            }
+
+            return affected;
         }
 
         public async Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int? integratorId)
@@ -442,7 +467,7 @@ namespace Raphael.Api.Services
 
         public async Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates)
         {
-            // Opción A: EF Core tradicional (Cargar en memoria y actualizar)
+            // Opciï¿½n A: EF Core tradicional (Cargar en memoria y actualizar)
             /*var ids = updates.Select(u => u.Id).ToList();
             var tripsToUpdate = await _context.Trips
                                               .Where(t => ids.Contains(t.Id))
@@ -457,7 +482,7 @@ namespace Raphael.Api.Services
             await _context.SaveChangesAsync();*/
 
             
-            // Opción B: EF Core 7+ (Más rápido, sin cargar entidades)
+            // Opciï¿½n B: EF Core 7+ (Mï¿½s rï¿½pido, sin cargar entidades)
             foreach (var update in updates)
             {
                 await _context.Trips
@@ -705,7 +730,7 @@ namespace Raphael.Api.Services
             if (!_currentUserService.IsMilanesInternal && _currentUserService.IntegratorId != null)
             {
                 trip.IntegratorId = _currentUserService.IntegratorId;
-                trip.ProviderId = null; // Por defecto lo hará Milanes
+                trip.ProviderId = null; // Por defecto lo harï¿½ Milanes
             }
 
             try
@@ -716,7 +741,7 @@ namespace Raphael.Api.Services
                 // Save changes
                 await _context.SaveChangesAsync();
 
-                // LÓGICA NUEVA: Si el TripId es nulo o vacío (viaje manual), 
+                // Lï¿½GICA NUEVA: Si el TripId es nulo o vacï¿½o (viaje manual), 
                 // le asignamos el Id autogenerado.
                 if (string.IsNullOrWhiteSpace(trip.TripId))
                 {
@@ -932,7 +957,7 @@ namespace Raphael.Api.Services
 
         public async Task<(List<TripReadDto> Trips, int TotalCount)> GetByDatePaginatedAsync(DateTime date, int pageNumber = 1, int pageSize = 20)
         {
-            // Validar parámetros
+            // Validar parï¿½metros
             if (pageNumber < 1)
                 throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
 
@@ -1091,9 +1116,11 @@ namespace Raphael.Api.Services
                 return false;
             }
 
+            var statusBeforeCancellation = trip.Status;
+
             trip.Status = TripStatus.Canceled;
             trip.IsCancelled = true;
-           
+
             // Create the status change log.
             var tripLog = new TripLog
             {
@@ -1105,10 +1132,18 @@ namespace Raphael.Api.Services
             _context.TripLogs.Add(tripLog);
 
             await _context.SaveChangesAsync();
+
+            // Published after the save: the dispatch office must not be told to refresh
+            // a screen over a change that could still be rolled back.
+            await _tripNotifications.TripCancelledAsync(
+                trip,
+                CancelledByTypes.Dispatcher,
+                statusBeforeCancellation);
+
             return true;
         }
 
-        // Ahora se cancelan las 2 patas: A y B, es decir, el viaje principal y los relacionados del mismo cliente para el mismo día.
+        // Ahora se cancelan las 2 patas: A y B, es decir, el viaje principal y los relacionados del mismo cliente para el mismo dï¿½a.
         public async Task<bool> CancelByDriverAsync(int id, string reason, string driverName)
         {
             // 1. Buscamos el viaje principal
@@ -1118,15 +1153,15 @@ namespace Raphael.Api.Services
                 return false;
             }
 
-            // Si el viaje ya está finalizado o cancelado, no hacemos nada.
+            // Si el viaje ya estï¿½ finalizado o cancelado, no hacemos nada.
             if (trip.Status == TripStatus.Finished || trip.Status == TripStatus.Canceled)
             {
                 return false;
             }
 
-            // 2. Buscamos todos los viajes pendientes del mismo cliente para el mismo día
+            // 2. Buscamos todos los viajes pendientes del mismo cliente para el mismo dï¿½a
             // Filtramos para que no sean el mismo viaje (t.Id != id) 
-            // y que no estén ya finalizados o cancelados.
+            // y que no estï¿½n ya finalizados o cancelados.
             var relatedTrips = await _context.Trips
                 .Where(t => t.CustomerId == trip.CustomerId &&
                             t.Date.Date == trip.Date.Date && // Comparamos solo la parte de la fecha
@@ -1143,13 +1178,19 @@ namespace Raphael.Api.Services
             string user = !string.IsNullOrEmpty(driverName) ? driverName : "Unknown Driver";
             user = $"Driver - {user}";
 
-            // 4. Procesamos la cancelación para cada uno
+            // Status before the cancellation, kept per trip: it decides whether the
+            // assigned driver is pushed, and by the time we publish it is already gone.
+            var cancelled = new List<(Trip Trip, string PreviousStatus)>();
+
+            // 4. Procesamos la cancelaciï¿½n para cada uno
             foreach (var t in tripsToCancel)
             {
                 if (t.Status == TripStatus.Finished || t.Status == TripStatus.Canceled)
                 {
                     continue;
                 }
+
+                cancelled.Add((t, t.Status));
 
                 string priorValue = $"trip.Status={t.Status}, trip.IsCancelled={t.IsCancelled}";
 
@@ -1181,8 +1222,20 @@ namespace Raphael.Api.Services
                 });
             }
 
-            // 5. Guardamos todos los cambios en una sola transacción
+            // 5. Guardamos todos los cambios en una sola transacciï¿½n
             await _context.SaveChangesAsync();
+
+            // One event per cancelled trip: the driver cancelling the outbound leg also
+            // drops the return, and the patient has to be told about both.
+            foreach (var (cancelledTrip, previousStatus) in cancelled)
+            {
+                await _tripNotifications.TripCancelledAsync(
+                    cancelledTrip,
+                    CancelledByTypes.Driver,
+                    previousStatus,
+                    reason);
+            }
+
             return true;
         }
 
@@ -1322,19 +1375,7 @@ namespace Raphael.Api.Services
 
             await _context.SaveChangesAsync();
 
-            await _notificationService.PublishAsync(
-                eventCode: "DRIVER_STARTED_TRIP",
-                aggregateId: UserIdentifierConverter.ToGuid(trip.Id),
-                performedByUserId: _currentUserService.UserId.HasValue
-                    ? UserIdentifierConverter.ToGuid(_currentUserService.UserId.Value)
-                    : null,
-                data: new Dictionary<string, object?>
-                {
-                    ["TripId"] = trip.Id,
-                    ["RiderId"] = trip.CustomerId,
-                    ["Travel"] = travel.HasValue ? travel.Value : null,
-                    ["Trip"] = trip
-                });
+            await _tripNotifications.DriverStartedTripAsync(trip, travel);
 
             return true;
         }

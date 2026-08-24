@@ -5,6 +5,7 @@ using Raphael.Notification.Application.Commands.MarkNotificationViewed;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Queries.GetNotificationById;
 using Raphael.Notification.Application.Queries.GetRecipientNotifications;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Controllers;
@@ -34,6 +35,15 @@ public sealed class NotificationController : ControllerBase
         _currentUser = currentUser;
     }
 
+    /// <summary>
+    /// Inbox of a Raphael.Desktop user.
+    /// </summary>
+    /// <remarks>
+    /// Returns what the whole dispatch office shares plus anything addressed to this
+    /// user in particular. Office notices are stored once and read by everyone, instead
+    /// of one row per dispatcher: the same cancellation seen by twelve people would
+    /// otherwise be twelve rows that nobody ever deletes.
+    /// </remarks>
     [HttpGet]
     public async Task<IActionResult> GetNotifications(
         CancellationToken cancellationToken)
@@ -41,13 +51,26 @@ public sealed class NotificationController : ControllerBase
         if (!_currentUser.UserId.HasValue)
             return Unauthorized();
 
-        var command = new GetRecipientNotificationsQuery(
-            UserIdentifierConverter.ToGuid(_currentUser.UserId.Value));
-
-        var result =
+        var shared =
             await _getRecipientNotificationsHandler.Handle(
-                command,
+                new GetRecipientNotificationsQuery(
+                    UserIdentifierConverter.DesktopAudience,
+                    RecipientType.DesktopUser),
                 cancellationToken);
+
+        var personal =
+            await _getRecipientNotificationsHandler.Handle(
+                new GetRecipientNotificationsQuery(
+                    UserIdentifierConverter.ToGuid(
+                        _currentUser.UserId.Value,
+                        RecipientType.DesktopUser),
+                    RecipientType.DesktopUser),
+                cancellationToken);
+
+        var result = shared
+            .Concat(personal)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToList();
 
         return Ok(result);
     }

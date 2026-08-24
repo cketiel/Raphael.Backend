@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services.Notifications;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
@@ -9,24 +11,29 @@ namespace Raphael.Api.Services
 {
     public class BotService : IBotService
     {
-        private readonly RaphaelContext _context;      
+        private readonly RaphaelContext _context;
+        private readonly ITripNotificationPublisher _tripNotifications;
 
-        public BotService(RaphaelContext context)
+        public BotService(RaphaelContext context, ITripNotificationPublisher tripNotifications)
         {
-            _context = context;          
+            _context = context;
+            _tripNotifications = tripNotifications;
         }
         public async Task<string> ActivateWillCallAsync(string tripNumber)
-        {          
+        {
             var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == tripNumber);
             if (trip == null)
             {
                 return "TRIP_NOT_FOUND"; // Trip not found
             }
-            else if (!trip.WillCall) { 
+            else if (!trip.WillCall) {
                 return "ALREADY_ACTIVE";
-            }                   
+            }
 
-            try 
+            // The one hour commitment starts here, not when a dispatcher reads the notice.
+            var activatedAtUtc = DateTime.UtcNow;
+
+            try
             {
                 string priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
 
@@ -55,13 +62,23 @@ namespace Raphael.Api.Services
                 });
 
                 await _context.SaveChangesAsync();
-                return "SUCCESS";
             }
             catch (Exception ex)
-            {               
+            {
                 return "CANNOT_ACTIVATE";
             }
-            
+
+            // Outside the catch: this method reports failure through its return value,
+            // and a notification problem must not make the bot tell a patient their
+            // Will Call was not registered when it was.
+            //
+            // Somebody rang on the patient's behalf, so the patient is told too.
+            await _tripNotifications.WillCallActivatedAsync(
+                trip,
+                activatedAtUtc,
+                notifyRider: true);
+
+            return "SUCCESS";
         }
         public async Task<string> CancelTripAsync(string tripNumber)
         {           
@@ -77,7 +94,9 @@ namespace Raphael.Api.Services
                 return "CANNOT_CANCEL";
             }
 
-            try 
+            var statusBeforeCancellation = trip.Status;
+
+            try
             {
                 string priorValue = $"trip.Status={trip.Status}, trip.IsCancelled={trip.IsCancelled}";
 
@@ -106,14 +125,18 @@ namespace Raphael.Api.Services
                 });
 
                 await _context.SaveChangesAsync();
-
-                return "SUCCESS";
             }
             catch (Exception ex)
             {
                 return "CANNOT_CANCEL";
             }
-            
+
+            await _tripNotifications.TripCancelledAsync(
+                trip,
+                CancelledByTypes.Bot,
+                statusBeforeCancellation);
+
+            return "SUCCESS";
         }
 
         public async Task<TimeSpan?> GetEtaAsync(string tripNumber)

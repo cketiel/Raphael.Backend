@@ -32,7 +32,9 @@ namespace Raphael.Api.Controllers
 
             if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
-            var user = await _context.Users.FindAsync(Guid.Parse(userIdStr));
+            if (!int.TryParse(userIdStr, out var currentUserId)) return Unauthorized();
+
+            var user = await _context.Users.FindAsync(currentUserId);
 
             if (user == null || string.IsNullOrEmpty(user.PushToken))
                 return BadRequest("The driver does not have a registered PushToken.");
@@ -52,7 +54,9 @@ namespace Raphael.Api.Controllers
         {          
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("UserId")?.Value;
 
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            // User.Id is an int. Parsing it as a Guid always failed, so no driver ever
+            // managed to register a device and push towards Raphael.Driver never worked.
+            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
                 return Unauthorized();
 
             var success = await _driverService.UpdatePushTokenAsync(userId, token);

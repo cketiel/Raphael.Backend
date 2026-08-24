@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Raphael.Notification.Application.Interfaces.Delivery;
 using Raphael.Shared.DbContexts;
 
@@ -14,7 +14,7 @@ public sealed class PushTokenProvider : IPushTokenProvider
         _context = context;
     }
 
-    public async Task<string?> GetPushTokenAsync(
+    public async Task<string?> GetRiderPushTokenAsync(
         int customerId,
         CancellationToken cancellationToken = default)
     {
@@ -26,5 +26,19 @@ public sealed class PushTokenProvider : IPushTokenProvider
                     cancellationToken);
 
         return customer?.PushToken;
+    }
+
+    public async Task<string?> GetDriverPushTokenAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var user =
+            await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.Id == userId,
+                    cancellationToken);
+
+        return user?.PushToken;
     }
 }

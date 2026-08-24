@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services.Notifications;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Services;
@@ -14,12 +15,14 @@ namespace Raphael.Api.Services
         private readonly RaphaelContext _context;
         private readonly NotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ITripNotificationPublisher _tripNotifications;
 
-        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService)
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications)
         {
             _context = context;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
+            _tripNotifications = tripNotifications;
         }
         public async Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber)
         {
@@ -499,7 +502,7 @@ namespace Raphael.Api.Services
                     AuthNo = tripToRoute.Authorization,
                     SpaceTypeName = tripToRoute.SpaceType.Name,
                     ScheduledApptTime = tripToRoute.ToTime,
-                    Sequence = request.TargetSequence + 1, // JUSTO DESPUÉS DEL PICKUP
+                    Sequence = request.TargetSequence + 1, // JUSTO DESPUï¿½S DEL PICKUP
                     // --- Data calculated by the client ---
                     DistanceToPoint = request.DropoffDistance,
                     TravelTime = request.DropoffTravelTime,
@@ -517,21 +520,6 @@ namespace Raphael.Api.Services
                 // 6. Save all changes and confirm the transaction.
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-
-                await _notificationService.PublishAsync(
-                     eventCode: "TRIP_SCHEDULED",
-                     aggregateId: UserIdentifierConverter.ToGuid(tripToRoute.Id),
-                     performedByUserId: _currentUserService.UserId.HasValue
-                            ? UserIdentifierConverter.ToGuid(_currentUserService.UserId.Value)
-                            : null,
-                     data: new Dictionary<string, object?>
-                     {
-                         ["TripId"] = tripToRoute.Id,
-                         ["RiderId"] = tripToRoute.CustomerId,
-                         ["VehicleRouteId"] = request.VehicleRouteId,
-                         ["Trip"] = tripToRoute
-                     });
-
             }
             catch (Exception)
             {
@@ -539,6 +527,11 @@ namespace Raphael.Api.Services
                 await transaction.RollbackAsync();
                 throw; // Rethrow the exception for the controller to handle.
             }
+
+            // Outside the try: the transaction is already committed, so a failure here
+            // would try to roll back what is done and report an error for a trip that
+            // was in fact routed.
+            await _tripNotifications.TripScheduledAsync(tripToRoute);
         }
 
         public async Task CancelRouteForTripAsync(int scheduleId)
@@ -584,7 +577,7 @@ namespace Raphael.Api.Services
                 /*bool otherTripsExist = await _context.Schedules
                     .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);*/
 
-                // Nunca eliminar los Pull-out/in, aunque no queden viajes, pq si no hay conexion con el servidor entonces las app clientes eliminan los pull-out/in y se desconfigura toda la ruta. Lo que si se puede hacer es recalcular la secuencia para que Pull-out sea 0 y Pull-in el último, aunque no queden viajes entre medio.
+                // Nunca eliminar los Pull-out/in, aunque no queden viajes, pq si no hay conexion con el servidor entonces las app clientes eliminan los pull-out/in y se desconfigura toda la ruta. Lo que si se puede hacer es recalcular la secuencia para que Pull-out sea 0 y Pull-in el ï¿½ltimo, aunque no queden viajes entre medio.
                 /*if (!otherTripsExist)
                 {
                     // If there are no more trips left, we also eliminate Pull-out and Pull-in.
@@ -655,7 +648,7 @@ namespace Raphael.Api.Services
 
             if (schedule == null) return false;
 
-            // 2. Mapeo de campos básicos 
+            // 2. Mapeo de campos bï¿½sicos 
             schedule.DistanceToPoint = dto.Distance;
             schedule.TravelTime = dto.Travel;
             schedule.ETATime = dto.ETA;
@@ -671,7 +664,7 @@ namespace Raphael.Api.Services
             if (schedule.Name == "Pull-out")
                 schedule.Sequence = 0;
 
-            // 3. Lógica de Historial y Status
+            // 3. Lï¿½gica de Historial y Status
             // Verificamos si el Trip existe
             if (schedule.Trip != null)
             {
@@ -699,20 +692,48 @@ namespace Raphael.Api.Services
             try
             {
                 await _context.SaveChangesAsync();
-                return true;
             }
             catch (Exception ex)
             {
-                // Esto te dirá en los logs del servidor qué columna falló exactamente
+                // Esto te dirï¿½ en los logs del servidor quï¿½ columna fallï¿½ exactamente
                 var msg = ex.InnerException?.Message ?? ex.Message;
                 throw new Exception($"Error en SaveChanges: {msg}");
             }
+
+            // Published after the save. Performing the pickup means the patient is in the
+            // vehicle, and performing the dropoff means the trip is done: two facts the
+            // dispatch office plans on, so they must be true before anybody hears them.
+            if (schedule.Trip != null)
+            {
+                if (schedule.EventType == ScheduleEventType.Pickup)
+                {
+                    await _tripNotifications.DriverPickedUpPassengerAsync(schedule.Trip);
+                }
+                else if (schedule.EventType == ScheduleEventType.Dropoff)
+                {
+                    await _tripNotifications.DriverCompletedTripAsync(schedule.Trip);
+                }
+            }
+
+            return true;
         }
-        public async Task<bool> UpdateAsync(int id, ScheduleDto dto) 
+
+        public async Task<bool> UpdateAsync(int id, ScheduleDto dto)
         {
-            var schedules = await _context.Schedules.FirstOrDefaultAsync(r => r.Id == id);
+            var schedules = await _context.Schedules
+                .Include(s => s.Trip)
+                .FirstOrDefaultAsync(r => r.Id == id);
 
             if (schedules == null) return false;
+
+            // The driver pressing Arrive is the only signal the system gets that the
+            // vehicle reached the pickup address, and it comes through this generic save.
+            // Detecting the transition here avoids changing the contract with an app that
+            // is distributed by sideload.
+            bool justArrivedAtPickup =
+                schedules.EventType == ScheduleEventType.Pickup
+                && !schedules.ActualArriveTime.HasValue
+                && dto.Arrive.HasValue;
 
             schedules.DistanceToPoint = dto.Distance;
             schedules.TravelTime = dto.Travel;
@@ -724,12 +745,34 @@ namespace Raphael.Api.Services
             schedules.ArriveDistance = dto.ArriveDist;
             schedules.GpsArrive = dto.GPSArrive;
             schedules.ActualPerformTime = dto.Perform;
-            schedules.PerformDistance = dto.PerformDist;   
-            
+            schedules.PerformDistance = dto.PerformDist;
+
             if(schedules.Name == "Pull-out")
                 schedules.Sequence = 0;
 
+            if (justArrivedAtPickup && schedules.Trip != null &&
+                schedules.Trip.Status == TripStatus.Started)
+            {
+                // Arrived, not Waiting: Waiting means the patient rang and nobody is on
+                // the way yet, which is the opposite situation for a dispatcher.
+                schedules.Trip.Status = TripStatus.Arrived;
+
+                _context.TripLogs.Add(new TripLog
+                {
+                    TripId = schedules.Trip.Id,
+                    Status = TripStatus.Arrived,
+                    Date = DateTime.UtcNow.Date,
+                    Time = DateTime.UtcNow.TimeOfDay
+                });
+            }
+
             await _context.SaveChangesAsync();
+
+            if (justArrivedAtPickup && schedules.Trip != null)
+            {
+                await _tripNotifications.DriverArrivedPickupAsync(schedules.Trip);
+            }
+
             return true;
         }
 
@@ -1264,10 +1307,10 @@ namespace Raphael.Api.Services
                             int freeQty = milesRule.FreeQty ?? 0;
                             // double freeQty = (double)(milesRule.FreeQty ?? 0); // no funciona
 
-                            // C# promocionará el int a double automáticamente en la resta, manteniendo la precisión.
+                            // C# promocionarï¿½ el int a double automï¿½ticamente en la resta, manteniendo la precisiï¿½n.
                             double billableMiles = Math.Max(0, tripMiles - freeQty);
 
-                            // Usamos Math.Max con doubles explícitos (No funciona)
+                            // Usamos Math.Max con doubles explï¿½citos (No funciona)
                             //double billableMiles = Math.Max(0.0, tripMiles - freeQty); //no funciona
 
                             row.BillableLines.Add(new ChargeLineDto
@@ -1305,7 +1348,7 @@ namespace Raphael.Api.Services
 
             var schedulesForDay = await baseQuery.ToListAsync();
 
-            // Obtener TODAS las reglas de cobro para los FundingSources y SpaceTypes involucrados en este día
+            // Obtener TODAS las reglas de cobro para los FundingSources y SpaceTypes involucrados en este dï¿½a
             var fsIds = schedulesForDay.Select(s => s.Trip.FundingSourceId).Distinct().ToList();
             var stIds = schedulesForDay.Select(s => s.Trip.SpaceTypeId).Distinct().ToList();
 
@@ -1324,11 +1367,11 @@ namespace Raphael.Api.Services
 
                     if (trip == null) return null;
 
-                    // --- LÓGICA DE CÁLCULO DE FACTURACIÓN ---
+                    // --- Lï¿½GICA DE Cï¿½LCULO DE FACTURACIï¿½N ---
                     decimal totalBilled = 0;
                     double distance = trip.Distance ?? 0;
 
-                    // Filtrar las reglas que aplican a ESTE viaje específico
+                    // Filtrar las reglas que aplican a ESTE viaje especï¿½fico
                     var currentRules = allBillingRules
                         .Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId)
                         .ToList();
@@ -1341,7 +1384,7 @@ namespace Raphael.Api.Services
                         totalBilled += loadingFeeItem.Rate;
                     }
 
-                    // B. MILES (Cálculo por distancia con FreeQty)
+                    // B. MILES (Cï¿½lculo por distancia con FreeQty)
                     var milesItem = currentRules.FirstOrDefault(r =>
                         r.BillingItem.Description.Contains("MILES", StringComparison.OrdinalIgnoreCase));
                     if (milesItem != null)

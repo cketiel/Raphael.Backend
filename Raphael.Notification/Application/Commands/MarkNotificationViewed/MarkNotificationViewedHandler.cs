@@ -35,11 +35,13 @@ public sealed class MarkNotificationViewedHandler
 
         await _dispatcher.NotifyViewedAsync(
             recipient.RecipientId,
+            recipient.RecipientType,
             recipient.Id,
             cancellationToken);
 
         await _dispatcher.RefreshNotificationsAsync(
             recipient.RecipientId,
+            recipient.RecipientType,
             cancellationToken);
     }
 }

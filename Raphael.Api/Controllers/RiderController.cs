@@ -247,9 +247,9 @@ namespace Raphael.Api.Controllers
             if (customerId == 0) return Unauthorized();
 
             // We convert the INT CustomerId to a GUID to make it compatible with your existing handler.
-            var recipientGuid = UserIdentifierConverter.ToGuid(customerId);
+            var recipientGuid = UserIdentifierConverter.ToGuid(customerId, RecipientType.Rider);
 
-            var query = new GetRecipientNotificationsQuery(recipientGuid);
+            var query = new GetRecipientNotificationsQuery(recipientGuid, RecipientType.Rider);
             var result = await _getRecipientNotificationsHandler.Handle(query, ct);
 
             return Ok(result);

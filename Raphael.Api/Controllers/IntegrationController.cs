@@ -2,6 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Attributes;
 using Raphael.Api.Services;
+using Raphael.Api.Services.Notifications;
+using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
+using Raphael.Notification.Application.Commands.MarkNotificationViewed;
+using Raphael.Notification.Application.Helpers;
+using Raphael.Notification.Application.Queries.GetRecipientNotifications;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
@@ -26,17 +32,32 @@ namespace Raphael.Api.Controllers
         private readonly ITripService _tripService;
         private readonly ICurrentUserService _currentUserService;
         private readonly ITripHistoryService _historyService;
+        private readonly IIntegrationHubTokenService _hubTokenService;
+        private readonly GetRecipientNotificationsHandler _getRecipientNotificationsHandler;
+        private readonly MarkNotificationViewedHandler _markViewedHandler;
+        private readonly MarkNotificationAcknowledgedHandler _markAcknowledgedHandler;
 
         /// <summary>
         /// Retrieves the Integrator ID stored in the HttpContext by the security filter.
         /// </summary>
         private int? CurrentIntegratorId => (int)HttpContext.Items["IntegratorId"]!; 
         private string? CurrentIntegratorName => (string)HttpContext.Items["IntegratorName"]!;
-        public IntegrationController(ITripService tripService, ICurrentUserService currentUserService, ITripHistoryService tripHistoryService)
+        public IntegrationController(
+            ITripService tripService,
+            ICurrentUserService currentUserService,
+            ITripHistoryService tripHistoryService,
+            IIntegrationHubTokenService hubTokenService,
+            GetRecipientNotificationsHandler getRecipientNotificationsHandler,
+            MarkNotificationViewedHandler markViewedHandler,
+            MarkNotificationAcknowledgedHandler markAcknowledgedHandler)
         {
             _tripService = tripService;
             _currentUserService = currentUserService;
             _historyService = tripHistoryService;
+            _hubTokenService = hubTokenService;
+            _getRecipientNotificationsHandler = getRecipientNotificationsHandler;
+            _markViewedHandler = markViewedHandler;
+            _markAcknowledgedHandler = markAcknowledgedHandler;
         }
 
         /// <summary>
@@ -215,5 +236,106 @@ namespace Raphael.Api.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+        #region Notification Management
+
+        /// <summary>
+        /// Exchanges the API Key for a short lived token that opens the notification hub.
+        /// </summary>
+        /// <remarks>
+        /// Connect to <c>/hubs/notifications?access_token={accessToken}</c> and listen for
+        /// <c>ReceiveNotification</c>. Notifications about your trips arrive there as they
+        /// happen; the endpoints below are the same list, for catching up and for marking
+        /// what you already processed.
+        ///
+        /// <para>
+        /// Do not put the API Key in the URL. It opens your whole integration and would be
+        /// written to every access log between you and us. That is what this exchange is for.
+        /// </para>
+        /// </remarks>
+        /// <response code="200">Token and the moment it stops working.</response>
+        [HttpPost("hub-token")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public IActionResult GetHubToken()
+        {
+            if (CurrentIntegratorId is not > 0)
+                return Unauthorized();
+
+            var token = _hubTokenService.Issue(
+                CurrentIntegratorId.Value,
+                CurrentIntegratorName);
+
+            return Ok(new
+            {
+                accessToken = token.AccessToken,
+                expiresAtUtc = token.ExpiresAtUtc,
+                hubUrl = "/hubs/notifications"
+            });
+        }
+
+        /// <summary>
+        /// Notifications addressed to this integration.
+        /// </summary>
+        /// <remarks>
+        /// Only trips this integration created produce them. Expired notifications are
+        /// not returned; see the retention policy for how long each kind lasts.
+        /// </remarks>
+        [HttpGet("notifications")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetNotifications(CancellationToken cancellationToken)
+        {
+            if (CurrentIntegratorId is not > 0)
+                return Unauthorized();
+
+            // Filtered explicitly. The global query filter on Trip does not cover an API
+            // Key request: with no claims, the context treats it as an internal caller.
+            var query = new GetRecipientNotificationsQuery(
+                UserIdentifierConverter.ToGuid(
+                    CurrentIntegratorId.Value,
+                    RecipientType.Integration),
+                RecipientType.Integration);
+
+            var result = await _getRecipientNotificationsHandler.Handle(
+                query,
+                cancellationToken);
+
+            return Ok(result);
+        }
+
+        /// <summary>Marks one notification as seen.</summary>
+        [HttpPost("notifications/{recipientRecordId:guid}/view")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> MarkNotificationViewed(
+            Guid recipientRecordId,
+            CancellationToken cancellationToken)
+        {
+            if (CurrentIntegratorId is not > 0)
+                return Unauthorized();
+
+            await _markViewedHandler.Handle(
+                new MarkNotificationViewedCommand(recipientRecordId),
+                cancellationToken);
+
+            return NoContent();
+        }
+
+        /// <summary>Marks one notification as processed on your side.</summary>
+        [HttpPost("notifications/{recipientRecordId:guid}/acknowledge")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> MarkNotificationAcknowledged(
+            Guid recipientRecordId,
+            CancellationToken cancellationToken)
+        {
+            if (CurrentIntegratorId is not > 0)
+                return Unauthorized();
+
+            await _markAcknowledgedHandler.Handle(
+                new MarkNotificationAcknowledgedCommand(recipientRecordId),
+                cancellationToken);
+
+            return NoContent();
+        }
+
+        #endregion
     }
 }

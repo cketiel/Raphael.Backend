@@ -15,6 +15,7 @@ using Microsoft.OpenApi.Models;
 using Raphael.Api.Models;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
+using Raphael.Api.Services.Notifications;
 using Raphael.Api.Settings;
 using Raphael.Notification.Application.DependencyInjection;
 using Raphael.Notification.Infrastructure.DependencyInjection;
@@ -42,7 +43,7 @@ builder.Services.AddScoped<IValidator<CustomerCreateDto>, CustomerCreateDtoValid
 builder.Services.AddControllers();
 builder.Services.AddNotificationApplication();
 builder.Services.AddNotificationInfrastructure();
-builder.Services.AddNotificationRealtime();
+builder.Services.AddNotificationRealtime(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -78,10 +79,20 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 
-    // Configure to use XML comments
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    options.IncludeXmlComments(xmlPath);
+    // Configure to use XML comments.
+    // Raphael.Shared is included as well: the entities and DTOs that Swagger renders as
+    // schemas are documented there, not here.
+    foreach (var assemblyName in new[]
+             {
+                 Assembly.GetExecutingAssembly().GetName().Name,
+                 typeof(Raphael.Shared.Entities.Trip).Assembly.GetName().Name
+             })
+    {
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, $"{assemblyName}.xml");
+
+        if (File.Exists(xmlPath))
+            options.IncludeXmlComments(xmlPath);
+    }
 
     options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
@@ -235,6 +246,24 @@ builder.Services.AddHttpClient<IExpoPushService, ExpoPushService>();
 
 builder.Services.AddSingleton<IFirebaseMessagingService, FirebaseMessagingService>();
 builder.Services.AddScoped<IDriverService, DriverService>();
+
+// Single place where the payload of a trip event is assembled: which identifiers it
+// carries is what decides who gets notified.
+builder.Services.AddScoped<ITripNotificationPublisher, TripNotificationPublisher>();
+
+// Integrations authenticate with an API Key, which must never travel in a URL. They
+// exchange it for a short lived token that only opens the notification hub.
+builder.Services.AddScoped<IIntegrationHubTokenService, IntegrationHubTokenService>();
+
+// Nightly cleanup. Without it the notification tables only grow.
+builder.Services.AddHostedService<NotificationRetentionWorker>();
+
+// The notification module declares IDriverPushService and the API supplies it:
+// Raphael.Notification cannot reference Raphael.Api, and the Firebase SDK admits
+// a single default instance per process.
+builder.Services.AddScoped<
+    Raphael.Notification.Application.Interfaces.Delivery.IDriverPushService,
+    FirebaseDriverPushService>();
 
 // Map appsettings to the BotSettings class
 builder.Services.Configure<BotSettings>(builder.Configuration.GetSection("BotSettings"));

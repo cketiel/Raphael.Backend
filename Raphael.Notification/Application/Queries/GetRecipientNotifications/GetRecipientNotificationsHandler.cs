@@ -22,6 +22,7 @@ public class GetRecipientNotificationsHandler
         var notifications =
             await _notificationRepository.GetByRecipientAsync(
                 query.RecipientId,
+                query.RecipientType.Id,
                 cancellationToken);
 
 
@@ -50,7 +51,8 @@ public class GetRecipientNotificationsHandler
 
                 // Map the recipients 
                 Recipients = notification.Recipients
-                .Where(r => r.RecipientId == query.RecipientId) 
+                .Where(r => r.RecipientId == query.RecipientId
+                            && r.RecipientTypeId == query.RecipientType.Id)
                 .Select(r => new NotificationRecipientDto
                 {
                     Id = r.Id, 

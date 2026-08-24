@@ -1,3 +1,4 @@
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using System.Diagnostics;
@@ -7,7 +8,7 @@ namespace Raphael.Api.Services
     public interface ITripService
     {
         Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int? integratorId);
-        Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId, string? integratorName);
+        Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId, string? integratorName, string cancelledBy = CancelledByTypes.Integrator);
         Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int? integratorId);
         Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId, string? integratorName);
         Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates);

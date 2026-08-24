@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Raphael.Api.Services.Notifications;
 using Raphael.Api.Settings;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using System.IdentityModel.Tokens.Jwt;
@@ -24,12 +26,15 @@ namespace Raphael.Api.Services
 
         private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
 
-        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService    )
+        private readonly ITripNotificationPublisher _tripNotifications;
+
+        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService, ITripNotificationPublisher tripNotifications)
         {
             _context = context;
             _jwtSettings = jwtOptions.Value;
             _hubContext = hubContext;
             _expoPushService = expoPushService;
+            _tripNotifications = tripNotifications;
         }
 
         public async Task<ExpoPushResult> SendTestPushAsync(int customerId, string message)
@@ -233,6 +238,10 @@ namespace Raphael.Api.Services
             var trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == tripId && t.CustomerId == customerId);
             if (trip == null || !trip.WillCall) return false;
 
+            // The one hour the office has to get a vehicle there starts now, not when a
+            // dispatcher happens to look at the screen.
+            var activatedAtUtc = DateTime.UtcNow;
+
             try
             {
                 string user = !string.IsNullOrEmpty(customerName) ? customerName : "Unknown Customer";
@@ -263,13 +272,24 @@ namespace Raphael.Api.Services
                 });
 
                 await _context.SaveChangesAsync();
-                return true;
             }
             catch (Exception ex)
             {
                 return false;
             }
-          
+
+            // Outside the catch on purpose. This method reports failure by returning
+            // false, and a notification that could not be sent must never tell a patient
+            // their Will Call was not registered when it was.
+            //
+            // The patient is not notified: they just pressed the button and saw the
+            // confirmation. The dispatch office is, because somebody has to act.
+            await _tripNotifications.WillCallActivatedAsync(
+                trip,
+                activatedAtUtc,
+                notifyRider: false);
+
+            return true;
         }
 
         public async Task<bool> CancelTripAsync(int tripId, int customerId, string customerName)
@@ -286,6 +306,8 @@ namespace Raphael.Api.Services
             {
                 return false;// CANNOT_CANCEL
             }
+
+            var statusBeforeCancellation = trip.Status;
 
             try
             {
@@ -318,14 +340,21 @@ namespace Raphael.Api.Services
                 });
 
                 await _context.SaveChangesAsync();
-
-                return true;
             }
             catch (Exception ex)
             {
                 return false;
             }
 
+            // Outside the catch: the trip is cancelled whether or not anybody could be
+            // told, and the patient must not be shown an error over a cancellation that
+            // went through.
+            await _tripNotifications.TripCancelledAsync(
+                trip,
+                CancelledByTypes.Rider,
+                statusBeforeCancellation);
+
+            return true;
         }
 
         public async Task<bool> UpdateProfileAsync(int customerId, CustomerCreateDto dto)

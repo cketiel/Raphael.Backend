@@ -31,6 +31,8 @@ public static class NotificationApplicationExtensions
 
         services.AddScoped<NotificationEnumerationResolver>();
 
+        services.AddScoped<NotificationRetentionService>();
+
         services.AddScoped<ProcessBusinessEventHandler>();
 
         services.AddScoped<CreateNotificationHandler>();

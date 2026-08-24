@@ -37,6 +37,10 @@ public static class NotificationInfrastructureExtensions
             INotificationDeliveryRepository,
             NotificationDeliveryRepository>();
 
+        services.AddScoped<
+            IPushTokenProvider,
+            PushTokenProvider>();
+
         services.AddHttpClient<IExpoPushService, ExpoPushService>();
         services.AddScoped<INotificationSender, PushSender>();
         services.AddScoped<INotificationSender, InAppSender>();

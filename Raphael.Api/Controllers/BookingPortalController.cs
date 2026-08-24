@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
@@ -130,7 +131,8 @@ namespace Raphael.Api.Controllers
                 user = $"BookingWeb - {user}";
 
                 // Ejecutamos la cancelación solo para los permitidos
-                var count = await _tripService.CancelIntegrationTripsAsync(validIdsToCancel, CurrentIntegratorId, user);
+                // The Booking Portal is used by the clinics, not by the integrating system.
+                var count = await _tripService.CancelIntegrationTripsAsync(validIdsToCancel, CurrentIntegratorId, user, CancelledByTypes.Facility);
 
                 
 
