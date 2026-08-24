@@ -41,6 +41,17 @@ public static class NotificationInfrastructureExtensions
             IPushTokenProvider,
             PushTokenProvider>();
 
+        //
+        // Delivery engine. NotificationEngine takes NotificationDeliveryService by
+        // constructor, so leaving these out does not fail at startup: it fails the first
+        // time anything resolves NotificationService, which is every controller that
+        // touches trips, schedules, riders or the bot. They were declared in a
+        // ServiceCollectionExtensions that nobody ever called.
+        //
+        services.AddScoped<DeliveryChannelResolver>();
+        services.AddScoped<NotificationSenderFactory>();
+        services.AddScoped<NotificationDeliveryService>();
+
         // Named on purpose. Raphael.Api declares its own IExpoPushService, and the HTTP
         // client factory derives the client name from the type name alone, ignoring the
         // namespace: registering both unnamed throws at startup and the application never

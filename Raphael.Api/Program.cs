@@ -35,6 +35,22 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Validate the whole dependency graph while building it, in every environment.
+//
+// By default this only happens in Development, so a service missing from the container
+// does not stop the application: it throws the first time somebody resolves it, as a 500
+// on whichever endpoint got there first. A missing delivery service once took down every
+// controller that touches trips, schedules, riders or the bot, and from the outside it
+// looked like a failure to load trips.
+//
+// Refusing to start is louder and far cheaper to diagnose than a service that answers
+// some requests and not others.
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateOnBuild = true;
+    options.ValidateScopes = true;
+});
+
 // FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddScoped<IValidator<CustomerCreateDto>, CustomerCreateDtoValidator>();
