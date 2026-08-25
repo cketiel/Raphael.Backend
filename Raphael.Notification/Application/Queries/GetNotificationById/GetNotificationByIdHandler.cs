@@ -1,4 +1,5 @@
 ﻿using Raphael.Notification.Application.DTOs;
+using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Persistence;
 
 namespace Raphael.Notification.Application.Queries.GetNotificationById;
@@ -62,6 +63,8 @@ public class GetNotificationByIdHandler
 
                     RecipientType = r.RecipientType.Name,
 
+                    IsBroadcast = UserIdentifierConverter.IsDesktopAudience(r.RecipientId),
+
                     Status = r.Status.Name,
 
                     DeliveredAtUtc = r.DeliveredAtUtc,
@@ -85,7 +88,10 @@ public class GetNotificationByIdHandler
                     IsPrimary = a.IsPrimary
 
                 })
-                .ToList()
+                .ToList(),
+
+            Metadata = notification.Metadata
+                .ToDictionary(m => m.Key, m => m.Value)
         };
     }
 }

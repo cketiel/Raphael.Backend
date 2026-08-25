@@ -1,4 +1,5 @@
 ﻿using Raphael.Notification.Application.DTOs;
+using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Persistence;
 
 namespace Raphael.Notification.Application.Queries.GetRecipientNotifications;
@@ -49,19 +50,38 @@ public class GetRecipientNotificationsHandler
 
                 ExpiresAtUtc = notification.ExpiresAtUtc,
 
-                // Map the recipients 
+                // Only the row that belongs to whoever asked. The other audiences of the
+                // same notification are none of this caller's business: sending them
+                // would hand a dispatcher the recipient identifiers of a patient.
                 Recipients = notification.Recipients
                 .Where(r => r.RecipientId == query.RecipientId
                             && r.RecipientTypeId == query.RecipientType.Id)
                 .Select(r => new NotificationRecipientDto
                 {
-                    Id = r.Id, 
+                    Id = r.Id,
                     RecipientId = r.RecipientId,
+                    RecipientType = r.RecipientType.Name,
+                    IsBroadcast = UserIdentifierConverter.IsDesktopAudience(r.RecipientId),
                     Status = r.Status.Name,
                     ViewedAtUtc = r.ViewedAtUtc,
                     DeliveredAtUtc = r.DeliveredAtUtc,
                     AcknowledgedAtUtc = r.AcknowledgedAtUtc
-                }).ToList()
+                }).ToList(),
+
+                Actions = notification.Actions
+                .OrderBy(a => a.SortOrder)
+                .Select(a => new NotificationActionDto
+                {
+                    Id = a.Id,
+                    ActionCode = a.ActionCode,
+                    SortOrder = a.SortOrder,
+                    IsPrimary = a.IsPrimary
+                }).ToList(),
+
+                // What the client needs to render this in its own language and to open
+                // the right screen. Identifiers only, never PHI.
+                Metadata = notification.Metadata
+                .ToDictionary(m => m.Key, m => m.Value)
             })
             .ToList();
     }

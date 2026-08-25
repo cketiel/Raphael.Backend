@@ -1,5 +1,6 @@
 ﻿using Raphael.Notification.Application.Delivery;
 using Raphael.Notification.Application.DTOs;
+using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Engine;
 using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Interfaces.Factories;
@@ -87,13 +88,13 @@ public sealed class NotificationEngine
             await _notificationRepository.SaveChangesAsync(cancellationToken);
 
 
-            var dto =
-                MapToDto(notification);
-
-
-
             foreach (var recipient in notification.Recipients)
             {
+                // One DTO per recipient, not one shared by all of them. The audience is
+                // told about its own row and nothing else.
+                var dto =
+                    MapToDto(notification, recipient);
+
                 // In-App / SignalR
                 await _dispatcher.SendNotificationAsync(
                     recipient.RecipientId,
@@ -127,8 +128,19 @@ public sealed class NotificationEngine
 
 
 
+    /// <summary>
+    /// The notification as the given recipient must receive it in real time.
+    /// </summary>
+    /// <remarks>
+    /// Two things this used to get wrong, and both mattered. The recipient row went out
+    /// without its <c>Id</c>, so a client could not acknowledge a notification it had
+    /// just received live: it had to reload the whole inbox first. And every audience
+    /// was included, which put the recipient identifiers of a patient inside the notice
+    /// broadcast to the dispatch office.
+    /// </remarks>
     private static NotificationDto MapToDto(
-        Raphael.Shared.Entities.Notifications.Notification notification)
+        Raphael.Shared.Entities.Notifications.Notification notification,
+        Raphael.Shared.Entities.Notifications.NotificationRecipient recipient)
     {
         return new NotificationDto
         {
@@ -162,23 +174,37 @@ public sealed class NotificationEngine
                 notification.ExpiresAtUtc,
 
             Recipients =
-                notification.Recipients
-                    .Select(r => new NotificationRecipientDto
+                [
+                    new NotificationRecipientDto
                     {
-                        RecipientId = r.RecipientId,
-                        RecipientType = r.RecipientType.Name
-                    })
-                    .ToList(),
+                        Id = recipient.Id,
+                        RecipientId = recipient.RecipientId,
+                        RecipientType = recipient.RecipientType.Name,
+                        IsBroadcast =
+                            UserIdentifierConverter.IsDesktopAudience(
+                                recipient.RecipientId),
+                        Status = recipient.Status.Name,
+                        DeliveredAtUtc = recipient.DeliveredAtUtc,
+                        ViewedAtUtc = recipient.ViewedAtUtc,
+                        AcknowledgedAtUtc = recipient.AcknowledgedAtUtc
+                    }
+                ],
 
             Actions =
                 notification.Actions
+                    .OrderBy(a => a.SortOrder)
                     .Select(a => new NotificationActionDto
                     {
+                        Id = a.Id,
                         ActionCode = a.ActionCode,
                         SortOrder = a.SortOrder,
                         IsPrimary = a.IsPrimary
                     })
-                    .ToList()
+                    .ToList(),
+
+            Metadata =
+                notification.Metadata
+                    .ToDictionary(m => m.Key, m => m.Value)
         };
     }
 }

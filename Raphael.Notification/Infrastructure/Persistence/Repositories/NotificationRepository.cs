@@ -59,6 +59,8 @@ public class NotificationRepository : INotificationRepository
 
         return await _context.Notifications
             .Include(n => n.Recipients)
+            .Include(n => n.Metadata)
+            .Include(n => n.Actions)
             .Where(n => n.Recipients
                 .Any(r => r.RecipientId == recipientId
                           && r.RecipientTypeId == recipientTypeId))
