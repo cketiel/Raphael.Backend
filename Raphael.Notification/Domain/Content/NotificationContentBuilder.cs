@@ -1,4 +1,4 @@
-using Raphael.Notification.Application.Interfaces.Events;
+﻿using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.Notifications;
@@ -33,11 +33,21 @@ public static class NotificationContentBuilder
     /// </summary>
     public const int WillCallCommitmentMinutes = 60;
 
+    /// <param name="operationZone">
+    /// Where the trip is operated. Every hour written into a message is wall-clock time
+    /// there.
+    /// </param>
+    /// <remarks>
+    /// ⚠️ The zone is passed in rather than read from the machine. This text tells a patient
+    /// sitting in a clinic by when a vehicle will reach them; rendered with the server's own
+    /// clock it promised an hour that does not exist for anybody involved.
+    /// </remarks>
     public static NotificationContent Build(
         string eventCode,
         RecipientType audience,
         BusinessEventContext context,
-        NotificationRule rule)
+        NotificationRule rule,
+        TimeZoneInfo operationZone)
     {
         var parameters = new Dictionary<string, string>();
 
@@ -71,7 +81,8 @@ public static class NotificationContentBuilder
             tripId,
             tripDate,
             tripTime,
-            rule);
+            rule,
+            operationZone);
 
         parameters[NotificationMetadataKeys.MessageKey] = messageKey;
 
@@ -90,7 +101,8 @@ public static class NotificationContentBuilder
         string? tripId,
         DateTime? tripDate,
         TimeSpan? tripTime,
-        NotificationRule rule)
+        NotificationRule rule,
+        TimeZoneInfo operationZone)
     {
         var isRider = audience.Id == RecipientType.Rider.Id;
         var whenForRider = DescribeWhen(tripDate, tripTime);
@@ -187,9 +199,9 @@ public static class NotificationContentBuilder
 
                 return isRider
                     ? ("Will Call Activated",
-                       $"We received your request. A vehicle should reach you by {FormatLocalTime(deadline)}.")
+                       $"We received your request. A vehicle should reach you by {FormatOperationTime(deadline, operationZone)}.")
                     : ("Will Call Activated",
-                       $"A patient is ready for pickup on {tripLabel}. A vehicle must reach them by {FormatLocalTime(deadline)}.");
+                       $"A patient is ready for pickup on {tripLabel}. A vehicle must reach them by {FormatOperationTime(deadline, operationZone)}.");
 
             case BusinessEventCodes.WillCallAcknowledged:
 
@@ -209,7 +221,7 @@ public static class NotificationContentBuilder
                     FormatUtc(acknowledgedDeadline);
 
                 return ("Will Call Confirmed",
-                    $"Our dispatch office is arranging your ride. A vehicle should reach you by {FormatLocalTime(acknowledgedDeadline)}.");
+                    $"Our dispatch office is arranging your ride. A vehicle should reach you by {FormatOperationTime(acknowledgedDeadline, operationZone)}.");
 
             default:
 
@@ -303,9 +315,17 @@ public static class NotificationContentBuilder
     private static string FormatUtc(DateTime moment)
         => DateTime.SpecifyKind(moment, DateTimeKind.Utc).ToString("O");
 
-    private static string FormatLocalTime(DateTime utcMoment)
-        => DateTime.SpecifyKind(utcMoment, DateTimeKind.Utc)
-            .ToLocalTime()
+    /// <summary>
+    /// An hour a patient can act on: wall-clock time where the trip is operated.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Never the machine's own zone. This used to call ToLocalTime(), so the deadline a
+    /// patient read was whatever hour it happened to be wherever the API was hosted.
+    /// </remarks>
+    private static string FormatOperationTime(DateTime utcMoment, TimeZoneInfo operationZone)
+        => TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.SpecifyKind(utcMoment, DateTimeKind.Utc),
+                operationZone)
             .ToString("h:mm tt");
 
     private static string Capitalize(string text)

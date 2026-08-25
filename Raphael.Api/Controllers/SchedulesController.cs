@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.Time;
 using System.Text.RegularExpressions;
 
 namespace Raphael.Api.Controllers
@@ -12,10 +13,12 @@ namespace Raphael.Api.Controllers
     public class SchedulesController : ControllerBase
     {
         private readonly IScheduleService _scheduleService;
+        private readonly IOperationClock _clock;
 
-        public SchedulesController(IScheduleService scheduleService)
+        public SchedulesController(IScheduleService scheduleService, IOperationClock clock)
         {
             _scheduleService = scheduleService;
+            _clock = clock;
         }
 
         [HttpGet("by-run-login")]
@@ -60,7 +63,7 @@ namespace Raphael.Api.Controllers
             }
             catch (Exception ex)
             {
-                // Esto nos dirá si el error es de SQL, de una columna inexistente, etc.
+                // Esto nos dirï¿½ si el error es de SQL, de una columna inexistente, etc.
                 var innerError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
                 return BadRequest($"Error: {ex.Message} -- Detalle: {innerError}");
             }
@@ -102,7 +105,7 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
-        [HttpPut("{id}/perform")] // La ruta será: api/Schedules/5/perform
+        [HttpPut("{id}/perform")] // La ruta serï¿½: api/Schedules/5/perform
         public async Task<IActionResult> PerformUpdate(int id, [FromBody] ScheduleDto dto)
         {
             if (!ModelState.IsValid)
@@ -361,8 +364,11 @@ namespace Raphael.Api.Controllers
             if (!Regex.IsMatch(patientName, @"^[a-zA-Z\s\.\-']+$"))
                 return BadRequest("Invalid characters.");
 
-            // We use the current server date
-            DateTime toDay = DateTime.Today;
+            // Today where the trips run, not where this server is hosted. The caller is
+            // asking about a patient waiting somewhere today; a host west of the operation
+            // still calls it yesterday through the last hours of the evening and finds
+            // nothing.
+            DateTime toDay = _clock.TodayFor(null);
             DateTime searchDate = DateTime.SpecifyKind(toDay, DateTimeKind.Unspecified); // force UTC conversion not to be applied, tells the system: "Don't touch the time, send it as is."
             var etas = await _scheduleService.GetPatientETAsByNameAsync(patientName, searchDate);
 

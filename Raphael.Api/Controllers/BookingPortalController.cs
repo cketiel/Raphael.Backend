@@ -80,7 +80,7 @@ namespace Raphael.Api.Controllers
                                 Field = "PortalSync",
                                 PriorValue = isEdit ? $"Status: {oldStatus}" : "New Trip",
                                 NewValue = isEdit ? "Trip Updated" : "Trip Created",
-                                ChangeDate = DateTime.Now
+                                ChangeDate = DateTime.UtcNow
                             });
                         }
                     }
@@ -146,7 +146,7 @@ namespace Raphael.Api.Controllers
                         Field = "Status",
                         PriorValue = trip.Status,
                         NewValue = "Canceled",
-                        ChangeDate = DateTime.Now
+                        ChangeDate = DateTime.UtcNow
                     });
                 }
 

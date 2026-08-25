@@ -38,13 +38,13 @@ namespace Raphael.Api.Controllers
                 Field = dto.Field,
                 PriorValue = dto.PriorValue,
                 NewValue = dto.NewValue,
-                ChangeDate = dto.ChangeDate ?? DateTime.Now
+                ChangeDate = dto.ChangeDate ?? DateTime.UtcNow
             };
 
             try
             {
                 if (history.ChangeDate == default)
-                    history.ChangeDate = DateTime.Now;
+                    history.ChangeDate = DateTime.UtcNow;
 
                 // We clear the navigation property in case WPF sent something there
                 history.Trip = null;

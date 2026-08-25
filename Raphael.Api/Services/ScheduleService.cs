@@ -7,6 +7,7 @@ using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
+using Raphael.Shared.Time;
 
 namespace Raphael.Api.Services
 {
@@ -16,13 +17,15 @@ namespace Raphael.Api.Services
         private readonly NotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
         private readonly ITripNotificationPublisher _tripNotifications;
+        private readonly IOperationClock _clock;
 
-        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications)
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock)
         {
             _context = context;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
             _tripNotifications = tripNotifications;
+            _clock = clock;
         }
         public async Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber)
         {
@@ -676,13 +679,22 @@ namespace Raphael.Api.Services
                 {
                     schedule.Trip.Status = newStatus;
 
+                    // UTC, like the other eleven places that write a TripLog. This one was
+                    // the odd one out on the server's own clock, which made the column mean
+                    // two different things depending on which code path filled it.
+                    //
+                    // TripLog is an instant, not a pickup time: nothing displays it today,
+                    // and whatever does will convert. Splitting the column by writer is the
+                    // failure mode, not the choice of zone.
+                    var performedAtUtc = DateTime.UtcNow;
+
                     // Creamos el log pero con un Try-Catch interno o verificando nulos
                     var historyLog = new TripLog
                     {
                         TripId = schedule.Trip.Id,
                         Status = newStatus,
-                        Date = DateTime.Now.Date,
-                        Time = DateTime.Now.TimeOfDay                      
+                        Date = performedAtUtc.Date,
+                        Time = performedAtUtc.TimeOfDay
                     };
 
                     _context.TripLogs.Add(historyLog);
@@ -800,7 +812,14 @@ namespace Raphael.Api.Services
 
         public async Task<IEnumerable<ScheduleDto>> GetFutureSchedulesForDriverAsync(string runLogin)
         {
-            var today = DateTime.Today; 
+            // The driver's today, where they are driving. Taken from the server's clock, a
+            // host west of the operation still calls it yesterday through the last hours of
+            // the evening, and the driver opens their app to a schedule that already ran.
+            //
+            // The broker's zone, because a query that spans a driver's whole day has no one
+            // trip to take a provider from. A driver working for a provider in another zone
+            // would need this widened — noted in _meta/BACKLOG.md.
+            var today = _clock.TodayFor(null);
 
             return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)

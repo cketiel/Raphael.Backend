@@ -1,0 +1,34 @@
+<Project>
+
+  <!--
+    Applies to every project in Raphael.Backend.
+
+    The point of this file is one rule: the timezone of the machine running the code is
+    never a business input. Twenty places used to read it, and the result was a Will Call
+    pickup recorded three hours in the past and a deadline promised to a patient that
+    existed in no timezone anybody was standing in.
+
+    Fixing twenty call sites does not stop the twenty-first. This makes the next one fail
+    the build, with a message that says what to use instead.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!--
+      An error, not a warning. This codebase already carries around 350 warnings, so a
+      warning here would be invisible on the day it mattered.
+    -->
+    <WarningsAsErrors>$(WarningsAsErrors);RS0030</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

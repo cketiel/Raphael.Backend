@@ -27,6 +27,7 @@ using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Services;
+using Raphael.Shared.Time;
 using Raphael.Shared.Validators;
 using System.Reflection;
 using System.Text;
@@ -257,6 +258,28 @@ builder.Services.AddScoped<BusinessEventCatalogSeeder>();
 builder.Services.AddScoped<NotificationRuleCatalogSeeder>();
 builder.Services.AddScoped<NotificationRuleService>();
 
+//
+// What time it is where the work happens.
+//
+// The timezone of the machine running this API is not a business input: a trip at 09:15
+// is 09:15 at the pickup address, whoever is looking and wherever this is hosted. The
+// zone comes from the provider carrying out the trip, falling back to the configured
+// default — never to the host.
+//
+builder.Services.Configure<OperationTimeOptions>(
+    builder.Configuration.GetSection(OperationTimeOptions.SectionName));
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddScoped<IOperationClock, OperationClock>();
+
+// ⚠️ Fails the deployment rather than the shift. A default timezone the host does not
+// recognise would otherwise be discovered days later, as trips hours out of place.
+var operationTimeZone = OperationClock.Resolve(
+    builder.Configuration[
+        $"{OperationTimeOptions.SectionName}:{nameof(OperationTimeOptions.DefaultTimeZone)}"]
+    ?? new OperationTimeOptions().DefaultTimeZone);
+
 // Register HttpClient for the Expo service
 builder.Services.AddHttpClient<IExpoPushService, ExpoPushService>();
 
@@ -331,6 +354,20 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 var app = builder.Build();
+
+// Said out loud at startup so a misconfiguration is visible on the first line of the log
+// rather than in a dispatcher's report three days later. If this hour does not match the
+// clock on the office wall, nothing below it will be right.
+#pragma warning disable RS0030 // The one legitimate read of the host clock: printing the
+// gap between it and the operation is how a wrong setting becomes obvious at a glance.
+app.Logger.LogInformation(
+    "Operating timezone: {TimeZone}. It is {OperationTime} there now; the server's own clock " +
+    "says {ServerTime}. If the first of those does not match the clock on the office wall, " +
+    "nothing below this line will be right.",
+    operationTimeZone.Id,
+    TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, operationTimeZone),
+    DateTime.Now);
+#pragma warning restore RS0030
 
 // Activate Rate Limiting
 app.UseIpRateLimiting();

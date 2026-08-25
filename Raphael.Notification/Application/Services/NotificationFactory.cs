@@ -3,7 +3,9 @@ using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Interfaces.Factories;
 using Raphael.Notification.Domain.Content;
 using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.Notifications;
+using Raphael.Shared.Time;
 using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Notification.Application.Services;
@@ -11,6 +13,13 @@ namespace Raphael.Notification.Application.Services;
 public sealed class NotificationFactory
     : INotificationFactory
 {
+    private readonly IOperationClock _clock;
+
+    public NotificationFactory(IOperationClock clock)
+    {
+        _clock = clock;
+    }
+
     public NotificationModel Create(
         NotificationRule rule,
         BusinessEventContext context)
@@ -33,11 +42,20 @@ public sealed class NotificationFactory
         //
         var audience = audiences.FirstOrDefault() ?? RecipientType.System;
 
+        // Every hour written into the text is wall-clock time where the trip is operated:
+        // the patient reading "by 3:45 PM" is sitting at the pickup address, not next to
+        // the server. A trip with no provider is one the broker runs itself.
+        var operationZone = _clock.ZoneFor(
+            (context.Data.TryGetValue(BusinessEventDataKeys.Trip, out var value)
+                ? value as Trip
+                : null)?.ProviderId);
+
         var content = NotificationContentBuilder.Build(
             eventCode,
             audience,
             context,
-            rule);
+            rule,
+            operationZone);
 
         var notification = new NotificationModel(
             businessEventCode: eventCode,

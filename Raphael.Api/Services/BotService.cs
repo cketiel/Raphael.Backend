@@ -5,6 +5,7 @@ using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
+using Raphael.Shared.Time;
 using System.Text.RegularExpressions;
 
 namespace Raphael.Api.Services
@@ -13,11 +14,16 @@ namespace Raphael.Api.Services
     {
         private readonly RaphaelContext _context;
         private readonly ITripNotificationPublisher _tripNotifications;
+        private readonly IOperationClock _clock;
 
-        public BotService(RaphaelContext context, ITripNotificationPublisher tripNotifications)
+        public BotService(
+            RaphaelContext context,
+            ITripNotificationPublisher tripNotifications,
+            IOperationClock clock)
         {
             _context = context;
             _tripNotifications = tripNotifications;
+            _clock = clock;
         }
         public async Task<string> ActivateWillCallAsync(string tripNumber)
         {
@@ -37,7 +43,10 @@ namespace Raphael.Api.Services
             {
                 string priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
 
-                trip.FromTime = DateTime.Now.TimeOfDay; // When Will Call is activated, the pickup time is updated to the current time.
+                // Wall-clock time where the trip is operated, not where this server is
+                // hosted. A dispatcher reading a pickup fixed three hours in the past has
+                // an hour to get a vehicle there and no idea it already started.
+                trip.FromTime = _clock.TimeOfDayFor(trip.ProviderId);
                 trip.Status = TripStatus.Waiting; // When Will Call is activated, the status changes to "Waiting" for the driver.
                 trip.WillCall = false; // Mark WillCall as false since it's now activated
 
@@ -58,7 +67,7 @@ namespace Raphael.Api.Services
                     Field = "WillCall",
                     PriorValue = priorValue,
                     NewValue = newValue,
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
 
                 await _context.SaveChangesAsync();
@@ -121,7 +130,7 @@ namespace Raphael.Api.Services
                     Field = "Status",
                     PriorValue = priorValue,
                     NewValue = newValue,
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
 
                 await _context.SaveChangesAsync();

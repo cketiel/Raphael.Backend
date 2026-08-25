@@ -37,7 +37,7 @@ namespace Raphael.Api.Services
                 Field = field,
                 PriorValue = priorVal,
                 NewValue = newVal,
-                ChangeDate = DateTime.Now
+                ChangeDate = DateTime.UtcNow
             };
             _context.TripHistories.Add(history);
             await _context.SaveChangesAsync();

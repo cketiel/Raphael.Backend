@@ -1,4 +1,4 @@
-using Azure;
+﻿using Azure;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services.Notifications;
@@ -261,7 +261,7 @@ namespace Raphael.Api.Services
                     Field = "Status",
                     PriorValue = priorValue,
                     NewValue = newValue,
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
             }
 
@@ -457,7 +457,7 @@ namespace Raphael.Api.Services
                     Field = "IntegrationSync",
                     PriorValue = isNew ? "N/A": "Trip Created",
                     NewValue = isNew ? "Trip Created" : "Trip Updated",
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
             }
 
@@ -1218,7 +1218,7 @@ namespace Raphael.Api.Services
                     Field = "Status",
                     PriorValue = priorValue,
                     NewValue = newValue,
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
             }
 

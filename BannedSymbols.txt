@@ -1,0 +1,15 @@
+## The machine's clock is not a business input.
+##
+## A trip at 09:15 is 09:15 at the pickup address, whoever is looking and wherever this is
+## hosted. Reading the host's clock is what put a Will Call pickup three hours in the past
+## and told a patient a deadline that existed nowhere.
+##
+## Use instead:
+##   DateTime.UtcNow                    for instants — when something happened
+##   IOperationClock.NowFor(providerId) for business wall-clock — what time the trip is
+##
+## See Raphael.Shared/Time/IOperationClock.cs.
+
+P:System.DateTime.Now;Use DateTime.UtcNow for an instant, or IOperationClock.NowFor(providerId) for wall-clock time where the trip is operated. The host's timezone is never the answer.
+P:System.DateTime.Today;Use IOperationClock.TodayFor(providerId): today where the work happens, not where this is hosted.
+M:System.DateTime.ToLocalTime;Converts to the host's timezone. Use IOperationClock.ToOperation(utc, providerId), or let the client application convert for display.

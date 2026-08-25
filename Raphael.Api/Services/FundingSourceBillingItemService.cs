@@ -6,16 +6,19 @@ using Microsoft.AspNetCore.Server.IISIntegration;
 using Microsoft.EntityFrameworkCore;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Raphael.Shared.Dtos;
+using Raphael.Shared.Time;
 
 namespace Raphael.Api.Services
 {
     public class FundingSourceBillingItemService : IFundingSourceBillingItemService
     {
         private readonly RaphaelContext _context;
+        private readonly IOperationClock _clock;
 
-        public FundingSourceBillingItemService(RaphaelContext context)
+        public FundingSourceBillingItemService(RaphaelContext context, IOperationClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         public async Task<List<FundingSourceBillingItemGetDto>> GetByFundingSourceIdAsync(int fundingSourceId, bool includeExpired)
@@ -29,7 +32,12 @@ namespace Raphael.Api.Services
 
             if (!includeExpired)
             {
-                query = query.Where(i => i.ToDate.Date >= DateTime.Today.Date);
+                // A rate expires on a calendar date where the business operates, not where
+                // this is hosted. Off by a day, a rate is still being quoted after it lapsed
+                // or is refused while it is still valid.
+                var today = _clock.TodayFor(null);
+
+                query = query.Where(i => i.ToDate.Date >= today);
             }
            
             return await query.Select(i => new FundingSourceBillingItemGetDto

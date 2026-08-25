@@ -7,6 +7,7 @@ using Raphael.Shared.DbContexts;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Time;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -28,13 +29,16 @@ namespace Raphael.Api.Services
 
         private readonly ITripNotificationPublisher _tripNotifications;
 
-        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService, ITripNotificationPublisher tripNotifications)
+        private readonly IOperationClock _clock;
+
+        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService, ITripNotificationPublisher tripNotifications, IOperationClock clock)
         {
             _context = context;
             _jwtSettings = jwtOptions.Value;
             _hubContext = hubContext;
             _expoPushService = expoPushService;
             _tripNotifications = tripNotifications;
+            _clock = clock;
         }
 
         public async Task<ExpoPushResult> SendTestPushAsync(int customerId, string message)
@@ -247,7 +251,10 @@ namespace Raphael.Api.Services
                 string user = !string.IsNullOrEmpty(customerName) ? customerName : "Unknown Customer";
                 string priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
 
-                trip.FromTime = DateTime.Now.TimeOfDay; // When Will Call is activated, the pickup time is updated to the current time.
+                // Wall-clock time where the trip is operated, not where this server is
+                // hosted. A dispatcher reading a pickup fixed three hours in the past has
+                // an hour to get a vehicle there and no idea it already started.
+                trip.FromTime = _clock.TimeOfDayFor(trip.ProviderId);
                 trip.Status = TripStatus.Waiting; // When Will Call is activated, the status changes to "Waiting" for the driver.
                 trip.WillCall = false; // Mark WillCall as false since it's now activated
 
@@ -268,7 +275,7 @@ namespace Raphael.Api.Services
                     Field = "WillCall",
                     PriorValue = priorValue,
                     NewValue = newValue,
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
 
                 await _context.SaveChangesAsync();
@@ -336,7 +343,7 @@ namespace Raphael.Api.Services
                     Field = "Status",
                     PriorValue = priorValue,
                     NewValue = newValue,
-                    ChangeDate = DateTime.Now
+                    ChangeDate = DateTime.UtcNow
                 });
 
                 await _context.SaveChangesAsync();
