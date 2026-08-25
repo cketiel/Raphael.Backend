@@ -2,15 +2,33 @@
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.Admin;
 using Raphael.Notification.Application.DTOs;
+using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Interfaces;
 using Raphael.Shared.Services;
+// Both assemblies declare a NotificationRuleService, so these are named one by one rather
+// than importing the namespace.
 using NotificationRetentionService = Raphael.Notification.Application.Services.NotificationRetentionService;
+using NotificationArchiveService = Raphael.Notification.Application.Services.NotificationArchiveService;
 
 namespace Raphael.Api.Controllers.Admin;
 
 
+/// <summary>
+/// Governs the notification system: the catalog, which rules are on, and the cleanup.
+/// </summary>
+/// <remarks>
+/// ⚠️ Administrators only. Every action here rewrites how production notifies people, or
+/// deletes rows for good. Left open, anyone reaching the API could silence the Will Call
+/// notice or purge the office inbox mid-shift.
+///
+/// <para>
+/// The role is compared against <c>ClaimTypes.Role</c>, which the login issues as the
+/// numeric <c>RoleId</c>. Role 1 is Administrator.
+/// </para>
+/// </remarks>
 [ApiController]
 [Route("api/admin/notification/catalog")]
-//[Authorize(Roles = "1")]
+[Authorize(Roles = "1")]
 public sealed class NotificationCatalogController : ControllerBase
 {
 
@@ -22,13 +40,19 @@ public sealed class NotificationCatalogController : ControllerBase
 
     private readonly NotificationRetentionService _retentionService;
 
+    private readonly NotificationArchiveService _archiveService;
+
+    private readonly ICurrentUserService _currentUser;
+
 
 
     public NotificationCatalogController(
         BusinessEventCatalogSeeder businessEventCatalogSeeder,
         NotificationRuleCatalogSeeder notificationRuleCatalogSeeder,
         NotificationRuleService notificationRuleService,
-        NotificationRetentionService retentionService)
+        NotificationRetentionService retentionService,
+        NotificationArchiveService archiveService,
+        ICurrentUserService currentUser)
     {
         _businessEventCatalogSeeder = businessEventCatalogSeeder;
 
@@ -37,6 +61,10 @@ public sealed class NotificationCatalogController : ControllerBase
         _notificationRuleService = notificationRuleService;
 
         _retentionService = retentionService;
+
+        _archiveService = archiveService;
+
+        _currentUser = currentUser;
     }
 
 
@@ -51,7 +79,6 @@ public sealed class NotificationCatalogController : ControllerBase
     /// <param name="updateExisting">
     /// Also refresh the names and descriptions of the events already stored.
     /// </param>
-    [AllowAnonymous]
     [HttpPost("business-events")]
     public async Task<IActionResult> SeedBusinessEvents(
         [FromQuery] bool updateExisting = false,
@@ -80,7 +107,6 @@ public sealed class NotificationCatalogController : ControllerBase
         }
     }
 
-    [AllowAnonymous]
     [HttpPost("notification-rules")]
     public async Task<IActionResult> SeedNotificationRules(
     [FromQuery] bool updateExisting = false,
@@ -110,7 +136,6 @@ public sealed class NotificationCatalogController : ControllerBase
     }
 
 
-    [AllowAnonymous]
     [HttpGet("rules")]
     public async Task<IActionResult> GetRules()
     {
@@ -124,7 +149,6 @@ public sealed class NotificationCatalogController : ControllerBase
 
 
 
-    [AllowAnonymous]
     [HttpGet("rules/{id:guid}")]
     public async Task<IActionResult> GetRule(Guid id)
     {
@@ -143,7 +167,6 @@ public sealed class NotificationCatalogController : ControllerBase
 
 
 
-    [AllowAnonymous]
     [HttpPut("rules")]
     public async Task<IActionResult> UpdateRule(
         UpdateNotificationRuleDto dto)
@@ -168,7 +191,6 @@ public sealed class NotificationCatalogController : ControllerBase
 
 
 
-    [AllowAnonymous]
     [HttpPatch("rules/{id:guid}/active")]
     public async Task<IActionResult> SetRuleActive(
         Guid id,
@@ -195,7 +217,6 @@ public sealed class NotificationCatalogController : ControllerBase
     /// Silences one notice across all the applications it reaches, without hunting down
     /// the rule of each audience.
     /// </remarks>
-    [AllowAnonymous]
     [HttpPatch("events/{businessEventCode}/active")]
     public async Task<IActionResult> SetEventActive(
         string businessEventCode,
@@ -221,7 +242,6 @@ public sealed class NotificationCatalogController : ControllerBase
     /// The emergency stop. When a family of notices turns out to be wrong or too noisy,
     /// this silences all of it in one action instead of picking rules off a list.
     /// </remarks>
-    [AllowAnonymous]
     [HttpPatch("groups/{groupCode}/active")]
     public async Task<IActionResult> SetGroupActive(
         string groupCode,
@@ -246,13 +266,26 @@ public sealed class NotificationCatalogController : ControllerBase
     /// <remarks>
     /// The same pass a background worker runs every night: it expires what is past due
     /// and deletes what expired long enough ago. Exposed for when it has to happen now.
+    ///
+    /// <para>
+    /// ⚠️ It deletes records, so it is recorded against the name of whoever ran it. The
+    /// nightly worker leaves a log line instead: there is no person behind it to record.
+    /// </para>
     /// </remarks>
-    [AllowAnonymous]
     [HttpPost("retention/run")]
     public async Task<IActionResult> RunRetention(
         CancellationToken cancellationToken)
     {
         var result = await _retentionService.RunAsync(cancellationToken);
+
+        await _archiveService.RecordAndSaveAsync(
+            NotificationAdminActions.RetentionRun,
+            _currentUser.UserId,
+            _currentUser.UserName,
+            notificationId: null,
+            affectedCount: result.Deleted,
+            details: $"expired={result.Expired} deleted={result.Deleted}",
+            cancellationToken: cancellationToken);
 
         return Ok(new
         {
