@@ -79,6 +79,11 @@ namespace Raphael.Shared.DbContexts
 
         public DbSet<NotificationRuleAction> NotificationRuleActions { get; set; }
 
+        /// <summary>
+        /// Who archived, purged or deleted notification records. Outlives what it records.
+        /// </summary>
+        public DbSet<NotificationAdminAudit> NotificationAdminAudits { get; set; }
+
         #endregion
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -90,7 +95,28 @@ namespace Raphael.Shared.DbContexts
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {          
+        {
+            // ⚠️ No relationship to Notifications on purpose. This table exists to outlive
+            // the rows it describes; a cascade from a deleted notification would erase the
+            // evidence of its own deletion.
+            modelBuilder.Entity<NotificationAdminAudit>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Action)
+                    .IsRequired()
+                    .HasMaxLength(40);
+
+                entity.Property(x => x.PerformedByUsername)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.Details)
+                    .HasMaxLength(500);
+
+                // The panel reads it newest first, and always the whole trail.
+                entity.HasIndex(x => x.PerformedAtUtc);
+            });
 
             modelBuilder.Entity<Integrator>()
                 .HasOne(i => i.FundingSource)

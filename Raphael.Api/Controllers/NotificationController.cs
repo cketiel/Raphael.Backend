@@ -5,6 +5,7 @@ using Raphael.Notification.Application.Commands.MarkNotificationViewed;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Queries.GetNotificationById;
 using Raphael.Notification.Application.Queries.GetRecipientNotifications;
+using Raphael.Notification.Application.Services;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Interfaces;
 
@@ -19,6 +20,7 @@ public sealed class NotificationController : ControllerBase
     private readonly GetNotificationByIdHandler _getNotificationByIdHandler;
     private readonly MarkNotificationViewedHandler _markViewedHandler;
     private readonly MarkNotificationAcknowledgedHandler _markAcknowledgedHandler;
+    private readonly NotificationArchiveService _archiveService;
     private readonly ICurrentUserService _currentUser;
 
     public NotificationController(
@@ -26,12 +28,14 @@ public sealed class NotificationController : ControllerBase
         GetNotificationByIdHandler getNotificationByIdHandler,
         MarkNotificationViewedHandler markViewedHandler,
         MarkNotificationAcknowledgedHandler markAcknowledgedHandler,
+        NotificationArchiveService archiveService,
         ICurrentUserService currentUser)
     {
         _getRecipientNotificationsHandler = getRecipientNotificationsHandler;
         _getNotificationByIdHandler = getNotificationByIdHandler;
         _markViewedHandler = markViewedHandler;
         _markAcknowledgedHandler = markAcknowledgedHandler;
+        _archiveService = archiveService;
         _currentUser = currentUser;
     }
 
@@ -116,6 +120,57 @@ public sealed class NotificationController : ControllerBase
             cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Keeps this notification: the cleanup will never expire or delete it.
+    /// </summary>
+    /// <remarks>
+    /// For a notice somebody will have to answer for later — a trip a patient disputes, a
+    /// cancellation under investigation. Any signed-in office user can do it, because
+    /// keeping a record is the safe direction: the cost of an unnecessary archive is a row,
+    /// and the cost of losing one is a question nobody can answer.
+    ///
+    /// <para>
+    /// It does not put the notice back in anybody's inbox: the reading window does not
+    /// move, so it still leaves the office list twelve hours after it was raised.
+    /// </para>
+    ///
+    /// <para>
+    /// Note the identifier: this takes the <b>notification</b> id, unlike view and
+    /// acknowledge, which take the recipient row. Archiving is a decision about the record
+    /// itself, not about one audience's copy of it.
+    /// </para>
+    /// </remarks>
+    [HttpPost("{notificationId:guid}/archive")]
+    public async Task<IActionResult> Archive(
+        Guid notificationId,
+        CancellationToken cancellationToken)
+    {
+        var archived = await _archiveService.ArchiveAsync(
+            notificationId,
+            _currentUser.UserId,
+            _currentUser.UserName,
+            cancellationToken);
+
+        return archived ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Takes the decision back: the notification ages and is deleted like any other.
+    /// </summary>
+    [HttpPost("{notificationId:guid}/unarchive")]
+    public async Task<IActionResult> Unarchive(
+        Guid notificationId,
+        CancellationToken cancellationToken)
+    {
+        var unarchived = await _archiveService.UnarchiveAsync(
+            notificationId,
+            _currentUser.UserId,
+            _currentUser.UserName,
+            cancellationToken);
+
+        return unarchived ? NoContent() : NotFound();
     }
 }
 
