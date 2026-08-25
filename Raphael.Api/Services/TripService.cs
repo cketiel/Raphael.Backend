@@ -9,6 +9,7 @@ using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
+using Raphael.Shared.Time;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -21,14 +22,25 @@ namespace Raphael.Api.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly NotificationService _notificationService;
         private readonly ITripNotificationPublisher _tripNotifications;
+        private readonly IOperationClock _clock;
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock)
         {
             _context = context;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
             _tripNotifications = tripNotifications;
+            _clock = clock;
         }
+
+        /// <summary>
+        /// The hour a Will Call carries until the patient says they are ready.
+        /// </summary>
+        /// <remarks>
+        /// A convention, not a computation: 23:59 in a pickup time is how the whole office
+        /// reads "this one is waiting on the patient".
+        /// </remarks>
+        private static readonly TimeSpan WillCallPickupTime = new(23, 59, 0);
 
         public async Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int? integratorId)
         {
@@ -795,7 +807,12 @@ namespace Raphael.Api.Services
             trip.Authorization = dto.Authorization;
             trip.Distance = dto.Distance;
             trip.ETA = dto.ETA;
-            trip.WillCall = dto.WillCall;
+
+            // ⚠️ WillCall is deliberately not written here. It governs a promise to a
+            // patient — an hour to get a vehicle there — and the only two doors to it are
+            // ActivateWillCallAsync and RevertToWillCallAsync, which record who did it and
+            // tell the patient. An edit form that could flip it silently is how a trip
+            // stopped being a Will Call with nobody the wiser.
             //trip.VehicleRouteId = (dto.VehicleRouteId == 0) ? null : dto.VehicleRouteId;
             trip.DriverNoShowReason = dto.DriverNoShowReason;
             trip.FundingSourceId = dto.FundingSourceId;
@@ -1273,6 +1290,125 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        /// <summary>
+        /// The office activates a Will Call on the patient's behalf: they rang the office
+        /// instead of pressing the button in their app.
+        /// </summary>
+        /// <param name="fromTime">
+        /// Pickup time the dispatcher settled on. Null means now, and "now" is wall-clock
+        /// time where the trip is operated — never the hour of the machine running this.
+        /// </param>
+        /// <remarks>
+        /// ⚠️ One of the two doors to <c>Trip.WillCall</c>. From this instant the office has
+        /// an hour to get a vehicle to the patient, and the hour is counted from here, not
+        /// from the pickup time chosen: a dispatcher writing a later hour does not buy the
+        /// office more time.
+        /// </remarks>
+        public async Task<bool> ActivateWillCallAsync(int id, TimeSpan? fromTime)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+
+            if (trip is null || trip.IsCancelled || !trip.WillCall)
+                return false;
+
+            var activatedAtUtc = _clock.UtcNow;
+
+            var priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
+
+            trip.FromTime = fromTime ?? _clock.TimeOfDayFor(trip.ProviderId);
+            trip.Status = TripStatus.Waiting;
+            trip.WillCall = false;
+
+            WriteWillCallHistory(trip, priorValue);
+
+            await _context.SaveChangesAsync();
+
+            // Outside any catch, and after the save: a notification that could not be sent
+            // must never make anybody believe the activation was not registered.
+            //
+            // The patient is told this time, unlike when they press the button themselves:
+            // somebody did it on their behalf and they have not seen any confirmation.
+            await _tripNotifications.WillCallActivatedAsync(
+                trip,
+                activatedAtUtc,
+                notifyRider: true);
+
+            return true;
+        }
+
+        /// <summary>
+        /// The trip goes back to waiting for the patient to say they are ready.
+        /// </summary>
+        /// <param name="fromTime">
+        /// Pickup time to leave on the trip. Null means the 23:59 the office reads as
+        /// "waiting on the patient".
+        /// </param>
+        /// <remarks>
+        /// ⚠️ The other door to <c>Trip.WillCall</c>. Undoing a mistaken activation and
+        /// turning an ordinary trip into a Will Call are the same operation, which is why
+        /// this is not called an "undo": both end with a trip waiting on its patient.
+        /// </remarks>
+        public async Task<bool> RevertToWillCallAsync(int id, TimeSpan? fromTime)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+
+            if (trip is null || trip.IsCancelled || trip.WillCall)
+                return false;
+
+            var priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
+
+            trip.FromTime = fromTime ?? WillCallPickupTime;
+            trip.Status = TripStatus.Assigned;
+            trip.WillCall = true;
+
+            WriteWillCallHistory(trip, priorValue);
+
+            await _context.SaveChangesAsync();
+
+            await _tripNotifications.WillCallCreatedAsync(trip);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Records who moved the Will Call flag, and what it looked like before.
+        /// </summary>
+        /// <remarks>
+        /// The whole point of putting this field behind two operations: whatever happens to
+        /// it now has a name and a time against it.
+        /// </remarks>
+        private void WriteWillCallHistory(Trip trip, string priorValue)
+        {
+            var newValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
+
+            _context.TripLogs.Add(new TripLog
+            {
+                TripId = trip.Id,
+                Status = trip.Status,
+                Date = _clock.UtcNow.Date,
+                Time = _clock.UtcNow.TimeOfDay
+            });
+
+            _context.TripHistories.Add(new TripHistory
+            {
+                TripId = trip.Id,
+                User = ResolveActorName(),
+                Field = "WillCall",
+                PriorValue = priorValue,
+                NewValue = newValue,
+                ChangeDate = _clock.UtcNow
+            });
+        }
+
+        private string ResolveActorName()
+        {
+            var name = _currentUserService?.UserName;
+
+            return string.IsNullOrWhiteSpace(name)
+                ? "Dispatcher"
+                : $"Dispatcher - {name}";
+        }
+
         public async Task<bool> UncancelAsync(int id)
         {
             var trip = await _context.Trips.FindAsync(id);
@@ -1305,7 +1441,6 @@ namespace Raphael.Api.Services
             try
             {
                 await _context.SaveChangesAsync();
-                return true;
             }
             catch (DbUpdateException ex)
             {
@@ -1315,6 +1450,14 @@ namespace Raphael.Api.Services
                 }
                 throw;
             }
+
+            // The patient was told their ride was gone. Telling them it is back is the
+            // other half of that conversation, and until now nobody said anything at all.
+            // Published after the save and outside the catch: the trip is reactivated
+            // whether or not anybody managed to be told.
+            await _tripNotifications.TripReactivatedAsync(trip);
+
+            return true;
         }
 
         public async Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto)
@@ -1325,10 +1468,13 @@ namespace Raphael.Api.Services
                 return false; // Not found
             }
 
-            // Map only allowed fields from this DTO
+            // Map only allowed fields from this DTO.
+            //
+            // ⚠️ WillCall is not one of them, however much the DTO still carries it. See
+            // ActivateWillCallAsync and RevertToWillCallAsync: those are the only two
+            // writers, and they leave a history row and a notification behind.
             trip.Type = dto.Type;
             trip.FromTime = dto.FromTime;
-            trip.WillCall = dto.WillCall;
             trip.PickupPhone = dto.PickupPhone;
             trip.PickupComment = dto.PickupComment;
             trip.DropoffPhone = dto.DropoffPhone;

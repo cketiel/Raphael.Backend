@@ -1,4 +1,5 @@
-
+﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services;
@@ -387,6 +388,62 @@ namespace Raphael.Api.Controllers
             {
                 // If when trying to uncancel it is detected that there is already another active equal
                 return Conflict(new { Message = ex.Message }); // Error Code 409: Using Conflict() in the controller helps the Frontend know that it is not a programming error (500), but a duplicate data problem, allowing it to display an alert message to the user.
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// The office activates a Will Call because the patient rang instead of using the app.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ One of the only two endpoints allowed to move <c>Trip.WillCall</c>. From here
+        /// the office has one hour to get a vehicle to the patient.
+        /// </remarks>
+        [HttpPost("{id}/will-call/activate")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ActivateWillCall(int id, [FromBody] WillCallUpdateDto? dto)
+        {
+            try
+            {
+                var success = await _tripService.ActivateWillCallAsync(id, dto?.FromTime);
+
+                if (!success)
+                {
+                    return NotFound(new { Message = $"Trip with ID {id} not found, cancelled, or not a Will Call." });
+                }
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// The trip goes back to waiting for the patient to say they are ready.
+        /// </summary>
+        [HttpPost("{id}/will-call/revert")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> RevertToWillCall(int id, [FromBody] WillCallUpdateDto? dto)
+        {
+            try
+            {
+                var success = await _tripService.RevertToWillCallAsync(id, dto?.FromTime);
+
+                if (!success)
+                {
+                    return NotFound(new { Message = $"Trip with ID {id} not found, cancelled, or already a Will Call." });
+                }
+
+                return NoContent();
             }
             catch (Exception ex)
             {

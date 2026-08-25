@@ -292,7 +292,7 @@ namespace Raphael.Api.Services
 
         public async Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date)
         {
-            return await _context.Trips
+            var trips = await _context.Trips
                 .Include(t => t.Customer)
                 .Include(t => t.FundingSource)
                 .Include(t => t.SpaceType)
@@ -331,11 +331,20 @@ namespace Raphael.Api.Services
                     Status = t.Status,
                     FundingSourceId = t.FundingSourceId,  
                     DriverNoShowReason = t.DriverNoShowReason,
-                    PickupCity = t.PickupCity,  
+                    PickupCity = t.PickupCity,
                     DropoffCity = t.DropoffCity,
                     IsCanceled = t.IsCancelled,
+                    ProviderId = t.ProviderId,
                 })
                 .ToListAsync();
+
+            // Resolved here and not in the projection: the fallback chain is code, not
+            // something the database can answer. Desktop gets the effective zone, so the
+            // hour it suggests for a Will Call is the hour at the pickup address.
+            foreach (var trip in trips)
+                trip.ProviderTimeZoneId = _clock.ZoneFor(trip.ProviderId).Id;
+
+            return trips;
         }
 
         // When the first trip is routed for a route on a specific day,

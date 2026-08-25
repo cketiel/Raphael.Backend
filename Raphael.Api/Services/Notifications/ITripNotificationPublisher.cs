@@ -42,6 +42,29 @@ namespace Raphael.Api.Services.Notifications
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// A cancelled trip was put back in service.
+        /// </summary>
+        /// <remarks>
+        /// The patient was told their ride was gone, so they are told it is back. The
+        /// driver is not: the trip has no route at this point.
+        /// </remarks>
+        Task TripReactivatedAsync(
+            Trip trip,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// The trip became a Will Call: it waits for the patient to say they are ready.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ The opposite of an activation, not of a notification. Nothing is switched
+        /// off — a Will Call comes into existence for this trip, whether a dispatcher undid
+        /// an activation or turned an ordinary trip into one.
+        /// </remarks>
+        Task WillCallCreatedAsync(
+            Trip trip,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// A patient reported being ready on a Will Call trip. The office has one hour
         /// from <paramref name="activatedAtUtc"/> to get a vehicle there.
         /// </summary>

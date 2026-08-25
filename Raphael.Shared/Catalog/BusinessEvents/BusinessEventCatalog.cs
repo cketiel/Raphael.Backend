@@ -157,6 +157,22 @@ public static class BusinessEventCatalog
             GroupName = "Administration",
             GroupDescription = "Administrative trip events.",
 
+            EventCode = "TRIP_REACTIVATED",
+            EventName = "Trip Reactivated",
+            EventDescription = "A cancelled trip was put back in service.",
+            Source = "TripService"
+        },
+
+        new()
+        {
+            CategoryCode = "SCHEDULING",
+            CategoryName = "Scheduling",
+            CategoryDescription = "Events related to trip scheduling and lifecycle.",
+
+            GroupCode = "ADMINISTRATION",
+            GroupName = "Administration",
+            GroupDescription = "Administrative trip events.",
+
             EventCode = "TRIP_RESCHEDULED",
             EventName = "Trip Rescheduled",
             EventDescription = "A trip date or time was changed.",
@@ -1065,8 +1081,8 @@ public static class BusinessEventCatalog
 
             EventCode = "WILL_CALL_CREATED",
             EventName = "Will Call Created",
-            EventDescription = "A Will Call request was created.",
-            Source = "WillCallService"
+            EventDescription = "A trip became a Will Call and now waits for the patient to say they are ready.",
+            Source = "TripService"
         },
 
         new()

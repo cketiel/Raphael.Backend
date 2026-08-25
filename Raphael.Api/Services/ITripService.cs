@@ -26,6 +26,16 @@ namespace Raphael.Api.Services
         Task<bool> CancelAsync(int id);
         Task<bool> CancelByDriverAsync(int id, string reason, string driverName);
         Task<bool> UncancelAsync(int id);
+
+        /// <summary>
+        /// ⚠️ One of the only two writers of <c>Trip.WillCall</c>. See the service.
+        /// </summary>
+        Task<bool> ActivateWillCallAsync(int id, TimeSpan? fromTime);
+
+        /// <summary>
+        /// ⚠️ The other one. Puts the trip back to waiting for its patient.
+        /// </summary>
+        Task<bool> RevertToWillCallAsync(int id, TimeSpan? fromTime);
         Task<bool> UpdateFromDispatchAsync(int id, TripDispatchUpdateDto dto);
         Task<bool> AssignRunAsync(int id, int? vehicleRouteId);
         Task<bool> StartTripAsync(int id, TimeSpan? travel);

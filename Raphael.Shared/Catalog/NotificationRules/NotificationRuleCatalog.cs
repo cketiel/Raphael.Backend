@@ -1,4 +1,4 @@
-using Raphael.Shared.Definitions.Notifications;
+﻿using Raphael.Shared.Definitions.Notifications;
 
 namespace Raphael.Shared.Catalog.NotificationRules;
 
@@ -176,7 +176,84 @@ public static class NotificationRuleCatalog
 
         #endregion
 
+        #region TRIP_REACTIVATED
+
+        new()
+        {
+            RuleCode = "RULE_TRIP_REACTIVATED_RIDER",
+            RuleName = "Trip Reactivated - Rider",
+            Description = "Tells the patient the ride they were told was gone is back.",
+            BusinessEventCode = "TRIP_REACTIVATED",
+            Type = NotificationType.Confirmation,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.Rider],
+            Channels = [DeliveryChannel.InApp, DeliveryChannel.Push],
+            Actions = ["VIEW_TRIP"]
+        },
+
+        new()
+        {
+            RuleCode = "RULE_TRIP_REACTIVATED_DESKTOP",
+            RuleName = "Trip Reactivated - Desktop",
+            Description = "Tells the dispatch office a trip is back on the board and needs a route again.",
+            BusinessEventCode = "TRIP_REACTIVATED",
+            Type = NotificationType.Notice,
+            Priority = NotificationPriority.Medium,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.DesktopUser],
+            Channels = [DeliveryChannel.InApp],
+            Actions = ["OPEN_TRIP"]
+        },
+
+        new()
+        {
+            RuleCode = "RULE_TRIP_REACTIVATED_INTEGRATION",
+            RuleName = "Trip Reactivated - Integration",
+            Description = "Tells the external system the trip it was told had been cancelled is active again.",
+            BusinessEventCode = "TRIP_REACTIVATED",
+            Type = NotificationType.Notice,
+            Priority = NotificationPriority.Medium,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.Integration],
+            Channels = [DeliveryChannel.InApp],
+            Actions = []
+        },
+
+        // ⚠️ No driver rule on purpose. A trip coming out of cancellation has no route and
+        // nobody is on the way to it; the driver is told when it is scheduled again.
+
+        #endregion
+
         #region WILL_CALL
+
+        new()
+        {
+            RuleCode = "RULE_WILL_CALL_CREATED_RIDER",
+            RuleName = "Will Call Created - Rider",
+            Description = "Tells the patient their trip now waits for them to say they are ready.",
+            BusinessEventCode = "WILL_CALL_CREATED",
+            Type = NotificationType.Confirmation,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.Rider],
+            Channels = [DeliveryChannel.InApp],
+            Actions = ["VIEW_TRIP"]
+        },
+
+        new()
+        {
+            RuleCode = "RULE_WILL_CALL_CREATED_DESKTOP",
+            RuleName = "Will Call Created - Desktop",
+            Description = "Tells the office the trip is waiting on the patient, so nobody dispatches a vehicle for it.",
+            BusinessEventCode = "WILL_CALL_CREATED",
+            Type = NotificationType.Notice,
+            Priority = NotificationPriority.Medium,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.DesktopUser],
+            Channels = [DeliveryChannel.InApp],
+            Actions = ["OPEN_TRIP"]
+        },
 
         new()
         {

@@ -63,6 +63,53 @@ namespace Raphael.Api.Services.Notifications
                 cancellationToken);
         }
 
+        public async Task TripReactivatedAsync(
+            Trip trip,
+            CancellationToken cancellationToken = default)
+        {
+            if (trip is null) return;
+
+            var data = BuildTripData(trip);
+
+            // ⚠️ No driver, deliberately. A trip coming out of cancellation has no route:
+            // there is nobody on the way to it to be told, and the driver hears about it
+            // when it is scheduled again.
+            await PublishAsync(
+                BusinessEventCodes.TripReactivated,
+                trip,
+                data,
+                ResolveDesktopAuthor(),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// The trip went back to waiting for the patient to say they are ready.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ Not the opposite of a notification, the opposite of an activation. Nothing is
+        /// switched off: a Will Call comes into existence for this trip, which is why the
+        /// event is <c>WILL_CALL_CREATED</c> and not a "deactivated".
+        /// </remarks>
+        public async Task WillCallCreatedAsync(
+            Trip trip,
+            CancellationToken cancellationToken = default)
+        {
+            if (trip is null) return;
+
+            var data = BuildTripData(trip);
+
+            // Same reason as an activation: an integration is told when the state of its
+            // trip changes for its own purposes, not about the office's back and forth.
+            data.Remove(BusinessEventDataKeys.IntegrationId);
+
+            await PublishAsync(
+                BusinessEventCodes.WillCallCreated,
+                trip,
+                data,
+                ResolveDesktopAuthor(),
+                cancellationToken);
+        }
+
         public async Task WillCallActivatedAsync(
             Trip trip,
             DateTime activatedAtUtc,

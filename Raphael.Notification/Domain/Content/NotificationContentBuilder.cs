@@ -180,6 +180,25 @@ public static class NotificationContentBuilder
                 return ("Trip Cancelled",
                     $"{Capitalize(tripLabel)}{whenForRider} was cancelled{DescribeActorSuffix(cancelledBy)}.");
 
+            case BusinessEventCodes.TripReactivated:
+
+                return isRider
+                    ? ("Trip Reactivated",
+                       $"Your trip{whenForRider} is active again. We will let you know once a vehicle is assigned.")
+                    : ("Trip Reactivated",
+                       $"{Capitalize(tripLabel)}{whenForRider} was reactivated after being cancelled, and needs a route again.");
+
+            case BusinessEventCodes.WillCallCreated:
+
+                // ⚠️ Nothing is switched off here: the trip goes back to waiting for the
+                // patient. Saying "cancelled" or "deactivated" to a patient would read as
+                // losing their ride, which is the opposite of what happened.
+                return isRider
+                    ? ("Will Call",
+                       "Your trip is now a Will Call. Tell us when you are ready and the office will send a vehicle.")
+                    : ("Will Call",
+                       $"{Capitalize(tripLabel)} is a Will Call: it waits until the patient says they are ready. No vehicle is due until then.");
+
             case BusinessEventCodes.WillCallActivated:
 
                 var activatedAt = GetDateTime(context, BusinessEventDataKeys.WillCallActivatedAtUtc)
