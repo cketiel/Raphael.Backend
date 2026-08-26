@@ -42,6 +42,29 @@ namespace Raphael.Api.Controllers
             return Ok(schedules);
         }
 
+        /// <summary>
+        /// The events of one trip: its pickup and its dropoff, pickup first.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ An unknown trip answers 200 with an empty list, not 404. A caller has to be
+        /// able to tell "this API does not have the endpoint yet" from "this trip has no
+        /// events", because Desktop falls back to the by-route reader on the first and
+        /// must not on the second. 404 is reserved for the route not existing.
+        ///
+        /// <para>
+        /// Born with <c>[Authorize]</c> per the ecosystem rule. The rest of this controller
+        /// is still open — see <c>_meta/SECURITY_FINDINGS.md</c> F9 — but that is a separate
+        /// remediation and closing it here would break whoever calls those without a token.
+        /// </para>
+        /// </remarks>
+        [Authorize]
+        [HttpGet("by-trip/{tripId:int}")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetSchedulesByTrip(int tripId)
+        {
+            var schedules = await _scheduleService.GetSchedulesByTripAsync(tripId);
+            return Ok(schedules);
+        }
+
         [HttpGet("unscheduled")]
         public async Task<ActionResult<IEnumerable<UnscheduledTripDto>>> GetUnscheduledTrips([FromQuery] DateTime date)
         {

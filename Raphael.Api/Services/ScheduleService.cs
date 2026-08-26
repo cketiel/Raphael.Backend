@@ -290,6 +290,69 @@ namespace Raphael.Api.Services
                 .ToListAsync();*/
         }
 
+        /// <summary>
+        /// The events of one trip — its pickup and its dropoff — ordered pickup first.
+        /// </summary>
+        /// <remarks>
+        /// Callers that want the leg of a single trip used to ask for the whole day of its
+        /// line and keep the two rows they needed. That reads dozens of rows to use two,
+        /// misses a trip whose events were filed under a different date, and returns
+        /// nothing at all for a trip nobody has routed.
+        ///
+        /// <para>
+        /// ⚠️ Cancelled trips are NOT filtered out here, unlike
+        /// <see cref="GetSchedulesByRouteAndDateAsync"/>. The caller named this trip; the
+        /// commonest reason to ask about one is a notice saying it was cancelled, and
+        /// hiding its events would leave that notice with nothing to show.
+        /// </para>
+        /// </remarks>
+        public async Task<IEnumerable<ScheduleDto>> GetSchedulesByTripAsync(int tripId)
+        {
+            return await _context.Schedules
+                .Where(s => s.TripId == tripId)
+                .OrderBy(s => s.EventType)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute.Driver.FullName,
+
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    ArriveDist = s.ArriveDistance,
+                    PerformDist = s.PerformDistance,
+                    GPSArrive = s.GpsArrive,
+                    Odometer = s.Odometer,
+                    Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType,
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type,
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    VehicleRouteId = s.VehicleRouteId,
+                    Patient = s.Trip.Customer.FullName,
+                    CustomerId = s.Trip.CustomerId,
+                    CustomerPhone = s.Trip.Customer.Phone,
+                    Status = s.Trip.Status
+                })
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date)
         {
             var trips = await _context.Trips
@@ -376,6 +439,20 @@ namespace Raphael.Api.Services
             if (tripToRoute.VehicleRouteId.HasValue)
             {
                 throw new InvalidOperationException($"Trip with ID {request.TripId} is already routed.");
+            }
+
+            // A cancelled trip cannot be put on a route. Without this, routing one would
+            // set Status to Scheduled below and quietly uncancel it while IsCancelled
+            // stayed true: the two markers would disagree, UncancelAsync would refuse it
+            // from then on, a driver would be handed a patient who was told not to expect
+            // a vehicle, and that patient would be sent TRIP_SCHEDULED.
+            //
+            // Both markers are checked, not just one, because trips already exist with
+            // them out of step — this same hole is what put them there.
+            if (tripToRoute.IsCancelled || tripToRoute.Status == TripStatus.Canceled)
+            {
+                throw new InvalidOperationException(
+                    $"Trip with ID {request.TripId} is cancelled and cannot be routed.");
             }
 
             // Start a transaction to ensure the atomicity of the operation.

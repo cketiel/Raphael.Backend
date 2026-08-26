@@ -7,6 +7,16 @@ namespace Raphael.Api.Services
         Task<IEnumerable<ScheduleDto>> GetSchedulesByRunLoginAndDateAsync(string runLogin, DateTime date);
         Task<IEnumerable<ScheduleDto>> GetPendingSchedulesForDriverAsync(string runLogin, DateTime date);
         Task<IEnumerable<ScheduleDto>> GetSchedulesByRouteAndDateAsync(int vehicleRouteId, DateTime date);
+
+        /// <summary>
+        /// The events of one trip — its pickup and its dropoff — ordered pickup first.
+        /// </summary>
+        /// <remarks>
+        /// Unlike the by-route reader, this one does not hide the events of a cancelled
+        /// trip. The caller already named the trip it wants, and the commonest reason to
+        /// ask about a single trip is a notice saying it was cancelled.
+        /// </remarks>
+        Task<IEnumerable<ScheduleDto>> GetSchedulesByTripAsync(int tripId);
         Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date);
         Task RouteTripAsync(RouteTripRequest request);
         Task CancelRouteForTripAsync(int scheduleId);
