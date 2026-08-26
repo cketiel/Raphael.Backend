@@ -68,6 +68,17 @@ namespace Raphael.Shared.DTOs
         public string? NotificationEmail { get; set; }
         public IFormFile? Attachment { get; set; }
 
+        /// <summary>
+        /// Set to true to delete the document currently stored against this trip.
+        /// </summary>
+        /// <remarks>
+        /// Sending no file no longer deletes anything. A multipart request cannot tell
+        /// "no document this time" apart from "remove the document", so a routine update
+        /// of a pickup time used to destroy the paperwork attached to the trip. Removal
+        /// now has to be asked for.
+        /// </remarks>
+        public bool RemoveAttachment { get; set; }
+
         public string? Status { get; set; }
     }
 }

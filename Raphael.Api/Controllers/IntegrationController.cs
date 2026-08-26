@@ -40,8 +40,11 @@ namespace Raphael.Api.Controllers
         /// <summary>
         /// Retrieves the Integrator ID stored in the HttpContext by the security filter.
         /// </summary>
-        private int? CurrentIntegratorId => (int)HttpContext.Items["IntegratorId"]!; 
-        private string? CurrentIntegratorName => (string)HttpContext.Items["IntegratorName"]!;
+        private int? CurrentIntegratorId =>
+            HttpContext.Items.TryGetValue("IntegratorId", out var id) && id is int value ? value : null;
+
+        private string? CurrentIntegratorName =>
+            HttpContext.Items.TryGetValue("IntegratorName", out var name) ? name as string : null;
         public IntegrationController(
             ITripService tripService,
             ICurrentUserService currentUserService,
@@ -83,14 +86,22 @@ namespace Raphael.Api.Controllers
         /// <b>Requirement:</b> This endpoint requires <i>multipart/form-data</i> because it handles binary file transfers.
         /// </remarks>
         /// <param name="trips">List of trip objects. Use indexed naming (e.g., trips[0].TripId, trips[0].Attachment).</param>
-        /// <response code="200">Synchronization completed successfully.</response>
+        /// <b>Partial success:</b> trips are stored one by one and reported one by one.
+        /// A rejected trip stores nothing and does not stop the rest of the batch, so read
+        /// <i>Results</i> rather than the status code alone. Each rejected trip carries an
+        /// <i>ErrorCode</i> to branch on, a message describing what to fix, a <i>Retryable</i>
+        /// flag, and a <i>CorrelationId</i> to quote when contacting support.
+        /// <response code="200">Every trip in the batch was stored.</response>
+        /// <response code="207">Some trips were stored and some were rejected. See Results.</response>
         /// <response code="400">The request is empty or contains malformed data.</response>
         /// <response code="401">Unauthorized. API Key is invalid or missing.</response>
-        /// <response code="500">Internal server error during data processing.</response>
+        /// <response code="422">Every trip in the batch was rejected. See Results.</response>
         [HttpPost("sync")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IntegrationSyncResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(IntegrationSyncResultDto), StatusCodes.Status207MultiStatus)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(IntegrationSyncResultDto), StatusCodes.Status422UnprocessableEntity)]
         //To handle files (PDF/Word), the request format was changed from JSON to Multipart Form-Data. This was necessary because the JSON protocol is not efficient for sending binary files.
         public async Task<IActionResult> Sync([FromForm] List<IntegrationTripDto> trips) // Critical Change: Changed [FromBody] to [FromForm]. When files are sent, the data does not travel as a flat JSON in the body, but as a form with parts (multipart).
         {
@@ -99,25 +110,21 @@ namespace Raphael.Api.Controllers
                 return BadRequest("The trip list cannot be empty.");
             }
 
-            try
-            {
-                string user = !string.IsNullOrEmpty(CurrentIntegratorName) ? CurrentIntegratorName : "Unknown Integrator";
-                user = $"Integrator - {user}";
+            // No catch here on purpose. Failures that belong to one trip are translated and
+            // reported inside the batch; anything that escapes is a fault of ours, and the
+            // global handler logs it in full and answers with ProblemDetails. Swallowing it
+            // here to echo ex.Message is what hid the real cause and told the integrator
+            // only that "an error occurred while saving the entity changes".
+            var result = await _tripService.UpsertIntegrationTripsAsync(trips, CurrentIntegratorId, CurrentIntegratorName);
 
-                var processedTripIds = await _tripService.UpsertIntegrationTripsAsync(trips, CurrentIntegratorId, user);
-         
-                return Ok(new
-                {
-                    Success = true,
-                    Message = "Synchronization completed successfully.",
-                    ProcessedCount = processedTripIds.Count,
-                    Timestamp = DateTime.UtcNow
-                });
+            if (result.FailedCount == 0)
+            {
+                return Ok(result);
             }
-            catch (Exception ex)
-            {               
-                return StatusCode(500, $"An error occurred during synchronization: {ex.Message}");
-            }
+
+            return result.ProcessedCount == 0
+                ? UnprocessableEntity(result)
+                : StatusCode(StatusCodes.Status207MultiStatus, result);
         }
 
         /// <summary>

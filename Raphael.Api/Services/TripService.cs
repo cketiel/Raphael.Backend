@@ -1,6 +1,7 @@
 ﻿using Azure;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services.Integration;
 using Raphael.Api.Services.Notifications;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Services;
@@ -23,14 +24,16 @@ namespace Raphael.Api.Services
         private readonly NotificationService _notificationService;
         private readonly ITripNotificationPublisher _tripNotifications;
         private readonly IOperationClock _clock;
+        private readonly ILogger<TripService> _logger;
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger)
         {
             _context = context;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
             _tripNotifications = tripNotifications;
             _clock = clock;
+            _logger = logger;
         }
 
         /// <summary>
@@ -305,176 +308,420 @@ namespace Raphael.Api.Services
             return await query.ToListAsync();
         }
 
-        public async Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId, string? integratorName) 
+        /// <summary>
+        /// Stores a batch of trips sent by an integrator, reporting on each one separately.
+        /// </summary>
+        /// <remarks>
+        /// Every trip is stored, or rejected, on its own. A batch used to be one unit of
+        /// work with a single save at the end, so one bad row failed the whole request and
+        /// the integrator was handed a bare 500 that named neither the trip nor the reason.
+        /// </remarks>
+        public async Task<IntegrationSyncResultDto> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId, string? integratorName)
         {
-            var processedIds = new List<string>();
+            string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
+            user = $"Integrator - {user}";
+
+            var result = new IntegrationSyncResultDto { Timestamp = _clock.UtcNow };
 
             foreach (var dto in dtos)
             {
-                // 1. Resolve SpaceType (Unique by Name)
-                var spaceType = await _context.SpaceTypes.FirstOrDefaultAsync(s => s.Name == dto.SpaceTypeName);
-                if (spaceType == null)
+                var correlationId = Guid.NewGuid().ToString("N");
+
+                try
                 {
-                    spaceType = new SpaceType
-                    {
-                        Name = dto.SpaceTypeName,
-                        Description = "Auto-created via Integration",
-                        LoadTime = 0,
-                        UnloadTime = 0,
-                        CapacityTypeId = 1,
-                        IsActive = true
-                    };
-                    _context.SpaceTypes.Add(spaceType);
-                    await _context.SaveChangesAsync();
-                }
+                    var outcome = await UpsertSingleIntegrationTripAsync(dto, integratorId, user);
 
-                // 2. Resolve FundingSource (Unique by Name)
-                var fundingSource = await _context.FundingSources.FirstOrDefaultAsync(f => f.Name == dto.FundingSourceName);
-                if (fundingSource == null)
-                {
-                    fundingSource = new FundingSource
-                    {
-                        Name = dto.FundingSourceName ?? "Unknown",
-                        IsActive = true
-                    };
-                    _context.FundingSources.Add(fundingSource);
-                    await _context.SaveChangesAsync();
-                }
-
-                // 3. Resolve Customer (Unique by RiderId or Logic: Name + Phone)
-                string effectiveRiderId = string.IsNullOrWhiteSpace(dto.RiderId)
-                    ? $"{dto.CustomerFullName} {dto.CustomerPhone}".Trim()
-                    : dto.RiderId;
-
-                var customer = await _context.Customers.FirstOrDefaultAsync(c => c.RiderId == effectiveRiderId);
-                if (customer == null)
-                {
-                    customer = new Customer
-                    {
-                        RiderId = effectiveRiderId,
-                        FullName = dto.CustomerFullName,
-                        Phone = dto.CustomerPhone,
-                        Address = dto.CustomerAddress ?? "Integration Provided",
-                        City = dto.CustomerCity ?? "Unknown",
-                        Zip = dto.CustomerZip ?? "00000",
-                        State = "N/A",
-                        Gender = dto.CustomerGender ?? "Unknown",
-                        FundingSourceId = fundingSource.Id,
-                        SpaceTypeId = spaceType.Id,
-                        Created = DateTime.UtcNow,
-                        CreatedBy = "IntegrationSystem",
-                        IntegratorId = integratorId
-                    };
-                    _context.Customers.Add(customer);
-                    await _context.SaveChangesAsync();
-                }
-
-                // 4. Resolve Trip (Unique by TripId and by integrator)
-                var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == dto.TripId && t.IntegratorId == integratorId);
-                bool isNew = false;
-
-                if (trip == null)
-                {
-                    isNew = true;
-                    trip = new Trip
+                    result.Results.Add(new IntegrationSyncItemResultDto
                     {
                         TripId = dto.TripId,
-                        IntegratorId = integratorId,
-                        Created = DateTime.UtcNow,
-                        Status = TripStatus.Assigned
-                    };
-                    _context.Trips.Add(trip);
+                        Status = outcome
+                    });
+                    result.ProcessedCount++;
                 }
-
-                // Update Properties
-                trip.Date = dto.Date;
-                trip.Day = dto.Date.DayOfWeek.ToString();
-                trip.FromTime = dto.FromTime;
-                trip.ToTime = dto.ToTime;
-                trip.CustomerId = customer.Id;
-                trip.SpaceTypeId = spaceType.Id;
-                trip.FundingSourceId = fundingSource.Id;
-                trip.PickupAddress = dto.PickupAddress;
-                trip.PickupLatitude = dto.PickupLatitude;
-                trip.PickupLongitude = dto.PickupLongitude;
-                trip.DropoffAddress = dto.DropoffAddress;
-                trip.DropoffLatitude = dto.DropoffLatitude;
-                trip.DropoffLongitude = dto.DropoffLongitude;
-                trip.Distance = dto.Distance;
-                trip.PickupCity = dto.PickupCity;
-                trip.DropoffCity = dto.DropoffCity;
-                trip.Type = dto.Type ?? TripType.Appointment;
-                trip.Authorization = dto.Authorization;
-                trip.IsCancelled = false;
-
-                trip.PickupComment = dto.PickupComment;
-                trip.DropoffComment = dto.DropoffComment;
-
-                // --- IMPROVED ATTACHMENT LOGIC (UPSERT / DELETE) ---
-
-                // We look if the trip already has a file
-                var existingAttachment = await _context.TripAttachments.FirstOrDefaultAsync(a => a.TripId == trip.Id);
-
-                if (dto.Attachment != null && dto.Attachment.Length > 0)
+                catch (Exception ex)
                 {
-                    // Scenario: A file was sent (Create or Update)
-                    using var ms = new MemoryStream();
-                    await dto.Attachment.CopyToAsync(ms);
-                    byte[] fileData = ms.ToArray();
+                    // The failed trip left entities in the tracker belonging to a transaction
+                    // that is already rolled back. They go now, or the next trip's save
+                    // replays them and fails for a reason that has nothing to do with it.
+                    DiscardPendingChanges();
 
-                    if (existingAttachment == null)
+                    var error = IntegrationErrorTranslator.Translate(ex);
+
+                    // A refusal is the endpoint working: the trip was wrong, not the system.
+                    // Anything else is ours, and that is where the correlation id earns its
+                    // keep, because the cause stays here in full and only a key to it
+                    // crosses the wire.
+                    if (ex is IntegrationRejectedException)
                     {
-                        // INSERT: It didn't exist, we created it
-                        var newAttachment = new TripAttachment
-                        {
-                            Trip = trip,
-                            FileName = dto.Attachment.FileName,
-                            FileContent = fileData,
-                            ContentType = dto.Attachment.ContentType,
-                            NotificationEmail = dto.NotificationEmail,
-                            Created = DateTime.UtcNow
-                        };
-                        _context.TripAttachments.Add(newAttachment);
+                        _logger.LogWarning(
+                            "Integration sync refused a trip. CorrelationId={CorrelationId} IntegratorId={IntegratorId} ExternalTripId={ExternalTripId} ErrorCode={ErrorCode}",
+                            correlationId,
+                            integratorId,
+                            dto.TripId,
+                            error.Code);
                     }
                     else
                     {
-                        // UPDATE: It already existed, we replaced the data
-                        existingAttachment.FileName = dto.Attachment.FileName;
-                        existingAttachment.FileContent = fileData;
-                        existingAttachment.ContentType = dto.Attachment.ContentType;
-                        existingAttachment.NotificationEmail = dto.NotificationEmail;
-                        existingAttachment.Created = DateTime.UtcNow;
-                        _context.TripAttachments.Update(existingAttachment);
+                        _logger.LogError(
+                            "Integration sync failed on a trip. CorrelationId={CorrelationId} IntegratorId={IntegratorId} ExternalTripId={ExternalTripId} ErrorCode={ErrorCode} Cause={Cause} Stack={Stack}",
+                            correlationId,
+                            integratorId,
+                            dto.TripId,
+                            error.Code,
+                            IntegrationErrorTranslator.DescribeForLog(ex),
+                            ex.StackTrace);
                     }
+
+                    result.Results.Add(new IntegrationSyncItemResultDto
+                    {
+                        TripId = dto.TripId,
+                        Status = IntegrationSyncStatus.Failed,
+                        ErrorCode = error.Code,
+                        Message = error.Message,
+                        Retryable = error.Retryable,
+                        CorrelationId = correlationId
+                    });
+                    result.FailedCount++;
+                }
+            }
+
+            result.Success = result.FailedCount == 0;
+            result.Message = result.Success
+                ? "Synchronization completed successfully."
+                : $"{result.ProcessedCount} trips were synchronized and {result.FailedCount} were rejected. See Results for the reason on each.";
+
+            return result;
+        }
+
+        /// <summary>
+        /// Stores one integration trip, or leaves the database exactly as it found it.
+        /// </summary>
+        /// <remarks>
+        /// The transaction is what makes per-trip reporting honest. The space type, the
+        /// funding source and the patient each have to be saved before the trip can point
+        /// at them, so without it a trip that fails at the last step would still leave a
+        /// patient behind: the integrator would be told the trip was rejected while a
+        /// record of that patient quietly existed.
+        /// </remarks>
+        /// <returns><see cref="IntegrationSyncStatus.Created"/> or <see cref="IntegrationSyncStatus.Updated"/>.</returns>
+        private async Task<string> UpsertSingleIntegrationTripAsync(IntegrationTripDto dto, int? integratorId, string user)
+        {
+            var externalTripId = dto.TripId?.Trim();
+            if (string.IsNullOrEmpty(externalTripId))
+            {
+                throw Reject(
+                    IntegrationErrorCode.InvalidTripId,
+                    "TripId is blank. It is the identifier this trip is matched on, so without it an update cannot be told apart from a new booking.");
+            }
+
+            // The unique index over active trips keys on Date, so a trip carrying a time of
+            // day would sit next to the same journey booked at midnight instead of clashing
+            // with it. The date of a trip is a calendar day; the window is FromTime/ToTime.
+            var tripDate = dto.Date.Date;
+
+            var now = _clock.UtcNow;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            // 1. Resolve SpaceType (Unique by Name)
+            var spaceTypeName = dto.SpaceTypeName.Trim();
+            var spaceType = await _context.SpaceTypes.FirstOrDefaultAsync(s => s.Name == spaceTypeName);
+            if (spaceType == null)
+            {
+                spaceType = new SpaceType
+                {
+                    Name = spaceTypeName,
+                    Description = "Auto-created via Integration",
+                    LoadTime = 0,
+                    UnloadTime = 0,
+                    CapacityTypeId = 1,
+                    IsActive = true
+                };
+                _context.SpaceTypes.Add(spaceType);
+                await _context.SaveChangesAsync();
+            }
+
+            // 2. Resolve FundingSource (by Name). Trimmed, because nothing stops a second
+            // "Medicaid " being created next to the first one: unlike SpaceType, this table
+            // has no unique index to catch it.
+            var fundingSourceName = string.IsNullOrWhiteSpace(dto.FundingSourceName)
+                ? "Unknown"
+                : dto.FundingSourceName.Trim();
+
+            var fundingSource = await _context.FundingSources.FirstOrDefaultAsync(f => f.Name == fundingSourceName);
+            if (fundingSource == null)
+            {
+                fundingSource = new FundingSource
+                {
+                    Name = fundingSourceName,
+                    IsActive = true
+                };
+                _context.FundingSources.Add(fundingSource);
+                await _context.SaveChangesAsync();
+            }
+
+            // 3. Resolve Customer (Unique by RiderId or Logic: Name + Phone)
+            var customer = await ResolveIntegrationCustomerAsync(dto, integratorId, spaceType.Id, fundingSource.Id, now);
+
+            // 4. Resolve Trip (Unique by TripId and by integrator)
+            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == externalTripId && t.IntegratorId == integratorId);
+            bool isNew = trip == null;
+
+            // A cancelled trip is outside the unique index of active trips. Letting a sync
+            // quietly clear the flag would put a trip nobody is expecting back on a route,
+            // and it is how a cancelled journey ends up colliding with the one booked to
+            // replace it.
+            if (trip is { IsCancelled: true })
+            {
+                throw Reject(
+                    IntegrationErrorCode.TripCancelled,
+                    "This trip was cancelled, and synchronizing it will not reinstate it. If the journey is going ahead again, send it under a new TripId.");
+            }
+
+            await GuardAgainstDuplicateActiveTripAsync(dto, tripDate, customer.Id, trip?.Id ?? 0, integratorId);
+
+            if (isNew)
+            {
+                trip = new Trip
+                {
+                    TripId = externalTripId,
+                    IntegratorId = integratorId,
+                    Created = now,
+                    Status = TripStatus.Assigned,
+                    IsCancelled = false
+                };
+                _context.Trips.Add(trip);
+            }
+
+            // Update Properties
+            trip!.Date = tripDate;
+            trip.Day = tripDate.DayOfWeek.ToString();
+            trip.FromTime = dto.FromTime;
+            trip.ToTime = dto.ToTime;
+            trip.CustomerId = customer.Id;
+            trip.SpaceTypeId = spaceType.Id;
+            trip.FundingSourceId = fundingSource.Id;
+            trip.PickupAddress = dto.PickupAddress;
+            trip.PickupLatitude = dto.PickupLatitude;
+            trip.PickupLongitude = dto.PickupLongitude;
+            trip.DropoffAddress = dto.DropoffAddress;
+            trip.DropoffLatitude = dto.DropoffLatitude;
+            trip.DropoffLongitude = dto.DropoffLongitude;
+            trip.Distance = dto.Distance;
+            trip.PickupCity = dto.PickupCity;
+            trip.DropoffCity = dto.DropoffCity;
+            trip.Type = dto.Type ?? TripType.Appointment;
+            trip.Authorization = dto.Authorization;
+
+            trip.PickupComment = dto.PickupComment;
+            trip.DropoffComment = dto.DropoffComment;
+
+            // --- ATTACHMENT (UPSERT / EXPLICIT DELETE) ---
+
+            // We look if the trip already has a file. A brand new trip has no key to
+            // look one up by yet, and cannot have an attachment either.
+            var existingAttachment = isNew
+                ? null
+                : await _context.TripAttachments.FirstOrDefaultAsync(a => a.TripId == trip.Id);
+
+            if (dto.Attachment != null && dto.Attachment.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await dto.Attachment.CopyToAsync(ms);
+                byte[] fileData = ms.ToArray();
+
+                if (existingAttachment == null)
+                {
+                    _context.TripAttachments.Add(new TripAttachment
+                    {
+                        Trip = trip,
+                        FileName = dto.Attachment.FileName,
+                        FileContent = fileData,
+                        ContentType = dto.Attachment.ContentType,
+                        NotificationEmail = dto.NotificationEmail,
+                        Created = now
+                    });
                 }
                 else
                 {
-                    // Scenario: NO file was sent in the current request
-                    // If a file existed previously, Integrator (Ryde Central) wants to delete it
-                    if (existingAttachment != null)
-                    {
-                        _context.TripAttachments.Remove(existingAttachment);
-                    }
+                    existingAttachment.FileName = dto.Attachment.FileName;
+                    existingAttachment.FileContent = fileData;
+                    existingAttachment.ContentType = dto.Attachment.ContentType;
+                    existingAttachment.NotificationEmail = dto.NotificationEmail;
+                    existingAttachment.Created = now;
                 }
-
-                processedIds.Add(dto.TripId);
-
-                string user = !string.IsNullOrEmpty(integratorName) ? integratorName : "Unknown Integrator";
-                user = $"Integrator - {user}";
-
-                _context.TripHistories.Add(new TripHistory
-                {
-                    TripId = trip.Id,
-                    User = user,
-                    Field = "IntegrationSync",
-                    PriorValue = isNew ? "N/A": "Trip Created",
-                    NewValue = isNew ? "Trip Created" : "Trip Updated",
-                    ChangeDate = DateTime.UtcNow
-                });
+            }
+            else if (dto.RemoveAttachment && existingAttachment != null)
+            {
+                // Only on request. Sending no file means "nothing to say about the file",
+                // not "throw the paperwork away".
+                _context.TripAttachments.Remove(existingAttachment);
             }
 
+            _context.TripHistories.Add(new TripHistory
+            {
+                // The navigation rather than trip.Id: on a new trip the identity value is
+                // still a placeholder here, and pointing at the instance lets EF write the
+                // real key once the trip row exists.
+                Trip = trip,
+                User = user,
+                Field = "IntegrationSync",
+                PriorValue = isNew ? "N/A" : "Trip Exists",
+                NewValue = isNew ? "Trip Created" : "Trip Updated",
+                ChangeDate = now
+            });
+
             await _context.SaveChangesAsync();
-            return processedIds;
+            await transaction.CommitAsync();
+
+            return isNew ? IntegrationSyncStatus.Created : IntegrationSyncStatus.Updated;
+        }
+
+        /// <summary>
+        /// Finds the patient this trip is for, creating the record on first sight.
+        /// </summary>
+        /// <remarks>
+        /// When no RiderId is sent the patient is keyed on name and phone together. Name
+        /// alone is not an identity: two patients called John Smith would collapse into one
+        /// record and each would start seeing the other's trips. So a trip that carries
+        /// neither a RiderId nor a phone number is refused rather than guessed at.
+        /// </remarks>
+        private async Task<Customer> ResolveIntegrationCustomerAsync(
+            IntegrationTripDto dto,
+            int? integratorId,
+            int spaceTypeId,
+            int fundingSourceId,
+            DateTime now)
+        {
+            var riderId = dto.RiderId?.Trim();
+            var phone = dto.CustomerPhone?.Trim();
+            var fullName = dto.CustomerFullName.Trim();
+
+            if (string.IsNullOrEmpty(riderId) && string.IsNullOrEmpty(phone))
+            {
+                throw Reject(
+                    IntegrationErrorCode.PatientNotIdentifiable,
+                    "The patient cannot be identified from what was sent. Provide RiderId, or provide CustomerPhone together with CustomerFullName. "
+                    + "With only a name, two different patients who share one would be merged into a single record.");
+            }
+
+            var effectiveRiderId = string.IsNullOrEmpty(riderId)
+                ? $"{fullName} {phone}".Trim()
+                : riderId;
+
+            var customer = await _context.Customers.FirstOrDefaultAsync(c => c.RiderId == effectiveRiderId);
+            if (customer != null)
+            {
+                return customer;
+            }
+
+            customer = new Customer
+            {
+                RiderId = effectiveRiderId,
+                FullName = fullName,
+                Phone = phone,
+                Address = dto.CustomerAddress ?? "Integration Provided",
+                City = dto.CustomerCity ?? "Unknown",
+                Zip = dto.CustomerZip ?? "00000",
+                State = "N/A",
+                Gender = dto.CustomerGender ?? "Unknown",
+                FundingSourceId = fundingSourceId,
+                SpaceTypeId = spaceTypeId,
+                Created = now,
+                CreatedBy = "IntegrationSystem",
+                IntegratorId = integratorId
+            };
+            _context.Customers.Add(customer);
+            await _context.SaveChangesAsync();
+
+            return customer;
+        }
+
+        /// <summary>
+        /// Refuses a trip that repeats a journey already booked and still active.
+        /// </summary>
+        /// <remarks>
+        /// The database holds a unique index over the active trips of a patient: same date,
+        /// same two addresses, same pickup window. That index is what stops one patient
+        /// being sent the same journey twice. This upsert matches on the integrator's own
+        /// TripId, which is a different key, so a trip arriving under a new TripId can
+        /// describe a journey that already exists and only find out at the insert.
+        ///
+        /// <para>
+        /// Checking it here is what turns a failed insert into an answer. It also decides
+        /// how much can be said: the clashing trip is named only when it belongs to the
+        /// same integrator. A trip booked by someone else, or entered from the back office,
+        /// is another tenant's record, and its identifier is not ours to hand over.
+        /// </para>
+        /// </remarks>
+        private async Task GuardAgainstDuplicateActiveTripAsync(
+            IntegrationTripDto dto,
+            DateTime tripDate,
+            int customerId,
+            int currentTripId,
+            int? integratorId)
+        {
+            var clash = await _context.Trips
+                .AsNoTracking()
+                .Where(t => !t.IsCancelled
+                            && t.Id != currentTripId
+                            && t.Date == tripDate
+                            && t.CustomerId == customerId
+                            && t.PickupAddress == dto.PickupAddress
+                            && t.DropoffAddress == dto.DropoffAddress
+                            && t.FromTime == dto.FromTime
+                            && t.ToTime == dto.ToTime)
+                .Select(t => new { t.TripId, t.IntegratorId })
+                .FirstOrDefaultAsync();
+
+            if (clash == null)
+            {
+                return;
+            }
+
+            const string Preamble =
+                "An active trip already exists for this patient on the same date, with the same pickup and dropoff addresses and the same pickup window. ";
+
+            var ours = clash.IntegratorId == integratorId && !string.IsNullOrWhiteSpace(clash.TripId);
+
+            throw Reject(
+                IntegrationErrorCode.DuplicateActiveTrip,
+                ours
+                    ? Preamble + $"You sent it as TripId '{clash.TripId}'. Send an update using that TripId, or cancel it before booking another."
+                    : Preamble + "It was not created through this integration, so it cannot be changed here. Contact the provider if the journey needs to change.");
+        }
+
+        /// <summary>
+        /// Refuses a trip with an answer already worded for the integrator.
+        /// </summary>
+        private static IntegrationRejectedException Reject(string code, string message, bool retryable = false)
+            => new(new IntegrationSyncError(code, message, retryable));
+
+        /// <summary>
+        /// Empties the change tracker of work that has been rolled back.
+        /// </summary>
+        /// <remarks>
+        /// Rolling a transaction back does not untrack anything: the entities stay Added
+        /// and the next SaveChanges tries to insert them again. Without this, one
+        /// malformed trip fails every trip queued behind it in the batch.
+        /// </remarks>
+        private void DiscardPendingChanges()
+        {
+            foreach (var entry in _context.ChangeTracker.Entries().ToList())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        entry.State = EntityState.Detached;
+                        break;
+
+                    case EntityState.Modified:
+                    case EntityState.Deleted:
+                        entry.CurrentValues.SetValues(entry.OriginalValues);
+                        entry.State = EntityState.Unchanged;
+                        break;
+                }
+            }
         }
 
         public async Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates)

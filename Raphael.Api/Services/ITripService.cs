@@ -10,7 +10,7 @@ namespace Raphael.Api.Services
         Task<List<string>> UpsertPortalTripsAsync(List<PortalTripDto> dtos, int? integratorId);
         Task<int> CancelIntegrationTripsAsync(List<string> externalTripIds, int? integratorId, string? integratorName, string cancelledBy = CancelledByTypes.Integrator);
         Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int? integratorId);
-        Task<List<string>> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId, string? integratorName);
+        Task<IntegrationSyncResultDto> UpsertIntegrationTripsAsync(List<IntegrationTripDto> dtos, int? integratorId, string? integratorName);
         Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates);
         Task<List<TripReadDto>> GetAllAsync();
         Task<(List<TripReadDto> Trips, int TotalCount)> GetAllAsync(int pageNumber = 1, int pageSize = 20);
