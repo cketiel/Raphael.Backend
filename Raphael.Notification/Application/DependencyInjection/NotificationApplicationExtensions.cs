@@ -1,7 +1,10 @@
 ﻿using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Raphael.Notification.Application.Commands.CreateNotification;
+using Raphael.Notification.Application.Commands.DeleteSignal;
+using Raphael.Notification.Application.Commands.MarkAllNotificationsViewed;
 using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
+using Raphael.Notification.Application.Commands.MarkNotificationUnviewed;
 using Raphael.Notification.Application.Commands.MarkNotificationViewed;
 using Raphael.Notification.Application.Commands.ProcessBusinessEvent;
 using Raphael.Notification.Application.Interfaces.Engine;
@@ -44,6 +47,9 @@ public static class NotificationApplicationExtensions
         services.AddScoped<GetRecipientNotificationsHandler>();
 
         services.AddScoped<MarkNotificationViewedHandler>();
+        services.AddScoped<MarkNotificationUnviewedHandler>();
+        services.AddScoped<DeleteSignalHandler>();
+        services.AddScoped<MarkAllNotificationsViewedHandler>();
         services.AddScoped<MarkNotificationAcknowledgedHandler>();
         services.AddScoped<
             IBusinessEventPublisher,

@@ -74,6 +74,36 @@ public class NotificationRecipient
         StatusId = NotificationStatus.Viewed.Id;
     }
 
+    /// <summary>
+    /// Puts the notification back in the unread pile.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Does nothing once the notification has been acknowledged. An acknowledgement is a
+    /// promise made to somebody else — <c>WILL_CALL_ACKNOWLEDGED</c> tells a patient that the
+    /// dispatch office took charge of their ride — and taking it back here would leave that
+    /// promise standing with nobody behind it.
+    ///
+    /// <para>
+    /// The status returns to <see cref="NotificationStatus.Delivered"/>, or to
+    /// <see cref="NotificationStatus.Created"/> when the notification never reached the
+    /// recipient in the first place. Unreading something is not the same as undelivering it.
+    /// </para>
+    /// </remarks>
+    public void MarkUnviewed()
+    {
+        if (AcknowledgedAtUtc.HasValue)
+            return;
+
+        if (!ViewedAtUtc.HasValue)
+            return;
+
+        ViewedAtUtc = null;
+
+        StatusId = DeliveredAtUtc.HasValue
+            ? NotificationStatus.Delivered.Id
+            : NotificationStatus.Created.Id;
+    }
+
     public void MarkAcknowledged()
     {
         if (AcknowledgedAtUtc.HasValue)

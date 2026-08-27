@@ -1,4 +1,4 @@
-using Raphael.Notification.Application.Helpers;
+﻿using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Interfaces.Factories;
 using Raphael.Notification.Domain.Content;
@@ -57,6 +57,11 @@ public sealed class NotificationFactory
             rule,
             operationZone);
 
+        // A signal is for an application, not for a person: it ages out in an hour instead
+        // of the audience window, because the app deletes it as soon as it acts on it and
+        // the ones left over are the ones nobody consumed.
+        var isSignal = content.Parameters.ContainsKey(NotificationMetadataKeys.Signal);
+
         var notification = new NotificationModel(
             businessEventCode: eventCode,
             priority: rule.Priority,
@@ -66,7 +71,8 @@ public sealed class NotificationFactory
             message: content.Message,
             expiresAtUtc: NotificationRetentionPolicy.ResolveExpiry(
                 DateTime.UtcNow,
-                audiences));
+                audiences,
+                isSignal));
 
         //
         // Recipients

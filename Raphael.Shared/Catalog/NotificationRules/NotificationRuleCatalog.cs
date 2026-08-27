@@ -176,6 +176,27 @@ public static class NotificationRuleCatalog
 
         #endregion
 
+        #region DRIVER_ROUTE_UPDATED
+
+        new()
+        {
+            RuleCode = "RULE_DRIVER_ROUTE_UPDATED_DRIVER",
+            RuleName = "Route Updated - Driver",
+            Description = "Signals Raphael.Driver that the route it has on screen is out of date.",
+            BusinessEventCode = "DRIVER_ROUTE_UPDATED",
+            Type = NotificationType.Notice,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.Driver],
+            // ⚠️ InApp only, and deliberately no Push. A signal is worth nothing with the app
+            // closed — the driver reloads their schedule when they open it anyway — and
+            // vibrating a phone at the wheel for something nobody is meant to read is noise.
+            Channels = [DeliveryChannel.InApp],
+            Actions = []
+        },
+
+        #endregion
+
         #region TRIP_REACTIVATED
 
         new()
@@ -440,8 +461,8 @@ public static class NotificationRuleCatalog
         Parked("RULE_ROUTE_MODIFIED_RIDER", "ROUTE_MODIFIED",
             "Nothing publishes route changes yet."),
 
-        Parked("RULE_DRIVER_ROUTE_UPDATED_DRIVER", "DRIVER_ROUTE_UPDATED",
-            "Nothing publishes route updates yet."),
+        // RULE_DRIVER_ROUTE_UPDATED_DRIVER is no longer parked: it is now the signal that
+        // tells Raphael.Driver its route is out of date. See the DRIVER_ROUTE_UPDATED region.
 
         Parked("RULE_DISPATCHER_ASSIGNED_TRIP_PROVIDER", "DISPATCHER_ASSIGNED_TRIP",
             "Providers are out of scope for now."),

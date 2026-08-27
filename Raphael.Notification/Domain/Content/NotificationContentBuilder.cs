@@ -180,6 +180,23 @@ public static class NotificationContentBuilder
                 return ("Trip Cancelled",
                     $"{Capitalize(tripLabel)}{whenForRider} was cancelled{DescribeActorSuffix(cancelledBy)}.");
 
+            case BusinessEventCodes.DriverRouteUpdated:
+
+                // A signal, not a notice. The flag is what keeps it out of the inbox and off
+                // the bell; the app reads RouteChange to know what to say and what to do.
+                parameters[NotificationMetadataKeys.Signal] = "true";
+
+                var routeChange = GetString(context, BusinessEventDataKeys.RouteChange)
+                                  ?? RouteChangeTypes.Removed;
+
+                parameters[NotificationMetadataKeys.RouteChange] = routeChange;
+
+                return routeChange == RouteChangeTypes.Added
+                    ? ("Route Updated",
+                       $"{Capitalize(tripLabel)} was added to your route. Your schedule needs to be reloaded.")
+                    : ("Route Updated",
+                       $"{Capitalize(tripLabel)} is no longer on your route. Your schedule needs to be reloaded.");
+
             case BusinessEventCodes.TripReactivated:
 
                 return isRider

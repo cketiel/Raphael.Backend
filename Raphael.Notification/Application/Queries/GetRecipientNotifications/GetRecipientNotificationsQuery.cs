@@ -1,4 +1,4 @@
-using Raphael.Shared.Definitions.Notifications;
+﻿using Raphael.Shared.Definitions.Notifications;
 
 namespace Raphael.Notification.Application.Queries.GetRecipientNotifications;
 
@@ -12,14 +12,22 @@ public class GetRecipientNotificationsQuery
     /// </summary>
     public RecipientType RecipientType { get; }
 
+    /// <summary>
+    /// Notices or signals. Defaults to notices, so an inbox that does not ask for signals
+    /// can never receive one.
+    /// </summary>
+    public NotificationScope Scope { get; }
+
 
     public GetRecipientNotificationsQuery(
         Guid recipientId,
-        RecipientType recipientType)
+        RecipientType recipientType,
+        NotificationScope scope = NotificationScope.Notices)
     {
         ArgumentNullException.ThrowIfNull(recipientType);
 
         RecipientId = recipientId;
         RecipientType = recipientType;
+        Scope = scope;
     }
 }

@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Notification.Application.Interfaces.Persistence;
+using Raphael.Notification.Application.Queries.GetRecipientNotifications;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DbContexts;
 using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
@@ -53,11 +55,12 @@ public class NotificationRepository : INotificationRepository
     public async Task<IReadOnlyList<NotificationModel>> GetByRecipientAsync(
         Guid recipientId,
         int recipientTypeId,
+        NotificationScope scope = NotificationScope.Notices,
         CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
 
-        return await _context.Notifications
+        var query = _context.Notifications
             .Include(n => n.Recipients)
             .Include(n => n.Metadata)
             .Include(n => n.Actions)
@@ -65,7 +68,15 @@ public class NotificationRepository : INotificationRepository
                 .Any(r => r.RecipientId == recipientId
                           && r.RecipientTypeId == recipientTypeId))
             .Where(n => n.ExpiresAtUtc == null
-                        || n.ExpiresAtUtc > now)
+                        || n.ExpiresAtUtc > now);
+
+        // A signal carries the marker; a notice does not. Splitting here rather than in the
+        // clients is what guarantees no inbox can ever show one.
+        query = scope == NotificationScope.Signals
+            ? query.Where(n => n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal))
+            : query.Where(n => !n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal));
+
+        return await query
             .OrderByDescending(n => n.CreatedAtUtc)
             .ToListAsync(cancellationToken);
     }

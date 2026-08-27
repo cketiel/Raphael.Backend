@@ -58,4 +58,44 @@ public static class NotificationMetadataKeys
 
     /// <summary>Deadline to get a vehicle to the patient, ISO 8601.</summary>
     public const string WillCallDeadlineUtc = "WillCallDeadlineUtc";
+
+    /// <summary>
+    /// Present, with the value <c>"true"</c>, when the notification is a signal for an
+    /// application rather than a notice for a person.
+    /// </summary>
+    /// <remarks>
+    /// A signal says "what you have on screen is out of date". Nobody reads it: the app acts
+    /// on it and deletes it. It is kept out of the inbox and out of the unread count.
+    ///
+    /// <para>
+    /// ⚠️ That filtering belongs on the <b>server</b>, in the driver inbox endpoints. Leaving
+    /// it to each client means the first client that forgets shows a driver a row that says
+    /// nothing to a human and inflates a badge nobody can clear.
+    /// </para>
+    /// </remarks>
+    public const string Signal = "Signal";
+
+    /// <summary>
+    /// What happened to the trip on the route. See <see cref="RouteChangeTypes"/>.
+    /// </summary>
+    public const string RouteChange = "RouteChange";
+}
+
+/// <summary>
+/// How a route changed, as carried by <see cref="NotificationMetadataKeys.RouteChange"/>.
+/// </summary>
+public static class RouteChangeTypes
+{
+    /// <summary>A dispatcher put a trip on the route.</summary>
+    public const string Added = "ADDED";
+
+    /// <summary>
+    /// A trip left the route: a dispatcher took it off, or it was cancelled.
+    /// </summary>
+    /// <remarks>
+    /// One value for both, because the driver does the same thing either way — the trip is
+    /// off their list and the route has to be reloaded. Whether it was cancelled or merely
+    /// reassigned is the office's business, and the cancellation has its own notice.
+    /// </remarks>
+    public const string Removed = "REMOVED";
 }

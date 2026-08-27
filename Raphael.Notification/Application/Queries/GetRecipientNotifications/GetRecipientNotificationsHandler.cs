@@ -24,6 +24,7 @@ public class GetRecipientNotificationsHandler
             await _notificationRepository.GetByRecipientAsync(
                 query.RecipientId,
                 query.RecipientType.Id,
+                query.Scope,
                 cancellationToken);
 
 

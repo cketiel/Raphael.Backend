@@ -86,14 +86,41 @@ public static class NotificationRetentionPolicy
     }
 
     /// <summary>
+    /// How long a signal is worth acting on.
+    /// </summary>
+    /// <remarks>
+    /// A signal says "the route on your screen is stale". The application deletes it the
+    /// moment it acts on it, so this only governs the ones nobody consumes — a phone that
+    /// was off, an app that was uninstalled mid-shift.
+    ///
+    /// <para>
+    /// One hour rather than the twelve a driver notice gets: past that the app has reloaded
+    /// its schedule for its own reasons and the signal would only make it reload again for
+    /// a change it already has.
+    /// </para>
+    /// </remarks>
+    public static TimeSpan SignalVisibleFor()
+    {
+        return TimeSpan.FromHours(1);
+    }
+
+    /// <summary>
     /// Expiry of a notification addressed to several audiences: the most generous one
     /// wins, so nobody loses a notice early because it was shared.
     /// </summary>
+    /// <param name="isSignal">
+    /// True for a notification no person will read. Signals age out in
+    /// <see cref="SignalVisibleFor"/> instead of the audience window.
+    /// </param>
     public static DateTime ResolveExpiry(
         DateTime createdAtUtc,
-        IEnumerable<RecipientType> audiences)
+        IEnumerable<RecipientType> audiences,
+        bool isSignal = false)
     {
         ArgumentNullException.ThrowIfNull(audiences);
+
+        if (isSignal)
+            return createdAtUtc.Add(SignalVisibleFor());
 
         var longest = audiences
             .Select(VisibleFor)

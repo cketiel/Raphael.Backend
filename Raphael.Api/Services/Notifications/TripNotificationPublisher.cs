@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Services;
 using Raphael.Shared.DbContexts;
@@ -61,6 +61,18 @@ namespace Raphael.Api.Services.Notifications
                 data,
                 ResolveCancellationAuthor(trip, cancelledBy),
                 cancellationToken);
+
+            // A cancelled trip that was on a route is, from the driver's seat, a trip that
+            // left their route. The notice above is what they read; this is what makes the
+            // app reload a schedule that no longer matches reality.
+            //
+            // Both go out even when the trip was under way, and that is not a duplicate: one
+            // is addressed to a person and shows in their inbox, the other is addressed to
+            // the application and never does.
+            await DriverRouteUpdatedAsync(
+                trip,
+                RouteChangeTypes.Removed,
+                cancellationToken: cancellationToken);
         }
 
         public async Task TripReactivatedAsync(
@@ -326,6 +338,114 @@ namespace Raphael.Api.Services.Notifications
             return UserIdentifierConverter.ToGuid(
                 _currentUserService.UserId.Value,
                 RecipientType.DesktopUser);
+        }
+
+        /// <inheritdoc />
+        public async Task DriverRouteUpdatedAsync(
+            Trip trip,
+            string routeChange,
+            int? vehicleRouteId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (trip is null) return;
+
+            try
+            {
+                var routeId = vehicleRouteId ?? trip.VehicleRouteId;
+
+                // No route means no driver watching a schedule that just went stale.
+                if (!routeId.HasValue)
+                    return;
+
+                var driverId = await ResolveRouteDriverIdAsync(routeId.Value, cancellationToken);
+
+                if (!driverId.HasValue)
+                    return;
+
+                // ⚠️ Only once the driver is out of the garage. Before Pull-out there is no
+                // live route on their screen to correct, and a signal then would interrupt
+                // somebody who is not working yet for a change they will see anyway when
+                // they start their shift.
+                if (!await HasPulledOutAsync(routeId.Value, trip.Date, cancellationToken))
+                    return;
+
+                var data = new Dictionary<string, object?>
+                {
+                    [BusinessEventDataKeys.TripId] = trip.Id,
+                    [BusinessEventDataKeys.Trip] = trip,
+                    [BusinessEventDataKeys.DriverId] = driverId.Value,
+                    [BusinessEventDataKeys.RouteChange] = routeChange
+                };
+
+                // Deliberately no PerformedByUserId. It exists so nobody is told about their
+                // own action, and here the actor is a dispatcher while the recipient is a
+                // driver: they can never be the same person, and carrying it would only put
+                // a dispatcher identifier on a driver's device.
+
+                await _notificationService.PublishAsync(
+                    eventCode: BusinessEventCodes.DriverRouteUpdated,
+                    aggregateId: UserIdentifierConverter.ToGuid(trip.Id),
+                    data: data,
+                    performedByUserId: null,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                // A signal that does not go out costs the driver one manual refresh. Letting
+                // it break the routing operation that caused it would cost a trip.
+                _logger.LogError(
+                    ex,
+                    "Could not publish DRIVER_ROUTE_UPDATED for trip {TripId}.",
+                    trip.Id);
+            }
+        }
+
+        /// <summary>
+        /// Driver of a route, by route id rather than through the trip.
+        /// </summary>
+        /// <remarks>
+        /// Needed because a trip taken off a route no longer carries the identifier of the
+        /// route it left, and that driver is precisely the one who has to be told.
+        /// </remarks>
+        private async Task<int?> ResolveRouteDriverIdAsync(
+            int vehicleRouteId,
+            CancellationToken cancellationToken)
+        {
+            var driverId = await _context.VehicleRoutes
+                .AsNoTracking()
+                .Where(x => x.Id == vehicleRouteId)
+                .Select(x => (int?)x.DriverId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return driverId is > 0 ? driverId : null;
+        }
+
+        /// <summary>
+        /// Whether the driver already started this route for this day.
+        /// </summary>
+        /// <remarks>
+        /// Pull-out is the event that marks leaving the garage. Its <c>Performed</c> flag is
+        /// the only thing in the data that says a driver is actually out working the route.
+        /// </remarks>
+        private async Task<bool> HasPulledOutAsync(
+            int vehicleRouteId,
+            DateTime? date,
+            CancellationToken cancellationToken)
+        {
+            if (!date.HasValue)
+                return false;
+
+            var day = date.Value.Date;
+
+            return await _context.Schedules
+                .AsNoTracking()
+                .AnyAsync(
+                    x => x.VehicleRouteId == vehicleRouteId
+                         && x.Name == "Pull-out"
+                         && x.Date.HasValue
+                         && x.Date.Value.Date == day
+                         && x.Performed,
+                    cancellationToken);
         }
 
         private async Task<int?> ResolveDriverIdAsync(

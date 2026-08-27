@@ -54,6 +54,12 @@ public static class BusinessEventDataKeys
 
     /// <summary>Absolute deadline by which a vehicle must reach the patient.</summary>
     public const string WillCallDeadlineUtc = "WillCallDeadlineUtc";
+
+    /// <summary>
+    /// Whether the trip entered or left the driver's route. See <c>RouteChangeTypes</c>.
+    /// Travels with <c>DRIVER_ROUTE_UPDATED</c>.
+    /// </summary>
+    public const string RouteChange = "RouteChange";
 }
 
 /// <summary>

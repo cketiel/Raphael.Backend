@@ -1,4 +1,4 @@
-﻿using Raphael.Shared.DbContexts;
+using Raphael.Shared.DbContexts;
 
 namespace Raphael.Api.Services
 {
@@ -14,6 +14,18 @@ namespace Raphael.Api.Services
             if (user == null) return false;
 
             user.PushToken = token;
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> ClearPushTokenAsync(int userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            // Already empty is the outcome the caller asked for, not a failure.
+            if (string.IsNullOrEmpty(user.PushToken)) return true;
+
+            user.PushToken = null;
             return await _context.SaveChangesAsync() > 0;
         }
     }

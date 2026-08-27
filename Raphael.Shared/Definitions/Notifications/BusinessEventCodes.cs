@@ -47,6 +47,28 @@ public static class BusinessEventCodes
     public const string DriverCompletedTrip = "DRIVER_COMPLETED_TRIP";
 
     /// <summary>
+    /// A trip entered or left the route a driver is already running.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ This one is a <b>signal</b>, not a notice. It exists so Raphael.Driver knows the
+    /// route it has on screen is out of date; it never reaches an inbox and never counts on
+    /// the bell. See <see cref="NotificationMetadataKeys.Signal"/>.
+    ///
+    /// <para>
+    /// It covers three situations that are the same fact from the driver's seat: a dispatcher
+    /// added a trip to the route, a dispatcher took one off it, and a trip on the route was
+    /// cancelled. Modelling them apart would mean three rules and three code paths in the app
+    /// for one question — what changed on my route.
+    /// </para>
+    ///
+    /// <para>
+    /// A cancellation still raises <see cref="TripCancelled"/> for the driver to read. That
+    /// notice is for the person; this signal is for the application.
+    /// </para>
+    /// </remarks>
+    public const string DriverRouteUpdated = "DRIVER_ROUTE_UPDATED";
+
+    /// <summary>
     /// A trip became a Will Call: it now waits for the patient to say they are ready.
     /// </summary>
     /// <remarks>

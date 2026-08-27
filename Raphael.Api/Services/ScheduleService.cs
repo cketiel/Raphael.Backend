@@ -1,9 +1,10 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services.Notifications;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Services;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
@@ -621,10 +622,21 @@ namespace Raphael.Api.Services
             // would try to roll back what is done and report an error for a trip that
             // was in fact routed.
             await _tripNotifications.TripScheduledAsync(tripToRoute);
+
+            // Signal to Raphael.Driver that the schedule it has on screen is out of date.
+            // Only reaches a driver already out of the garage; the publisher checks that.
+            await _tripNotifications.DriverRouteUpdatedAsync(
+                tripToRoute,
+                RouteChangeTypes.Added);
         }
 
         public async Task CancelRouteForTripAsync(int scheduleId)
         {
+            // Captured for the signal below: the driver of the route the trip is leaving has
+            // to be told, and by the time this returns the trip no longer points at it.
+            Trip? unroutedTrip = null;
+            int? formerVehicleRouteId = null;
+
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -687,11 +699,24 @@ namespace Raphael.Api.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                unroutedTrip = trip;
+                formerVehicleRouteId = vehicleRouteId;
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
                 throw;
+            }
+
+            // Outside the try, for the same reason as in RouteTripAsync: the transaction is
+            // committed, and a failure here must not roll back a trip that really was taken
+            // off the route.
+            if (unroutedTrip is not null)
+            {
+                await _tripNotifications.DriverRouteUpdatedAsync(
+                    unroutedTrip,
+                    RouteChangeTypes.Removed,
+                    formerVehicleRouteId);
             }
         }
 

@@ -1,4 +1,4 @@
-using Raphael.Shared.Entities;
+﻿using Raphael.Shared.Entities;
 
 namespace Raphael.Api.Services.Notifications
 {
@@ -24,6 +24,37 @@ namespace Raphael.Api.Services.Notifications
     /// </remarks>
     public interface ITripNotificationPublisher
     {
+        /// <summary>
+        /// A trip entered or left the route of a driver who is already out working it.
+        /// </summary>
+        /// <remarks>
+        /// This publishes a <b>signal</b>, not a notice: Raphael.Driver acts on it and deletes
+        /// it, and it never reaches an inbox or the bell. It covers the three ways a route
+        /// changes under a driver — a dispatcher adds a trip, a dispatcher takes one off, or a
+        /// trip on the route is cancelled — because from the driver's seat they are one fact:
+        /// the schedule on screen is wrong.
+        ///
+        /// <para>
+        /// ⚠️ Nothing is published unless the Pull-out of that route and day is performed.
+        /// Before that the driver has no live route to correct.
+        /// </para>
+        ///
+        /// <para>
+        /// A cancellation must still call <see cref="TripCancelledAsync"/> as well: that one
+        /// is the notice the driver reads, this one is the instruction the app obeys.
+        /// </para>
+        /// </remarks>
+        /// <param name="routeChange">See <see cref="Shared.Definitions.Notifications.RouteChangeTypes"/>.</param>
+        /// <param name="vehicleRouteId">
+        /// Route the trip left, for the case where it has already been detached from the trip
+        /// and <c>trip.VehicleRouteId</c> is null by the time this is called.
+        /// </param>
+        Task DriverRouteUpdatedAsync(
+            Trip trip,
+            string routeChange,
+            int? vehicleRouteId = null,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// A trip was cancelled, from any of its six origins.
         /// </summary>
