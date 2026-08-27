@@ -24,6 +24,24 @@ espeja en TypeScript. **Al tocar un DTO, una Entity o la firma de un controller,
 
 Drift abierto hoy: `ScheduleDto` → Desktop va 8 propiedades por detrás.
 
+## Integración externa — el contrato que no se arregla desplegando
+
+`IntegrationController` es el **único** controller con `[IntegrationApiKey]`, y del otro lado hay una
+empresa distinta con una copia de la especificación en la mano. **Al tocar cualquiera de estos,
+actualiza `../_meta/INTEGRATION_API_SPEC.md` antes de cerrar la tarea:**
+
+`IntegrationController` · `IntegrationTripDto` · `IntegrationSyncResultDto` ·
+`Services/Integration/*` · `UpsertIntegrationTripsAsync` · `TripStatus` ·
+las reglas de `RecipientType.Integration` en `NotificationRuleCatalog`
+
+Los tres documentos —`INTEGRATION_API_SPEC`, `NOTIFICATIONS_SPEC`, `NOTIFICATIONS_RETENTION`— se
+mueven juntos. `/focus integration` los abre.
+
+⚠️ **Nunca devuelvas texto de error de SQL Server a un integrador.** Lleva los valores de la fila
+rechazada, que aquí son fecha, dirección y teléfono de paciente.
+`Services/Integration/IntegrationErrorTranslator.cs` extrae solo el número de error y el nombre de
+constraint, y descarta el resto. No lo rodees.
+
 ## Anclas
 - Endpoints: `Raphael.Api/Controllers/`
 - Esquema de datos: `Raphael.Shared/Entities/` + `Raphael.Shared/Persistence/Configurations/`
