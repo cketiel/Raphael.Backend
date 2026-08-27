@@ -107,6 +107,7 @@ public sealed class NotificationCatalogController : ControllerBase
         }
     }
 
+    //[AllowAnonymous]
     [HttpPost("notification-rules")]
     public async Task<IActionResult> SeedNotificationRules(
     [FromQuery] bool updateExisting = false,
