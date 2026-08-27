@@ -456,6 +456,34 @@ namespace Raphael.Api.Services
                     $"Trip with ID {request.TripId} is cancelled and cannot be routed.");
             }
 
+            // Every clock field on a Schedule is a SQL `time`: a time of day, 00:00:00 to
+            // 23:59:59.9999999. The hours below are built by adding and subtracting
+            // TimeSpans, which has no floor at midnight and no ceiling at 24h, so a route
+            // that runs late — or one bad leg from Google — produces a value the column
+            // cannot hold. Saving it failed with a raw SqlDbType.Time overflow that named
+            // no field, and the dispatcher got a bare 400.
+            //
+            // The trip's own hours are refused, not trimmed. Trimming an ETA of 25:30 down
+            // to 23:59 lets the routing succeed and hands the driver a believable wrong
+            // hour: nobody finds out until a patient is not collected. A refusal that names
+            // the field says which input is broken, and the trip stays unrouted until it is.
+            // The garage hours are trimmed instead — see ClampToGarageHour below.
+            static void RequireTimeOfDay(string field, TimeSpan value)
+            {
+                if (value >= TimeSpan.Zero && value < TimeSpan.FromDays(1)) return;
+
+                throw new InvalidOperationException(
+                    $"{field} is {value:g}, which is not a time of day: it must be between " +
+                    "00:00:00 and 23:59:59. Check the trip's hours and its pickup and dropoff " +
+                    "coordinates, then route it again.");
+            }
+
+            RequireTimeOfDay("The pickup ETA", request.PickupETA);
+            RequireTimeOfDay("The travel time to the pickup", request.PickupTravelTime);
+            RequireTimeOfDay("The dropoff ETA", request.DropoffETA);
+            RequireTimeOfDay("The travel time to the dropoff", request.DropoffTravelTime);
+            RequireTimeOfDay("The travel time back to the garage", request.ReturnToGarageTravelTime);
+
             // Start a transaction to ensure the atomicity of the operation.
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -485,6 +513,32 @@ namespace Raphael.Api.Services
                 if (isFirstTripOfDay)
                 {
                     // If it is the first ride of the day, Pull-out and Pull-in events are created.
+                    //
+                    // Pull-out and Pull-in are the vehicle leaving the garage and coming back
+                    // to it. No patient is waiting on either hour, so when the arithmetic runs
+                    // off the ends of the day they are pinned to the ends of the day rather
+                    // than refusing the routing: an early start becomes 00:00:00 and a late
+                    // return becomes 23:59:59. The dispatcher's recalculation overwrites both
+                    // with measured hours immediately afterwards.
+                    static TimeSpan? ClampToGarageHour(TimeSpan? value)
+                    {
+                        if (value is null) return null;
+                        if (value.Value < TimeSpan.Zero) return TimeSpan.Zero;
+
+                        var endOfDay = new TimeSpan(23, 59, 59);
+                        return value.Value > endOfDay ? endOfDay : value.Value;
+                    }
+
+                    var pullOutEta = ClampToGarageHour(
+                        tripToRoute.FromTime - (TimeSpan.FromMinutes(20) + request.PickupTravelTime));
+
+                    // The return leg, not the trip's own leg. This used to add
+                    // request.DropoffTravelTime — the pickup-to-dropoff duration — which
+                    // charged the drive back to the garage the length of the trip that had
+                    // just ended. See RouteTripRequest.ReturnToGarageTravelTime.
+                    var pullInEta = ClampToGarageHour(
+                        request.DropoffETA + request.ReturnToGarageTravelTime);
+
                     var pullOutEvent = new Schedule
                     {
                         VehicleRouteId = request.VehicleRouteId,
@@ -492,7 +546,7 @@ namespace Raphael.Api.Services
                         Address = vehicleRoute.Garage,
                         ScheduleLatitude = vehicleRoute.GarageLatitude,
                         ScheduleLongitude = vehicleRoute.GarageLongitude,
-                        ETATime = tripToRoute.FromTime - (TimeSpan.FromMinutes(20) + request.PickupTravelTime), // vehicleRoute.FromTime, 
+                        ETATime = pullOutEta, // vehicleRoute.FromTime, 
                         DistanceToPoint = 0, // Always 0 for the first event
                         ScheduledPickupTime = TimeSpan.FromHours(0),
                         ScheduledApptTime = TimeSpan.FromHours(0),
@@ -509,7 +563,7 @@ namespace Raphael.Api.Services
                         Address = vehicleRoute.Garage,
                         ScheduleLatitude = vehicleRoute.GarageLatitude,
                         ScheduleLongitude = vehicleRoute.GarageLongitude,
-                        ETATime = request.DropoffETA + request.DropoffTravelTime, // vehicleRoute.ToTime, 
+                        ETATime = pullInEta, // vehicleRoute.ToTime, 
                         ScheduledPickupTime = TimeSpan.FromHours(23),
                         ScheduledApptTime = TimeSpan.FromHours(23),
                         Date = tripToRoute.Date,
