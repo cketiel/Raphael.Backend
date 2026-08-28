@@ -5,6 +5,7 @@ using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Domain.Common;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.Notifications;
+using Raphael.Shared.Entities.Routing;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Persistence.Configurations;
 using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
@@ -49,6 +50,21 @@ namespace Raphael.Shared.DbContexts
         public DbSet<Unit> Units { get; set; }
         public DbSet<FundingSourceBillingItem> FundingSourceBillingItems { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
+
+        #region Routing
+
+        /// <summary>Google's answers, kept at most 30 days. See <see cref="RouteLegCacheEntry"/>.</summary>
+        public DbSet<RouteLegCacheEntry> RouteLegCache { get; set; }
+
+        /// <summary>Addresses resolved to coordinates, kept at most 30 days.</summary>
+        public DbSet<GeocodeCacheEntry> GeocodeCache { get; set; }
+
+        /// <summary>What our own vehicles measured. No expiry — this one is ours.</summary>
+        public DbSet<ObservedLegTime> ObservedLegTimes { get; set; }
+
+        public DbSet<SystemSetting> SystemSettings { get; set; }
+
+        #endregion
 
         #region Notification Module
 
@@ -116,6 +132,89 @@ namespace Raphael.Shared.DbContexts
 
                 // The panel reads it newest first, and always the whole trail.
                 entity.HasIndex(x => x.PerformedAtUtc);
+            });
+
+            // ======================================================
+            // Routing cache and observed times
+            // ======================================================
+
+            modelBuilder.Entity<RouteLegCacheEntry>(entity =>
+            {
+                entity.ToTable("RouteLegCache");
+                entity.HasKey(x => x.Id);
+
+                // The whole key, and unique: two rows for the same leg under the same
+                // conditions would mean paying for it twice and then choosing at random.
+                entity.HasIndex(x => new
+                {
+                    x.OriginLatE4,
+                    x.OriginLngE4,
+                    x.DestLatE4,
+                    x.DestLngE4,
+                    x.TimeBucket,
+                    x.DayType,
+                    x.TrafficMode
+                })
+                .IsUnique()
+                .HasDatabaseName("IX_RouteLegCache_Leg");
+
+                // The purge reads by age and nothing else.
+                entity.HasIndex(x => x.FetchedAtUtc);
+            });
+
+            modelBuilder.Entity<GeocodeCacheEntry>(entity =>
+            {
+                entity.ToTable("GeocodeCache");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.NormalizedAddress)
+                    .IsRequired()
+                    .HasMaxLength(300);
+
+                entity.Property(x => x.PlaceId).HasMaxLength(128);
+                entity.Property(x => x.FormattedAddress).HasMaxLength(300);
+
+                entity.HasIndex(x => x.NormalizedAddress)
+                    .IsUnique()
+                    .HasDatabaseName("IX_GeocodeCache_Address");
+
+                entity.HasIndex(x => x.FetchedAtUtc);
+            });
+
+            // ⚠️ No foreign key to Schedule or VehicleRoute on purpose. These rows outlive the
+            // schedules that produced them: a route deleted at the end of a contract must not
+            // erase a year of measured travel times, which is the only data the automatic
+            // router will have to learn from.
+            modelBuilder.Entity<ObservedLegTime>(entity =>
+            {
+                entity.ToTable("ObservedLegTimes");
+                entity.HasKey(x => x.Id);
+
+                entity.HasIndex(x => new
+                {
+                    x.OriginLatE4,
+                    x.OriginLngE4,
+                    x.DestLatE4,
+                    x.DestLngE4,
+                    x.DayType,
+                    x.TimeBucket
+                })
+                .HasDatabaseName("IX_ObservedLegTimes_Leg");
+
+                entity.HasIndex(x => x.ObservedAtUtc);
+            });
+
+            modelBuilder.Entity<SystemSetting>(entity =>
+            {
+                entity.ToTable("SystemSettings");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Key).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.Value).IsRequired().HasMaxLength(400);
+                entity.Property(x => x.Description).HasMaxLength(400);
+                entity.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+                entity.HasIndex(x => x.Key).IsUnique();
             });
 
             modelBuilder.Entity<Integrator>()

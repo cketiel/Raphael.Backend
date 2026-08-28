@@ -16,6 +16,7 @@ using Raphael.Api.Models;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
 using Raphael.Api.Services.Notifications;
+using Raphael.Api.Services.Routing;
 using Raphael.Api.Settings;
 using Raphael.Notification.Application.DependencyInjection;
 using Raphael.Notification.Infrastructure.DependencyInjection;
@@ -348,6 +349,27 @@ builder.Services.AddScoped<IIntegrationHubTokenService, IntegrationHubTokenServi
 
 // Nightly cleanup. Without it the notification tables only grow.
 builder.Services.AddHostedService<NotificationRetentionWorker>();
+
+//
+// Routing: the one door to Google Maps.
+//
+// Every travel time, distance and coordinate in the ecosystem is bought here or served from
+// the cache here. Desktop and Driver used to each call Google themselves, with the key on the
+// machine and no memory between calls; a dialysis patient's leg was bought again by every
+// dispatcher who looked at the route, at the traffic-aware rate, several thousand times a day.
+//
+// AddHttpClient rather than a static HttpClient: sockets get recycled, and the two clients get
+// their own timeouts.
+//
+builder.Services.AddHttpClient<GoogleRoutesClient>();
+builder.Services.AddHttpClient<GoogleGeocodingClient>();
+builder.Services.AddScoped<IRoutingService, RoutingService>();
+builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
+builder.Services.AddScoped<IObservedLegRecorder, ObservedLegRecorder>();
+
+// ⚠️ A term of the Google licence, not housekeeping: cached route content must be deleted at
+// thirty days, not merely ignored.
+builder.Services.AddHostedService<RouteCachePurgeWorker>();
 
 // The notification module declares IDriverPushService and the API supplies it:
 // Raphael.Notification cannot reference Raphael.Api, and the Firebase SDK admits

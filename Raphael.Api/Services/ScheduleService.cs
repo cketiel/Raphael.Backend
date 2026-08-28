@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services.Notifications;
+using Raphael.Api.Services.Routing;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Interfaces.Events;
 using Raphael.Notification.Application.Services;
@@ -19,14 +20,16 @@ namespace Raphael.Api.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly ITripNotificationPublisher _tripNotifications;
         private readonly IOperationClock _clock;
+        private readonly IObservedLegRecorder _observedLegs;
 
-        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock)
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs)
         {
             _context = context;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
             _tripNotifications = tripNotifications;
             _clock = clock;
+            _observedLegs = observedLegs;
         }
         public async Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber)
         {
@@ -816,7 +819,12 @@ namespace Raphael.Api.Services
 
             if (schedule == null) return false;
 
-            // 2. Mapeo de campos b�sicos 
+            // Noted before the mapping overwrites it. Only the transition is worth measuring: a
+            // driver whose app retries the same confirmation must not have the leg counted twice,
+            // or the average for that hour drifts towards whoever has the worst signal.
+            bool justArrived = !schedule.ActualArriveTime.HasValue && dto.Arrive.HasValue;
+
+            // 2. Mapeo de campos b�sicos
             schedule.DistanceToPoint = dto.Distance;
             schedule.TravelTime = dto.Travel;
             schedule.ETATime = dto.ETA;
@@ -877,6 +885,13 @@ namespace Raphael.Api.Services
                 throw new Exception($"Error en SaveChanges: {msg}");
             }
 
+            // What the drive actually took, now that the arrival is saved. This is the ecosystem
+            // learning from its own vehicles instead of buying the same estimate again.
+            if (justArrived)
+            {
+                await _observedLegs.RecordArrivalAsync(schedule);
+            }
+
             // Published after the save. Performing the pickup means the patient is in the
             // vehicle, and performing the dropoff means the trip is done: two facts the
             // dispatch office plans on, so they must be true before anybody hears them.
@@ -912,6 +927,10 @@ namespace Raphael.Api.Services
                 && !schedules.ActualArriveTime.HasValue
                 && dto.Arrive.HasValue;
 
+            // The same transition without the event-type test: a dropoff is just as much a
+            // measured drive as a pickup, and the router will need both.
+            bool justArrived = !schedules.ActualArriveTime.HasValue && dto.Arrive.HasValue;
+
             schedules.DistanceToPoint = dto.Distance;
             schedules.TravelTime = dto.Travel;
             schedules.ETATime = dto.ETA;
@@ -944,6 +963,11 @@ namespace Raphael.Api.Services
             }
 
             await _context.SaveChangesAsync();
+
+            if (justArrived)
+            {
+                await _observedLegs.RecordArrivalAsync(schedules);
+            }
 
             if (justArrivedAtPickup && schedules.Trip != null)
             {
