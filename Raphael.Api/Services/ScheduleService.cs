@@ -1036,6 +1036,90 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Tomorrow's schedule for a driver's run. Tomorrow only, never further.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="GetFutureSchedulesForDriverAsync"/> returns every day ahead, which is
+        /// what its name says and what other callers may still want. It is not what a driver
+        /// can use: a run planned for the week came back as one list with several Pull-outs
+        /// and several Pull-ins in it, and the driver had no way to tell which day a row
+        /// belonged to. What they need before finishing a shift is the next day's work.
+        ///
+        /// <para>
+        /// Strictly the calendar day after today. If tomorrow is empty the answer is empty,
+        /// even when there is work the day after: showing Thursday under a heading the driver
+        /// reads as "tomorrow" is how somebody drives to a pickup two days early.
+        /// </para>
+        ///
+        /// <para>
+        /// Today comes from the business clock, not from the machine: a host west of the
+        /// operation still calls it yesterday through the last hours of the evening, which is
+        /// exactly when a driver looks at tomorrow.
+        /// </para>
+        /// </remarks>
+        public async Task<IEnumerable<ScheduleDto>> GetNextDaySchedulesForDriverAsync(string runLogin)
+        {
+            var tomorrow = _clock.TodayFor(null).AddDays(1);
+            var dayAfter = tomorrow.AddDays(1);
+
+            return await _context.Schedules
+                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
+                .Include(s => s.Trip)
+
+                .Where(s => s.VehicleRoute.SmartphoneLogin == runLogin)
+
+                // A half-open range rather than an equality: Schedule.Date is a DateTime, and
+                // a row saved with a time on it would never match the midnight of a day.
+                .Where(s => s.Date >= tomorrow && s.Date < dayAfter)
+
+                .Where(s => s.Trip == null || s.Trip.Status != TripStatus.Canceled)
+                .OrderBy(s => s.Sequence)
+                .Select(s => new ScheduleDto
+                {
+                    Id = s.Id,
+                    TripId = s.TripId,
+                    Name = s.Name,
+                    Pickup = s.ScheduledPickupTime,
+                    Appt = s.ScheduledApptTime,
+                    Address = s.Address,
+                    ScheduleLatitude = s.ScheduleLatitude,
+                    ScheduleLongitude = s.ScheduleLongitude,
+                    Phone = s.Phone,
+                    Comment = s.Comment,
+                    AuthNo = s.AuthNo,
+                    FundingSource = s.FundingSourceName,
+                    Driver = s.VehicleRoute.Driver.FullName,
+
+                    ETA = s.ETATime,
+                    Distance = s.DistanceToPoint,
+                    Travel = s.TravelTime,
+                    Arrive = s.ActualArriveTime,
+                    Perform = s.ActualPerformTime,
+                    ArriveDist = s.ArriveDistance,
+                    PerformDist = s.PerformDistance,
+                    GPSArrive = s.GpsArrive,
+                    Odometer = s.Odometer,
+                    Date = s.Date,
+                    Sequence = s.Sequence,
+                    EventType = s.EventType, // Pickup or Dropoff
+                    SpaceType = s.SpaceTypeName,
+                    TripType = s.Trip.Type, // (Appointment, Return)
+                    Performed = s.Performed,
+                    Run = s.VehicleRoute.Name,
+                    Vehicle = s.VehicleRoute.Vehicle.Name,
+                    VehicleRouteId = s.VehicleRouteId,
+                    Patient = s.Trip.Customer.FullName,
+
+                    // The two the driver can act on tomorrow: calling and texting the patient
+                    // are the only things this screen offers. CustomerPhone is the number
+                    // dispatch keeps on the customer record, and the one the app dials.
+                    CustomerId = s.Trip.CustomerId,
+                    CustomerPhone = s.Trip.Customer.Phone,
+                })
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<ScheduleHistoryDto>> GetScheduleHistoryAsync(string runLogin, DateTime date)
         {
             var dayStart = date.Date;

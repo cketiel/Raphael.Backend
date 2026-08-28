@@ -192,6 +192,29 @@ namespace Raphael.Api.Controllers
             return Ok(schedules);
         }
 
+        /// <summary>
+        /// Tomorrow's schedule for a run, and only tomorrow.
+        /// </summary>
+        /// <remarks>
+        /// Raphael.Driver calls this behind its "Future Schedule" button. The button keeps its
+        /// name because that is what the driver has always pressed; what it shows is the next
+        /// day, because everything ahead came back as one list with several Pull-outs and
+        /// several Pull-ins in it and no way to tell the days apart.
+        ///
+        /// <para>
+        /// <c>driver/future</c> stays as it is. Its name describes what it does, other callers
+        /// may want it, and renaming an endpoint to mean something narrower is how a client
+        /// nobody remembered keeps working and starts lying.
+        /// </para>
+        /// </remarks>
+        [Authorize]
+        [HttpGet("driver/next-day")]
+        public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetNextDaySchedulesForDriver([FromQuery] string runLogin)
+        {
+            var schedules = await _scheduleService.GetNextDaySchedulesForDriverAsync(runLogin);
+            return Ok(schedules);
+        }
+
         [HttpGet("history/{runLogin}/{date}")]
         public async Task<ActionResult<IEnumerable<ScheduleHistoryDto>>> GetHistory(string runLogin, DateTime date)
         {

@@ -26,6 +26,11 @@ namespace Raphael.Api.Services
         Task<byte[]?> GetSignatureAsync(int scheduleId);
         Task<IEnumerable<ScheduleDto>> GetFutureSchedulesForDriverAsync(string runLogin);
 
+        /// <summary>
+        /// Tomorrow's schedule for a run. Strictly the calendar day after today.
+        /// </summary>
+        Task<IEnumerable<ScheduleDto>> GetNextDaySchedulesForDriverAsync(string runLogin);
+
         Task<IEnumerable<ScheduleHistoryDto>> GetScheduleHistoryAsync(string runLogin, DateTime date);
         Task<int> GetScheduleHistoryCountAsync(string runLogin, DateTime date);
 
