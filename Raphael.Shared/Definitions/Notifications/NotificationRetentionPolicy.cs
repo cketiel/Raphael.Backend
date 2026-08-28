@@ -86,22 +86,38 @@ public static class NotificationRetentionPolicy
     }
 
     /// <summary>
-    /// How long a signal is worth acting on.
+    /// How long a signal stays visible.
     /// </summary>
     /// <remarks>
-    /// A signal says "the route on your screen is stale". The application deletes it the
-    /// moment it acts on it, so this only governs the ones nobody consumes — a phone that
-    /// was off, an app that was uninstalled mid-shift.
+    /// The same twelve hours a driver notice gets, because a signal is now shown in the
+    /// driver's bell like any other row: one that vanished after an hour would empty a
+    /// badge nobody had read, and the driver would never learn why the number moved.
     ///
     /// <para>
-    /// One hour rather than the twelve a driver notice gets: past that the app has reloaded
-    /// its schedule for its own reasons and the signal would only make it reload again for
-    /// a change it already has.
+    /// ⚠️ This is how long it is worth <b>reading</b>, not how long it is worth <b>acting
+    /// on</b>. The application only interrupts the driver over a fresh one — see
+    /// <c>RouteSignalCoordinator.ActOnSignalsNewerThan</c> in Raphael.Driver — because past
+    /// the first hour every screen has reloaded on its own and the interruption would be
+    /// for a change the app already has.
     /// </para>
     /// </remarks>
     public static TimeSpan SignalVisibleFor()
     {
-        return TimeSpan.FromHours(1);
+        return TimeSpan.FromHours(12);
+    }
+
+    /// <summary>
+    /// How long a signal row survives after it expired, before being deleted for good.
+    /// </summary>
+    /// <remarks>
+    /// One day, against the week a driver notice gets. A notice is evidence — somebody may
+    /// have to answer for a cancellation later — while a signal only ever said "reload your
+    /// schedule". Keeping it a week would store the busiest row in the table for no reason:
+    /// every routing and every cancellation of a live route writes one.
+    /// </remarks>
+    public static TimeSpan SignalPurgeAfterExpiry()
+    {
+        return TimeSpan.FromDays(1);
     }
 
     /// <summary>

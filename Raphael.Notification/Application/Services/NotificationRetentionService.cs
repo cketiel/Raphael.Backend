@@ -93,9 +93,9 @@ public sealed class NotificationRetentionService
     /// with it: the relationships cascade.
     /// </summary>
     /// <remarks>
-    /// Two passes, because the window depends on who the notification was for. A notice
-    /// only ever seen by staff goes after a week; anything a patient or an integration
-    /// could read stays a month.
+    /// Three passes, because the window depends on what the row is and who it was for. A
+    /// signal goes after a day, a notice only ever seen by staff after a week, and anything
+    /// a patient or an integration could read stays a month.
     ///
     /// <para>
     /// A notification is only ever purged on the short window when <b>every</b> one of its
@@ -116,6 +116,9 @@ public sealed class NotificationRetentionService
             .Select(x => x.Id)
             .ToArray();
 
+        var signalCutoff = now.Subtract(
+            NotificationRetentionPolicy.SignalPurgeAfterExpiry());
+
         var shortCutoff = now.Subtract(
             NotificationRetentionPolicy.ShortestPurgeWindow());
 
@@ -123,9 +126,20 @@ public sealed class NotificationRetentionService
             NotificationRetentionPolicy.LongestPurgeWindow());
 
         //
-        // Staff-only notices. The bulk of the table.
+        // Signals. First, and on the tightest window of all: every routing and every
+        // cancellation of a live route writes one, and once it expired it says nothing to
+        // anybody. Left to the staff pass they would sit here a week.
         //
         var deleted = await _context.Notifications
+            .Where(n => n.StatusId != NotificationStatus.Archived.Id)
+            .Where(n => n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal))
+            .Where(n => (n.ExpiresAtUtc ?? n.CreatedAtUtc) <= signalCutoff)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        //
+        // Staff-only notices. The bulk of the table.
+        //
+        deleted += await _context.Notifications
             .Where(n => n.StatusId != NotificationStatus.Archived.Id)
             .Where(n => n.Recipients.Any()
                         && !n.Recipients.Any(r =>

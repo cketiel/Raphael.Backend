@@ -70,11 +70,18 @@ public class NotificationRepository : INotificationRepository
             .Where(n => n.ExpiresAtUtc == null
                         || n.ExpiresAtUtc > now);
 
-        // A signal carries the marker; a notice does not. Splitting here rather than in the
-        // clients is what guarantees no inbox can ever show one.
-        query = scope == NotificationScope.Signals
-            ? query.Where(n => n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal))
-            : query.Where(n => !n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal));
+        // A signal carries the marker; a notice does not. Deciding here rather than in the
+        // clients is what keeps every application showing the same thing.
+        query = scope switch
+        {
+            NotificationScope.Signals =>
+                query.Where(n => n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal)),
+
+            NotificationScope.Notices =>
+                query.Where(n => !n.Metadata.Any(m => m.Key == NotificationMetadataKeys.Signal)),
+
+            _ => query
+        };
 
         return await query
             .OrderByDescending(n => n.CreatedAtUtc)

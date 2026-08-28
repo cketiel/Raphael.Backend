@@ -151,13 +151,20 @@ namespace Raphael.Api.Controllers
         /// Inbox of a Raphael.Driver user.
         /// </summary>
         /// <remarks>
-        /// Only what is still visible: driver notifications live for twelve hours, one shift.
-        /// See <c>NotificationRetentionPolicy</c>.
+        /// Only what is still visible: driver notifications live for twelve hours, one shift,
+        /// and so do route signals. See <c>NotificationRetentionPolicy</c>.
         ///
         /// <para>
-        /// Today the only rule addressed to a driver is <c>TRIP_CANCELLED</c>, and only when
-        /// the trip was already under way, so an empty list is the normal answer rather than
-        /// a sign that something is broken.
+        /// ⚠️ <b>Signals included</b>, hence the explicit scope. A route signal is not written
+        /// for a person to read, but hiding it left the driver with a bell that moved for
+        /// reasons they could not see. Until we decide what a driver should be told when their
+        /// route changes underneath them, the honest answer is to show it.
+        /// </para>
+        ///
+        /// <para>
+        /// The two rules addressed to a driver are <c>TRIP_CANCELLED</c>, only when the trip
+        /// was already under way, and the <c>DRIVER_ROUTE_UPDATED</c> signal, only after
+        /// Pull-out. An empty list is the normal answer rather than a sign of breakage.
         /// </para>
         /// </remarks>
         [HttpGet("notifications")]
@@ -168,7 +175,8 @@ namespace Raphael.Api.Controllers
 
             var query = new GetRecipientNotificationsQuery(
                 RecipientIdOf(driverId),
-                RecipientType.Driver);
+                RecipientType.Driver,
+                NotificationScope.All);
 
             var result = await _getRecipientNotificationsHandler.Handle(query, cancellationToken);
 
@@ -178,6 +186,10 @@ namespace Raphael.Api.Controllers
         /// <summary>
         /// How many unread notifications the bell should show.
         /// </summary>
+        /// <remarks>
+        /// Route signals count, the same rows the inbox above returns. A badge and a list that
+        /// disagree about the same screen is worse than either number on its own.
+        /// </remarks>
         [HttpGet("notifications/unread-count")]
         public async Task<IActionResult> GetMyUnreadCount(CancellationToken cancellationToken)
         {
@@ -526,8 +538,10 @@ namespace Raphael.Api.Controllers
         /// was down, can drain whatever it missed when it comes back.
         ///
         /// <para>
-        /// They are kept out of <c>GET notifications</c> and out of the unread count on the
-        /// server, so no client can show one in an inbox by accident.
+        /// This is the signals on their own. <c>GET notifications</c> returns them too, mixed
+        /// with the notices, because the bell shows them today; an app draining what it missed
+        /// wants only these, and asking for the whole inbox to filter it again would move a
+        /// server decision back into every client.
         /// </para>
         /// </remarks>
         [HttpGet("notifications/signals")]
@@ -554,6 +568,14 @@ namespace Raphael.Api.Controllers
         /// record somebody may have to answer for later, and no driver tidying their screen
         /// should be able to destroy one. What a driver does not want to see, the app hides on
         /// the device; deleting notices belongs to the retention policy alone.
+        ///
+        /// <para>
+        /// ⚠️ <b>Raphael.Driver stopped calling this.</b> A signal is shown in the bell now, so
+        /// deleting it the moment the app acted on it would take a row off a list the driver
+        /// had not read yet. The app remembers on the device which signals it already acted on,
+        /// and the row ages out on its own. Kept here because it is the only safe way to remove
+        /// one, and the next client that needs it will need it to exist.
+        /// </para>
         /// </remarks>
         [HttpDelete("notifications/signals/{recipientRecordId:guid}")]
         public async Task<IActionResult> DeleteMySignal(

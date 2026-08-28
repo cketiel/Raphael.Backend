@@ -74,6 +74,12 @@ public class NotificationRecipientRepository
     /// Written once so the count and the list cannot drift apart: the same visibility window
     /// as <c>NotificationRepository.GetByRecipientAsync</c>, which is what feeds the inbox.
     /// </summary>
+    /// <remarks>
+    /// Signals are counted like anything else. They used to be excluded, back when no inbox
+    /// showed them and a badge counting them was a number the driver could not clear; the
+    /// driver inbox now returns them, so leaving them out would put a list and a badge that
+    /// disagree on the same screen.
+    /// </remarks>
     private IQueryable<NotificationRecipient> Unviewed(
         Guid recipientId,
         int recipientTypeId)
@@ -85,11 +91,7 @@ public class NotificationRecipientRepository
                         && x.RecipientTypeId == recipientTypeId
                         && x.ViewedAtUtc == null)
             .Where(x => x.Notification.ExpiresAtUtc == null
-                        || x.Notification.ExpiresAtUtc > now)
-            // ⚠️ Signals never count. Nobody reads one, so a badge including them would be a
-            // number the driver has no way to clear.
-            .Where(x => !x.Notification.Metadata
-                .Any(m => m.Key == NotificationMetadataKeys.Signal));
+                        || x.Notification.ExpiresAtUtc > now);
     }
 
     public async Task SaveChangesAsync(
