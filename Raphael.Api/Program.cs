@@ -367,8 +367,8 @@ builder.Services.AddScoped<IRoutingService, RoutingService>();
 builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
 builder.Services.AddScoped<IObservedLegRecorder, ObservedLegRecorder>();
 
-// ⚠️ A term of the Google licence, not housekeeping: cached route content must be deleted at
-// thirty days, not merely ignored.
+// Deletes cached Google answers past the retention the administrators set
+// (Routing.CacheRetentionDays, default one year).
 builder.Services.AddHostedService<RouteCachePurgeWorker>();
 
 // The notification module declares IDriverPushService and the API supplies it:

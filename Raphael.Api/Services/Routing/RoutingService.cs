@@ -13,12 +13,13 @@ namespace Raphael.Api.Services.Routing
     public class RoutingService : IRoutingService
     {
         /// <summary>
-        /// ⚠️ Thirty days, and not a day more. Google's terms allow route and geocoding content to
-        /// be cached for at most 30 consecutive days. Reading past this line would breach them
-        /// even though the row is still sitting there; deleting it is <c>RouteCachePurgeWorker</c>'s
-        /// job, and the two must agree.
+        /// How long a cached answer serves when no administrator has said otherwise. The real
+        /// figure lives in <c>SystemSettings</c> under <c>Routing.CacheRetentionDays</c> and both
+        /// the reader here and <c>RouteCachePurgeWorker</c> take it from there, so the two cannot
+        /// disagree. A year by business decision — Google's terms describe 30 days, and that
+        /// trade-off is the administrator's to make, recorded in the setting, not in code.
         /// </summary>
-        public static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(30);
+        public const int DefaultCacheRetentionDays = 365;
 
         /// <summary>
         /// A dead address is remembered for a week, not a month. Long enough that re-importing
@@ -88,7 +89,11 @@ namespace Raphael.Api.Services.Routing
                 .Distinct()
                 .ToList();
 
-            var cached = await LoadCachedAsync(distinctKeys, mode, cancellationToken);
+            var cached = await LoadCachedAsync(
+                distinctKeys,
+                mode,
+                await GetRetentionAsync(cancellationToken),
+                cancellationToken);
 
             var resolved = new Dictionary<LegKey, GoogleLegResult?>();
             var toBuy = new List<LegPlan>();
@@ -177,7 +182,7 @@ namespace Raphael.Api.Services.Routing
                 .ToList();
 
             var now = DateTime.UtcNow;
-            var okCutoff = now - CacheLifetime;
+            var okCutoff = now - await GetRetentionAsync(cancellationToken);
             var notFoundCutoff = now - NotFoundLifetime;
 
             var cached = await _context.GeocodeCache
@@ -296,9 +301,10 @@ namespace Raphael.Api.Services.Routing
         private async Task<Dictionary<LegKey, RouteLegCacheEntry>> LoadCachedAsync(
             List<LegKey> keys,
             RoutingTrafficMode mode,
+            TimeSpan retention,
             CancellationToken cancellationToken)
         {
-            var cutoff = DateTime.UtcNow - CacheLifetime;
+            var cutoff = DateTime.UtcNow - retention;
 
             var originLats = keys.Select(k => k.OriginLatE4).Distinct().ToList();
             var destLats = keys.Select(k => k.DestLatE4).Distinct().ToList();
@@ -524,6 +530,22 @@ namespace Raphael.Api.Services.Routing
             };
 
         // ---------------------------------------------------------------- shared
+
+        /// <summary>
+        /// How long a cached answer is still served, as the administrators have set it. The purge
+        /// worker reads the same setting, so what is readable and what still exists stay aligned.
+        /// </summary>
+        private async Task<TimeSpan> GetRetentionAsync(CancellationToken cancellationToken)
+        {
+            var days = await _settings.GetIntAsync(
+                SystemSettingKeys.RoutingCacheRetentionDays,
+                DefaultCacheRetentionDays,
+                cancellationToken);
+
+            if (days < 1) days = 1;
+
+            return TimeSpan.FromDays(days);
+        }
 
         private async Task<RoutingTrafficMode> GetTrafficModeAsync(CancellationToken cancellationToken)
         {

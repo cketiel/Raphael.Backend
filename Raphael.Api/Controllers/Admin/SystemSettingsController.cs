@@ -83,6 +83,12 @@ namespace Raphael.Api.Controllers.Admin
                 return BadRequest("The buffer must be a whole percentage between 0 and 100.");
             }
 
+            if (key == SystemSettingKeys.RoutingCacheRetentionDays
+                && (!int.TryParse(request.Value, out var days) || days is < 1 or > 3650))
+            {
+                return BadRequest("The retention must be a whole number of days between 1 and 3650.");
+            }
+
             var saved = await _settings.SetAsync(
                 key,
                 request.Value.Trim(),

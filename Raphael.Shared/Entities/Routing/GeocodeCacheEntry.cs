@@ -9,10 +9,10 @@ namespace Raphael.Shared.Entities.Routing
     /// patients are today's patients.
     ///
     /// <para>
-    /// ⚠️ Temporary cache. Google's terms allow latitude and longitude to be kept for at most 30
-    /// consecutive days and require deletion afterwards; only <see cref="PlaceId"/> may be kept
-    /// indefinitely. The whole row is deleted at 30 days — keeping a place id with no coordinates
-    /// would save nothing, since resolving it back costs a request either way.
+    /// Expires with <c>Routing.CacheRetentionDays</c> (default one year), the same dial as the
+    /// route cache — an administrator's decision, consistent with the coordinates the Customers
+    /// table has stored since production began. Only <see cref="PlaceId"/> is unrestricted by
+    /// Google's terms either way.
     /// </para>
     /// </remarks>
     public class GeocodeCacheEntry

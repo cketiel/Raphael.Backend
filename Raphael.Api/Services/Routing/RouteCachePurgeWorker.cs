@@ -5,14 +5,15 @@ using Raphael.Shared.Entities.Routing;
 namespace Raphael.Api.Services.Routing
 {
     /// <summary>
-    /// Deletes cached Google content once it reaches thirty days.
+    /// Deletes cached Google content once it outlives the retention the administrators set.
     /// </summary>
     /// <remarks>
-    /// ⚠️ This worker is a term of the licence, not an optimisation. Google's terms allow route
-    /// and geocoding content to be cached temporarily and require it to be deleted after 30
-    /// consecutive days. Reading past the cutoff is already prevented in <c>RoutingService</c>;
-    /// this is what makes the row actually go away. If this worker is ever removed, the cache
-    /// stops being a cache and becomes a copy of Google's database.
+    /// The retention is <c>Routing.CacheRetentionDays</c> in <c>SystemSettings</c> — the same
+    /// value the reader in <c>RoutingService</c> honours, so what is readable and what still
+    /// exists cannot drift apart. It defaults to a year, by business decision: Google's terms
+    /// describe a 30-day window for cached content, and the operation — which has stored customer
+    /// coordinates since it went live — chose to accept that posture and keep the dial in the
+    /// administrators' hands. Turning it down to 30 takes effect on the next pass, no deployment.
     ///
     /// <para>
     /// <c>ObservedLegTimes</c> is deliberately untouched. Those rows are our own vehicles'
@@ -79,9 +80,18 @@ namespace Raphael.Api.Services.Routing
             using var scope = _services.CreateScope();
 
             var context = scope.ServiceProvider.GetRequiredService<RaphaelContext>();
+            var settings = scope.ServiceProvider
+                .GetRequiredService<Raphael.Api.Services.Admin.ISystemSettingService>();
+
+            var retentionDays = await settings.GetIntAsync(
+                Raphael.Api.Services.Admin.SystemSettingKeys.RoutingCacheRetentionDays,
+                RoutingService.DefaultCacheRetentionDays,
+                cancellationToken);
+
+            if (retentionDays < 1) retentionDays = 1;
 
             var now = DateTime.UtcNow;
-            var routeCutoff = now - RoutingService.CacheLifetime;
+            var routeCutoff = now - TimeSpan.FromDays(retentionDays);
             var notFoundCutoff = now - RoutingService.NotFoundLifetime;
 
             var legs = await context.RouteLegCache
@@ -97,9 +107,10 @@ namespace Raphael.Api.Services.Routing
             if (legs > 0 || addresses > 0)
             {
                 _logger.LogInformation(
-                    "Routing cache purge deleted {Legs} legs and {Addresses} addresses past their 30-day limit.",
+                    "Routing cache purge deleted {Legs} legs and {Addresses} addresses older than {Days} days.",
                     legs,
-                    addresses);
+                    addresses,
+                    retentionDays);
             }
         }
     }

@@ -9,10 +9,11 @@ namespace Raphael.Shared.Entities.Routing
     /// leg. Without this table each of those asks is a billed request.
     ///
     /// <para>
-    /// ⚠️ <b>This is a temporary cache and must stay one.</b> Google's terms allow route content to
-    /// be cached for at most 30 consecutive days, and require it to be deleted afterwards — not
-    /// merely ignored. <c>RouteCachePurgeWorker</c> does the deleting. What we are allowed to keep
-    /// for good is what we measured ourselves: see <see cref="ObservedLegTime"/>.
+    /// This is a cache with an expiry, not an archive. <c>RouteCachePurgeWorker</c> deletes rows
+    /// older than <c>Routing.CacheRetentionDays</c> (default one year — an administrator's
+    /// decision; Google's terms describe a 30-day window, and turning the dial down needs no
+    /// deployment). What is ours to keep for good is what we measured ourselves: see
+    /// <see cref="ObservedLegTime"/>.
     /// </para>
     /// </remarks>
     public class RouteLegCacheEntry
@@ -65,7 +66,7 @@ namespace Raphael.Shared.Entities.Routing
 
         public int DistanceMeters { get; set; }
 
-        /// <summary>When Google answered. The clock the 30-day deletion runs on.</summary>
+        /// <summary>When Google answered. The clock the retention purge runs on.</summary>
         public DateTime FetchedAtUtc { get; set; }
 
         /// <summary>

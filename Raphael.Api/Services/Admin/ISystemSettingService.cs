@@ -45,5 +45,13 @@ namespace Raphael.Api.Services.Admin
         /// free-flow estimate and a driver who is always late.
         /// </summary>
         public const string RoutingDefaultBufferPercent = "Routing.DefaultBufferPercent";
+
+        /// <summary>
+        /// How many days a cached Google answer is kept and served before the purge deletes it.
+        /// Default 365. An administrator's decision: Google's terms describe a 30-day window for
+        /// cached content, and the business chose a year — the same posture the Customers table
+        /// has taken since production began. Shortening it later needs no deployment.
+        /// </summary>
+        public const string RoutingCacheRetentionDays = "Routing.CacheRetentionDays";
     }
 }
