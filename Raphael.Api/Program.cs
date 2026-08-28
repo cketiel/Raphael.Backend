@@ -71,14 +71,24 @@ builder.Services.AddSwaggerGen(options =>
     });
 
     // --- CONFIGURATION FOR JWT IN SWAGGER ---
+    //
+    // ⚠️ Http + "bearer", not ApiKey. As an ApiKey scheme, Swagger sent the header exactly as
+    // it was typed, so a token pasted on its own went out as `Authorization: eyJ...` with no
+    // scheme, and JwtBearer — which only reads a header beginning with "Bearer " — answered
+    // 401. It looked like the token was rejected. It was never read.
+    //
+    // As Http/bearer, Swagger writes the prefix itself and the box takes the bare token, which
+    // is what anybody pastes anyway. The scheme name has to be lowercase: it is the OpenAPI
+    // value, not the text of the header.
+    //
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter the JWT token like this: Bearer {your_token}"
+        Description = "Paste the token on its own. Swagger adds the \"Bearer \" prefix."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -111,11 +121,41 @@ builder.Services.AddSwaggerGen(options =>
             options.IncludeXmlComments(xmlPath);
     }
 
+    //
+    // --- THE TWO API KEYS ---
+    //
+    // Three ways in, and they are not interchangeable. The JWT above is for the applications a
+    // person signs into — Desktop, Driver, Rider. These two are machine to machine, each with
+    // its own header and its own gate, and neither is ever accepted where the other is
+    // expected. Declaring only one of them, as this used to, left the other undocumented and
+    // impossible to try from here.
+    //
+    //   Authorization: Bearer …      JwtBearer + the global AuthorizeFilter
+    //   X-Api-Key: …                 ApiKeyAuthFilter          → the Customer Service Bot
+    //   X-Integration-ApiKey: …      IntegrationApiKeyAttribute → external integrators
+    //
+    // ⚠️ The requirements below are documentation, not enforcement: Swagger offers all three
+    // and each endpoint is still guarded by whichever one its filter reads. Listing the three
+    // is the honest description of an API where the answer is "one of these, depending on who
+    // is calling".
+    //
     options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
-        Description = "API Key needed to access Bot endpoints. Example: 'X-Api-Key: YOUR_KEY'",
+        Description = "Key of the Customer Service Bot. Sent as 'X-Api-Key'.",
         In = ParameterLocation.Header,
         Name = "X-Api-Key",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "ApiKeyScheme"
+    });
+
+    options.AddSecurityDefinition("IntegrationApiKey", new OpenApiSecurityScheme
+    {
+        Description =
+            "Key of an external integrator, the one on its Integrators row. Sent as " +
+            "'X-Integration-ApiKey'. It also identifies who is calling: the trips it creates " +
+            "and reads are that integrator's own.",
+        In = ParameterLocation.Header,
+        Name = "X-Integration-ApiKey",
         Type = SecuritySchemeType.ApiKey,
         Scheme = "ApiKeyScheme"
     });
@@ -126,6 +166,18 @@ builder.Services.AddSwaggerGen(options =>
             new OpenApiSecurityScheme
             {
                 Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" },
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "IntegrationApiKey" },
                 In = ParameterLocation.Header
             },
             new List<string>()
