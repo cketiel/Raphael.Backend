@@ -365,6 +365,11 @@ builder.Services.AddHttpClient<GoogleRoutesClient>();
 builder.Services.AddHttpClient<GoogleGeocodingClient>();
 builder.Services.AddScoped<IRoutingService, RoutingService>();
 builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
+
+// Counts what we ask Google and what the cache answers, so the administrator's panel can show
+// the bill and the saving instead of an opinion about them.
+builder.Services.AddScoped<IMapsUsageService, MapsUsageService>();
+builder.Services.AddScoped<IMapsUsageReportService, MapsUsageReportService>();
 builder.Services.AddScoped<IObservedLegRecorder, ObservedLegRecorder>();
 
 // Deletes cached Google answers past the retention the administrators set

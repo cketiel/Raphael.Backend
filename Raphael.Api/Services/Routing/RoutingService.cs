@@ -40,6 +40,7 @@ namespace Raphael.Api.Services.Routing
         private readonly GoogleRoutesClient _routes;
         private readonly GoogleGeocodingClient _geocoding;
         private readonly ISystemSettingService _settings;
+        private readonly IMapsUsageService _usage;
         private readonly IOperationClock _clock;
         private readonly ICurrentUserService _currentUser;
         private readonly ILogger<RoutingService> _logger;
@@ -49,6 +50,7 @@ namespace Raphael.Api.Services.Routing
             GoogleRoutesClient routes,
             GoogleGeocodingClient geocoding,
             ISystemSettingService settings,
+            IMapsUsageService usage,
             IOperationClock clock,
             ICurrentUserService currentUser,
             ILogger<RoutingService> logger)
@@ -57,6 +59,7 @@ namespace Raphael.Api.Services.Routing
             _routes = routes;
             _geocoding = geocoding;
             _settings = settings;
+            _usage = usage;
             _clock = clock;
             _currentUser = currentUser;
             _logger = logger;
@@ -149,6 +152,17 @@ namespace Raphael.Api.Services.Routing
 
                 response.Legs.Add(ToDto(result, plan, mode, bufferPercent, bought.Contains(plan.Key)));
             }
+
+            // Counted per distinct leg, not per answer: a batch that asks for the same clinic
+            // twice pays once, and inflating both tallies with the repeat would overstate the
+            // spending and the saving by the same amount.
+            var sku = mode == RoutingTrafficMode.Precision
+                ? MapsSku.RoutesPro
+                : MapsSku.RoutesEssentials;
+
+            await _usage.RecordAsync(sku, billed: true, bought.Count, cancellationToken);
+            await _usage.RecordAsync(
+                sku, billed: false, distinctKeys.Count - bought.Count, cancellationToken);
 
             return response;
         }
@@ -259,6 +273,14 @@ namespace Raphael.Api.Services.Routing
                 }
             }
 
+            // The daily import is the reason this split matters: the same dialysis clinic on
+            // forty rows is one purchase and thirty-nine hits.
+            await _usage.RecordAsync(
+                MapsSku.Geocoding, billed: true, purchased.Count, cancellationToken);
+
+            await _usage.RecordAsync(
+                MapsSku.Geocoding, billed: false, usable.Count, cancellationToken);
+
             return response;
         }
 
@@ -275,6 +297,11 @@ namespace Raphael.Api.Services.Routing
                 request.Latitude,
                 request.Longitude,
                 cancellationToken);
+
+            // ⚠️ Always billed: unlike every other path here, reverse geocoding has no cache
+            // behind it. It runs when a dispatcher drags a pin, which is rare enough that nobody
+            // has paid for a cache yet — but the panel will show it as 100% bought, correctly.
+            await _usage.RecordAsync(MapsSku.Geocoding, billed: true, 1, cancellationToken);
 
             return new ReverseGeocodeResultDto
             {
@@ -491,20 +518,23 @@ namespace Raphael.Api.Services.Routing
             }
 
             int planningSeconds;
-            string source;
 
-            if (mode == RoutingTrafficMode.Precision && result.DurationInTrafficSeconds.HasValue)
+            // Two independent facts, and they used to be crushed into one field. Whether Google
+            // was billed is Source; whether the planning figure is our own estimate is Buffered.
+            var buffered = !(mode == RoutingTrafficMode.Precision && result.DurationInTrafficSeconds.HasValue);
+
+            if (buffered)
             {
-                planningSeconds = result.DurationInTrafficSeconds.Value;
-                source = wasBought ? RoutingContract.Sources.Google : RoutingContract.Sources.Cache;
+                // Free-flow plus our own margin. Flagged so no screen presents it as Google's
+                // traffic estimate — it is our guess, and it is ours to improve.
+                planningSeconds = (int)Math.Round(result.DurationSeconds * (1 + bufferPercent / 100.0));
             }
             else
             {
-                // Free-flow plus our own margin. Marked Buffered so no screen presents it as
-                // Google's traffic estimate — it is our guess, and it is ours to improve.
-                planningSeconds = (int)Math.Round(result.DurationSeconds * (1 + bufferPercent / 100.0));
-                source = RoutingContract.Sources.Buffered;
+                planningSeconds = result.DurationInTrafficSeconds.Value;
             }
+
+            var source = wasBought ? RoutingContract.Sources.Google : RoutingContract.Sources.Cache;
 
             return new RouteLegResultDto
             {
@@ -514,6 +544,7 @@ namespace Raphael.Api.Services.Routing
                 DistanceMiles = RouteCacheKey.ToMiles(result.DistanceMeters),
                 EncodedPolyline = plan.Leg.IncludePolyline ? result.EncodedPolyline : null,
                 Source = source,
+                Buffered = buffered,
                 Status = RoutingContract.Statuses.Ok
             };
         }

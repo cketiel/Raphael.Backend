@@ -10,7 +10,18 @@ namespace Raphael.Shared.DTOs.Routing
     /// </remarks>
     public static class RoutingContract
     {
-        /// <summary>Values of <see cref="RouteLegResultDto.Source"/>.</summary>
+        /// <summary>
+        /// Values of <see cref="RouteLegResultDto.Source"/>: where the number came from, and
+        /// nothing else.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ There used to be a third value, <c>Buffered</c>, and it made this field unusable.
+        /// It answered a different question — how the planning figure was derived — so in
+        /// MaxSavings mode *every* answer read "Buffered" whether it had been bought from Google
+        /// or served free from the cache, and nothing downstream could tell the difference. That
+        /// is now <see cref="RouteLegResultDto.Buffered"/>, a separate flag, and this field means
+        /// only what its name says: was anybody billed for this.
+        /// </remarks>
         public static class Sources
         {
             /// <summary>Served from our cache. Nobody was billed for it.</summary>
@@ -18,12 +29,6 @@ namespace Raphael.Shared.DTOs.Routing
 
             /// <summary>Bought from Google on this request.</summary>
             public const string Google = "Google";
-
-            /// <summary>
-            /// A free-flow duration with our own traffic buffer added. Not a Google traffic
-            /// estimate, and the client should not present it as one.
-            /// </summary>
-            public const string Buffered = "Buffered";
         }
 
         /// <summary>Values of the per-item <c>Status</c> fields.</summary>
@@ -116,8 +121,19 @@ namespace Raphael.Shared.DTOs.Routing
         /// </remarks>
         public string? EncodedPolyline { get; set; }
 
-        /// <summary>One of <see cref="RoutingContract.Sources"/>.</summary>
+        /// <summary>One of <see cref="RoutingContract.Sources"/>. Was anybody billed for this.</summary>
         public string Source { get; set; } = RoutingContract.Sources.Cache;
+
+        /// <summary>
+        /// True when <see cref="DurationInTrafficSeconds"/> is our own free-flow-plus-margin
+        /// figure rather than a traffic estimate from Google. No screen should present a buffered
+        /// number as Google's.
+        /// </summary>
+        /// <remarks>
+        /// Independent of <see cref="Source"/>: a buffered answer can be freshly bought or come
+        /// from the cache, and a Google traffic figure likewise.
+        /// </remarks>
+        public bool Buffered { get; set; }
 
         /// <summary>One of <see cref="RoutingContract.Statuses"/>.</summary>
         public string Status { get; set; } = RoutingContract.Statuses.Ok;

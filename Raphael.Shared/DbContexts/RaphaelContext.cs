@@ -6,6 +6,7 @@ using Raphael.Shared.Domain.Common;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Entities.Routing;
+using Raphael.Shared.Routing;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Persistence.Configurations;
 using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
@@ -66,6 +67,12 @@ namespace Raphael.Shared.DbContexts
         public DbSet<ObservedLegTime> ObservedLegTimes { get; set; }
 
         public DbSet<SystemSetting> SystemSettings { get; set; }
+
+        /// <summary>Daily tallies of what we asked Google and what the cache answered.</summary>
+        public DbSet<MapsUsageDaily> MapsUsageDaily { get; set; }
+
+        /// <summary>Google's volume pricing, editable without a release.</summary>
+        public DbSet<MapsPricingTier> MapsPricingTiers { get; set; }
 
         #endregion
 
@@ -210,6 +217,81 @@ namespace Raphael.Shared.DbContexts
                 .HasDatabaseName("IX_ObservedLegTimes_Leg");
 
                 entity.HasIndex(x => x.ObservedAtUtc);
+            });
+
+            modelBuilder.Entity<MapsUsageDaily>(entity =>
+            {
+                entity.ToTable("MapsUsageDaily");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Day).HasColumnType("date");
+
+                // One row per day, product and outcome, and the counter is incremented in place.
+                // The unique index is what lets the increment be an upsert instead of a read
+                // followed by a write that two dispatchers can interleave.
+                entity.HasIndex(x => new { x.Day, x.Sku, x.Billed })
+                    .IsUnique()
+                    .HasDatabaseName("IX_MapsUsageDaily_Day_Sku_Billed");
+            });
+
+            modelBuilder.Entity<MapsPricingTier>(entity =>
+            {
+                entity.ToTable("MapsPricingTiers");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.PricePerThousand).HasColumnType("decimal(10,4)");
+
+                entity.HasIndex(x => new { x.Sku, x.FromRequest })
+                    .IsUnique()
+                    .HasDatabaseName("IX_MapsPricingTiers_Sku_From");
+
+                // Google's published prices as of August 2026, seeded so the panel can cost a
+                // period the day it is deployed. They live in the database precisely so the next
+                // price change is an UPDATE rather than a release — see MapsPricingTier.
+                //
+                // ⚠️ The band boundaries are shared across products (100k, 500k, 1M, 5M) but the
+                // free allowance is not: Routes Pro gives 5,000 where the rest give 10,000, so its
+                // first paid band starts at 5,001 while theirs start at 10,001. Google's own
+                // pricing page prints the first band as "10,001–100,000" for every product, which
+                // cannot be right for a product whose free tier ends at 5,000. Read here as
+                // "charging begins where the free allowance ends" — the reading that costs the
+                // business money rather than surprises it. Correct the row if an invoice disagrees.
+                entity.HasData(
+                    Tier(1, MapsSku.RoutesEssentials, 10_000, 10_001, 100_000, 5.00m),
+                    Tier(2, MapsSku.RoutesEssentials, 10_000, 100_001, 500_000, 4.00m),
+                    Tier(3, MapsSku.RoutesEssentials, 10_000, 500_001, 1_000_000, 3.00m),
+                    Tier(4, MapsSku.RoutesEssentials, 10_000, 1_000_001, 5_000_000, 1.50m),
+                    Tier(5, MapsSku.RoutesEssentials, 10_000, 5_000_001, null, 0.38m),
+
+                    Tier(6, MapsSku.RoutesPro, 5_000, 5_001, 100_000, 10.00m),
+                    Tier(7, MapsSku.RoutesPro, 5_000, 100_001, 500_000, 8.00m),
+                    Tier(8, MapsSku.RoutesPro, 5_000, 500_001, 1_000_000, 6.00m),
+                    Tier(9, MapsSku.RoutesPro, 5_000, 1_000_001, 5_000_000, 3.00m),
+                    Tier(10, MapsSku.RoutesPro, 5_000, 5_000_001, null, 0.75m),
+
+                    Tier(11, MapsSku.Geocoding, 10_000, 10_001, 100_000, 5.00m),
+                    Tier(12, MapsSku.Geocoding, 10_000, 100_001, 500_000, 4.00m),
+                    Tier(13, MapsSku.Geocoding, 10_000, 500_001, 1_000_000, 3.00m),
+                    Tier(14, MapsSku.Geocoding, 10_000, 1_000_001, 5_000_000, 1.50m),
+                    Tier(15, MapsSku.Geocoding, 10_000, 5_000_001, null, 0.38m),
+
+                    Tier(16, MapsSku.DynamicMaps, 10_000, 10_001, 100_000, 7.00m),
+                    Tier(17, MapsSku.DynamicMaps, 10_000, 100_001, 500_000, 5.60m),
+                    Tier(18, MapsSku.DynamicMaps, 10_000, 500_001, 1_000_000, 4.20m),
+                    Tier(19, MapsSku.DynamicMaps, 10_000, 1_000_001, 5_000_000, 2.10m),
+                    Tier(20, MapsSku.DynamicMaps, 10_000, 5_000_001, null, 0.53m),
+
+                    Tier(21, MapsSku.PlacesAutocomplete, 10_000, 10_001, 100_000, 2.83m),
+                    Tier(22, MapsSku.PlacesAutocomplete, 10_000, 100_001, 500_000, 2.27m),
+                    Tier(23, MapsSku.PlacesAutocomplete, 10_000, 500_001, 1_000_000, 1.70m),
+                    Tier(24, MapsSku.PlacesAutocomplete, 10_000, 1_000_001, 5_000_000, 0.85m),
+                    Tier(25, MapsSku.PlacesAutocomplete, 10_000, 5_000_001, null, 0.21m),
+
+                    Tier(26, MapsSku.PlaceDetails, 10_000, 10_001, 100_000, 5.00m),
+                    Tier(27, MapsSku.PlaceDetails, 10_000, 100_001, 500_000, 4.00m),
+                    Tier(28, MapsSku.PlaceDetails, 10_000, 500_001, 1_000_000, 3.00m),
+                    Tier(29, MapsSku.PlaceDetails, 10_000, 1_000_001, 5_000_000, 1.50m),
+                    Tier(30, MapsSku.PlaceDetails, 10_000, 5_000_001, null, 0.38m));
             });
 
             modelBuilder.Entity<SystemSetting>(entity =>
@@ -547,6 +629,23 @@ namespace Raphael.Shared.DbContexts
 
             #endregion
         }
+
+        /// <summary>One seeded pricing band. Keeps the table above readable as a table.</summary>
+        private static MapsPricingTier Tier(
+            int id,
+            MapsSku sku,
+            int freeCap,
+            int from,
+            int? to,
+            decimal pricePerThousand) => new()
+            {
+                Id = id,
+                Sku = sku,
+                FreeCapPerMonth = freeCap,
+                FromRequest = from,
+                ToRequest = to,
+                PricePerThousand = pricePerThousand
+            };
     }
 }
 

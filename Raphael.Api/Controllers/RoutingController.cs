@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.Routing;
 using Raphael.Shared.DTOs.Routing;
+using Raphael.Shared.Routing;
 
 namespace Raphael.Api.Controllers
 {
@@ -29,10 +30,12 @@ namespace Raphael.Api.Controllers
         private const int MaxAddressesPerRequest = 500;
 
         private readonly IRoutingService _routing;
+        private readonly IMapsUsageService _usage;
 
-        public RoutingController(IRoutingService routing)
+        public RoutingController(IRoutingService routing, IMapsUsageService usage)
         {
             _routing = routing;
+            _usage = usage;
         }
 
         /// <summary>
@@ -106,6 +109,44 @@ namespace Raphael.Api.Controllers
             if (request is null) return BadRequest("A coordinate is required.");
 
             return Ok(await _routing.ReverseGeocodeCityAsync(request, cancellationToken));
+        }
+
+        /// <summary>
+        /// Records Google calls a client made on its own, so they reach the usage panel.
+        /// </summary>
+        /// <remarks>
+        /// The map pages carry the browser key and talk to Google directly — a map load, an
+        /// address autocomplete, a geocode when a pin is dragged. This server never sees them,
+        /// and without this endpoint the panel would be blind to a third of the invoice.
+        ///
+        /// <para>
+        /// Any signed-in client may report. This writes nothing but counters, and the worst a
+        /// wrong report can do is make an estimate wrong — which is why the panel marks these
+        /// SKUs as reported rather than measured. Unknown SKU names are ignored rather than
+        /// refused: a client one version ahead should not get an error for it.
+        /// </para>
+        /// </remarks>
+        [HttpPost("usage")]
+        public async Task<IActionResult> ReportUsage(
+            [FromBody] MapsUsageReportDto request,
+            CancellationToken cancellationToken)
+        {
+            if (request?.Items is null || request.Items.Count == 0) return NoContent();
+
+            foreach (var item in request.Items)
+            {
+                if (!Enum.TryParse<MapsSku>(item.Sku, ignoreCase: true, out var sku)) continue;
+
+                // Only what a browser can actually buy. A client claiming to have made Routes
+                // calls is either confused or lying, and either way those are counted here.
+                if (!MapsPricingCalculator.IsReportedByClient(sku)) continue;
+
+                if (item.Count is <= 0 or > 1000) continue;
+
+                await _usage.RecordAsync(sku, billed: true, item.Count, cancellationToken);
+            }
+
+            return NoContent();
         }
     }
 }
