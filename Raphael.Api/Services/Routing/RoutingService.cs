@@ -95,18 +95,29 @@ namespace Raphael.Api.Services.Routing
                 await GetRetentionAsync(cancellationToken),
                 cancellationToken);
 
+            // A map screen wants the road's shape as well. A row cached by the scheduler has no
+            // shape in it, so for these keys a hit without one is not a hit.
+            var polylineWanted = plans
+                .Where(p => p.Leg.IncludePolyline)
+                .Select(p => p.Key)
+                .ToHashSet();
+
             var resolved = new Dictionary<LegKey, GoogleLegResult?>();
             var toBuy = new List<LegPlan>();
 
             foreach (var key in distinctKeys)
             {
-                if (cached.TryGetValue(key, out var hit))
+                var usable = cached.TryGetValue(key, out var hit)
+                    && (!polylineWanted.Contains(key) || !string.IsNullOrEmpty(hit.EncodedPolyline));
+
+                if (usable)
                 {
                     resolved[key] = new GoogleLegResult
                     {
-                        DurationSeconds = hit.DurationSeconds,
+                        DurationSeconds = hit!.DurationSeconds,
                         DurationInTrafficSeconds = hit.DurationInTrafficSeconds,
-                        DistanceMeters = hit.DistanceMeters
+                        DistanceMeters = hit.DistanceMeters,
+                        EncodedPolyline = hit.EncodedPolyline
                     };
                 }
                 else
@@ -119,7 +130,8 @@ namespace Raphael.Api.Services.Routing
 
             if (toBuy.Count > 0)
             {
-                var purchases = await Task.WhenAll(toBuy.Select(plan => BuyLegAsync(plan, mode, cancellationToken)));
+                var purchases = await Task.WhenAll(toBuy.Select(plan =>
+                    BuyLegAsync(plan, mode, polylineWanted.Contains(plan.Key), cancellationToken)));
 
                 foreach (var (plan, result) in toBuy.Zip(purchases))
                 {
@@ -335,6 +347,7 @@ namespace Raphael.Api.Services.Routing
         private async Task<GoogleLegResult?> BuyLegAsync(
             LegPlan plan,
             RoutingTrafficMode mode,
+            bool includePolyline,
             CancellationToken cancellationToken)
         {
             await GoogleGate.WaitAsync(cancellationToken);
@@ -348,6 +361,7 @@ namespace Raphael.Api.Services.Routing
                     plan.Leg.DestLng,
                     mode,
                     ToUtc(plan.LocalDeparture),
+                    includePolyline,
                     cancellationToken);
             }
             finally
@@ -365,10 +379,37 @@ namespace Raphael.Api.Services.Routing
             var now = DateTime.UtcNow;
             var seen = new HashSet<LegKey>();
 
+            var wanted = plans
+                .Where((plan, i) => results[i] is not null)
+                .Select(p => p.Key)
+                .ToHashSet();
+
+            // Rows for these legs whatever their age, tracked so they can be updated. Two reasons
+            // one may already be here: it expired but the nightly purge has not run yet, or — the
+            // common one — the scheduler cached it without a shape and a map has now asked for
+            // one. Inserting on top of either would hit the unique index and lose the answer we
+            // just paid for.
+            var existing = await LoadForWriteAsync(wanted, mode, cancellationToken);
+
             foreach (var (plan, result) in plans.Zip(results))
             {
                 if (result is null) continue;
                 if (!seen.Add(plan.Key)) continue;
+
+                if (existing.TryGetValue(plan.Key, out var row))
+                {
+                    row.DurationSeconds = result.DurationSeconds;
+                    row.DurationInTrafficSeconds = result.DurationInTrafficSeconds;
+                    row.DistanceMeters = result.DistanceMeters;
+
+                    // Never blank a shape somebody already paid for because this caller did not
+                    // ask for one.
+                    row.EncodedPolyline = result.EncodedPolyline ?? row.EncodedPolyline;
+
+                    row.FetchedAtUtc = now;
+
+                    continue;
+                }
 
                 _context.RouteLegCache.Add(new RouteLegCacheEntry
                 {
@@ -382,6 +423,7 @@ namespace Raphael.Api.Services.Routing
                     DurationSeconds = result.DurationSeconds,
                     DurationInTrafficSeconds = result.DurationInTrafficSeconds,
                     DistanceMeters = result.DistanceMeters,
+                    EncodedPolyline = result.EncodedPolyline,
                     FetchedAtUtc = now
                 });
             }
@@ -404,6 +446,36 @@ namespace Raphael.Api.Services.Routing
                     entry.State = EntityState.Detached;
                 }
             }
+        }
+
+        /// <summary>
+        /// The cache rows for these legs, of any age and tracked, so they can be written to.
+        /// </summary>
+        private async Task<Dictionary<LegKey, RouteLegCacheEntry>> LoadForWriteAsync(
+            HashSet<LegKey> keys,
+            RoutingTrafficMode mode,
+            CancellationToken cancellationToken)
+        {
+            if (keys.Count == 0) return new Dictionary<LegKey, RouteLegCacheEntry>();
+
+            var originLats = keys.Select(k => k.OriginLatE4).Distinct().ToList();
+            var destLats = keys.Select(k => k.DestLatE4).Distinct().ToList();
+
+            var candidates = await _context.RouteLegCache
+                .Where(c => c.TrafficMode == mode
+                    && originLats.Contains(c.OriginLatE4)
+                    && destLats.Contains(c.DestLatE4))
+                .ToListAsync(cancellationToken);
+
+            return candidates
+                .Select(c => new
+                {
+                    Key = new LegKey(c.OriginLatE4, c.OriginLngE4, c.DestLatE4, c.DestLngE4, c.TimeBucket, c.DayType),
+                    Entry = c
+                })
+                .Where(x => keys.Contains(x.Key))
+                .GroupBy(x => x.Key)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Entry.FetchedAtUtc).First().Entry);
         }
 
         private RouteLegResultDto ToDto(
@@ -440,6 +512,7 @@ namespace Raphael.Api.Services.Routing
                 DurationInTrafficSeconds = planningSeconds,
                 DistanceMeters = result.DistanceMeters,
                 DistanceMiles = RouteCacheKey.ToMiles(result.DistanceMeters),
+                EncodedPolyline = plan.Leg.IncludePolyline ? result.EncodedPolyline : null,
                 Source = source,
                 Status = RoutingContract.Statuses.Ok
             };

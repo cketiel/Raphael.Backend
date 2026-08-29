@@ -14,6 +14,9 @@ namespace Raphael.Api.Services.Routing
         public int? DurationInTrafficSeconds { get; init; }
 
         public int DistanceMeters { get; init; }
+
+        /// <summary>The road's shape, when it was asked for.</summary>
+        public string? EncodedPolyline { get; init; }
     }
 
     /// <summary>
@@ -37,10 +40,21 @@ namespace Raphael.Api.Services.Routing
         private const string Endpoint = "https://routes.googleapis.com/directions/v2:computeRoutes";
 
         /// <summary>
-        /// The only three fields we pay attention to. A wider mask costs more on some SKUs and
-        /// pulls polylines and turn-by-turn text nobody here reads.
+        /// The only three fields scheduling pays attention to. A wider mask pulls turn-by-turn
+        /// text nobody here reads, and some fields raise the SKU.
         /// </summary>
         private const string FieldMask = "routes.duration,routes.staticDuration,routes.distanceMeters";
+
+        /// <summary>
+        /// The same, plus the road's shape, for the screens that draw a map.
+        /// </summary>
+        /// <remarks>
+        /// A plain encoded polyline is an Essentials field. What would raise the tier is asking
+        /// for traffic *along* the polyline (<c>extraComputations: TRAFFIC_ON_POLYLINE</c>,
+        /// <c>travelAdvisory.speedReadingIntervals</c>) — deliberately not requested here. Either
+        /// way this mask is only used when a map is open, a handful of times a day.
+        /// </remarks>
+        private const string FieldMaskWithPolyline = FieldMask + ",routes.polyline.encodedPolyline";
 
         private readonly HttpClient _http;
         private readonly ILogger<GoogleRoutesClient> _logger;
@@ -75,6 +89,7 @@ namespace Raphael.Api.Services.Routing
             double destLng,
             RoutingTrafficMode mode,
             DateTime? departureUtc,
+            bool includePolyline,
             CancellationToken cancellationToken)
         {
             if (!IsConfigured)
@@ -122,7 +137,9 @@ namespace Raphael.Api.Services.Routing
             };
 
             request.Headers.Add("X-Goog-Api-Key", _apiKey);
-            request.Headers.Add("X-Goog-FieldMask", FieldMask);
+            request.Headers.Add(
+                "X-Goog-FieldMask",
+                includePolyline ? FieldMaskWithPolyline : FieldMask);
 
             try
             {
@@ -189,11 +206,20 @@ namespace Raphael.Api.Services.Routing
 
             if (freeFlow is null) return null;
 
+            string? polyline = null;
+
+            if (route.TryGetProperty("polyline", out var polylineElement)
+                && polylineElement.TryGetProperty("encodedPolyline", out var encoded))
+            {
+                polyline = encoded.GetString();
+            }
+
             return new GoogleLegResult
             {
                 DurationSeconds = freeFlow.Value,
                 DurationInTrafficSeconds = trafficAware ? duration ?? freeFlow : null,
-                DistanceMeters = distance
+                DistanceMeters = distance,
+                EncodedPolyline = polyline
             };
         }
 

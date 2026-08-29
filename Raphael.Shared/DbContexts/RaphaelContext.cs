@@ -53,10 +53,13 @@ namespace Raphael.Shared.DbContexts
 
         #region Routing
 
-        /// <summary>Google's answers, kept at most 30 days. See <see cref="RouteLegCacheEntry"/>.</summary>
+        /// <summary>
+        /// Google's answers, kept for as long as <c>Routing.CacheRetentionDays</c> says.
+        /// See <see cref="RouteLegCacheEntry"/>.
+        /// </summary>
         public DbSet<RouteLegCacheEntry> RouteLegCache { get; set; }
 
-        /// <summary>Addresses resolved to coordinates, kept at most 30 days.</summary>
+        /// <summary>Addresses resolved to coordinates, under the same retention setting.</summary>
         public DbSet<GeocodeCacheEntry> GeocodeCache { get; set; }
 
         /// <summary>What our own vehicles measured. No expiry — this one is ours.</summary>
@@ -157,6 +160,11 @@ namespace Raphael.Shared.DbContexts
                 })
                 .IsUnique()
                 .HasDatabaseName("IX_RouteLegCache_Leg");
+
+                // An encoded polyline for a city drive runs to a few kilobytes, and a long one
+                // has no useful ceiling. Left unbounded rather than truncated: half a polyline
+                // draws a road that ends in a field.
+                entity.Property(x => x.EncodedPolyline);
 
                 // The purge reads by age and nothing else.
                 entity.HasIndex(x => x.FetchedAtUtc);

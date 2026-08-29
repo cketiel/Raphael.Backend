@@ -66,6 +66,17 @@ namespace Raphael.Shared.Entities.Routing
 
         public int DistanceMeters { get; set; }
 
+        /// <summary>
+        /// The route's shape, as Google's encoded polyline, or null when nobody asked for one.
+        /// </summary>
+        /// <remarks>
+        /// Only the map screens want a shape, and only they pay the extra field. Everything that
+        /// merely schedules — the ETA chain, the driver's next legs — asks for duration and
+        /// distance and leaves this null. A row bought without a shape is still a hit for those
+        /// callers; it is a miss only for a caller that needs to draw the road.
+        /// </remarks>
+        public string? EncodedPolyline { get; set; }
+
         /// <summary>When Google answered. The clock the retention purge runs on.</summary>
         public DateTime FetchedAtUtc { get; set; }
 

@@ -65,6 +65,16 @@ namespace Raphael.Shared.DTOs.Routing
         public DateTime? Date { get; set; }
 
         public TimeSpan? DepartureTime { get; set; }
+
+        /// <summary>
+        /// Ask for the road's shape as well, so a map can draw it. Off by default.
+        /// </summary>
+        /// <remarks>
+        /// Only a screen showing a map has any use for this. Scheduling asks for time and distance
+        /// and nothing else, which keeps the field mask — and the cached row — small. A cached
+        /// answer without a shape does not satisfy a request that set this.
+        /// </remarks>
+        public bool IncludePolyline { get; set; }
     }
 
     public class RouteLegsRequestDto
@@ -94,6 +104,17 @@ namespace Raphael.Shared.DTOs.Routing
         /// locale, which on a Spanish-locale machine read 12.3 as 123.
         /// </remarks>
         public double DistanceMiles { get; set; }
+
+        /// <summary>
+        /// The road's shape as an encoded polyline, when it was asked for. Null otherwise.
+        /// </summary>
+        /// <remarks>
+        /// This replaces what the Desktop's map used to get from the JavaScript
+        /// <c>DirectionsService</c> — a class Google no longer serves to projects created after
+        /// March 2025. Drawing it costs the map a <c>google.maps.Polyline</c> and no billed call
+        /// of its own, since the leg is already paid for or cached here.
+        /// </remarks>
+        public string? EncodedPolyline { get; set; }
 
         /// <summary>One of <see cref="RoutingContract.Sources"/>.</summary>
         public string Source { get; set; } = RoutingContract.Sources.Cache;
