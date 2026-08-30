@@ -112,6 +112,39 @@ namespace Raphael.Api.Controllers
         }
 
         /// <summary>
+        /// What we already know about a Google place, so the client need not buy it again.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ A <c>NotFound</c> here is normal and is not an error: it means nobody has looked
+        /// this place up yet. Only the browser key has Places enabled, so the caller fetches it
+        /// and posts the result back to <c>POST /api/routing/place</c>. Every dispatcher after
+        /// that gets it from here for nothing.
+        /// </remarks>
+        [HttpGet("place/{placeId}")]
+        public async Task<ActionResult<PlaceDetailsDto>> GetPlace(
+            string placeId,
+            CancellationToken cancellationToken)
+        {
+            return Ok(await _routing.GetPlaceAsync(placeId, cancellationToken));
+        }
+
+        /// <summary>Remembers a place the client had to buy from Google.</summary>
+        [HttpPost("place")]
+        public async Task<IActionResult> StorePlace(
+            [FromBody] PlaceDetailsDto place,
+            CancellationToken cancellationToken)
+        {
+            if (place is null || string.IsNullOrWhiteSpace(place.PlaceId))
+            {
+                return BadRequest("A place id is required.");
+            }
+
+            await _routing.StorePlaceAsync(place, cancellationToken);
+
+            return NoContent();
+        }
+
+        /// <summary>
         /// Records Google calls a client made on its own, so they reach the usage panel.
         /// </summary>
         /// <remarks>

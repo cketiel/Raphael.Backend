@@ -293,24 +293,196 @@ namespace Raphael.Api.Services.Routing
                 return new ReverseGeocodeResultDto { Status = RoutingContract.Statuses.NotFound };
             }
 
-            var city = await _geocoding.ReverseGeocodeCityAsync(
+            // Rounded to about eleven metres. A dispatcher nudging a pin is not asking a new
+            // question, and the map used to buy an answer on every single drag.
+            var key = RouteCacheKey.ForPoint(request.Latitude, request.Longitude);
+
+            var cutoff = DateTime.UtcNow - await GetRetentionAsync(cancellationToken);
+
+            var hit = await _context.GeocodeCache
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    c => c.NormalizedAddress == key && c.FetchedAtUtc >= cutoff,
+                    cancellationToken);
+
+            if (hit is not null)
+            {
+                await _usage.RecordAsync(MapsSku.Geocoding, billed: false, 1, cancellationToken);
+
+                return ToReverseDto(hit, request, RoutingContract.Sources.Cache);
+            }
+
+            var found = await _geocoding.ReverseGeocodeAsync(
                 request.Latitude,
                 request.Longitude,
                 cancellationToken);
 
-            // ⚠️ Always billed: unlike every other path here, reverse geocoding has no cache
-            // behind it. It runs when a dispatcher drags a pin, which is rare enough that nobody
-            // has paid for a cache yet — but the panel will show it as 100% bought, correctly.
+            if (found is null)
+            {
+                return new ReverseGeocodeResultDto
+                {
+                    Latitude = request.Latitude,
+                    Longitude = request.Longitude,
+                    Status = RoutingContract.Statuses.NotFound
+                };
+            }
+
             await _usage.RecordAsync(MapsSku.Geocoding, billed: true, 1, cancellationToken);
 
-            return new ReverseGeocodeResultDto
+            var entry = new GeocodeCacheEntry
             {
-                City = city,
-                Source = RoutingContract.Sources.Google,
-                Status = city is null
-                    ? RoutingContract.Statuses.NotFound
-                    : RoutingContract.Statuses.Ok
+                NormalizedAddress = key,
+                Latitude = found.Latitude,
+                Longitude = found.Longitude,
+                PlaceId = found.PlaceId,
+                FormattedAddress = found.FormattedAddress,
+                Street = found.Street,
+                City = found.City,
+                State = found.State,
+                Zip = found.Zip,
+                Status = GeocodeStatus.Ok,
+                FetchedAtUtc = DateTime.UtcNow
             };
+
+            await UpsertGeocodeAsync(entry, cancellationToken);
+
+            return ToReverseDto(entry, request, RoutingContract.Sources.Google);
+        }
+
+        private static ReverseGeocodeResultDto ToReverseDto(
+            GeocodeCacheEntry entry,
+            ReverseGeocodeRequestDto request,
+            string source) => new()
+            {
+                City = entry.City,
+                Street = entry.Street,
+                State = entry.State,
+                Zip = entry.Zip,
+                FormattedAddress = entry.FormattedAddress,
+
+                // The point that was asked about, not the one Google rounded to. Moving the pin
+                // out from under the dispatcher's cursor would be its own small betrayal.
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                Source = source,
+                Status = RoutingContract.Statuses.Ok
+            };
+
+        public async Task<PlaceDetailsDto> GetPlaceAsync(
+            string placeId,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(placeId))
+            {
+                return new PlaceDetailsDto { Status = RoutingContract.Statuses.NotFound };
+            }
+
+            var key = RouteCacheKey.ForPlace(placeId);
+
+            var cutoff = DateTime.UtcNow - await GetRetentionAsync(cancellationToken);
+
+            var hit = await _context.GeocodeCache
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    c => c.NormalizedAddress == key && c.FetchedAtUtc >= cutoff,
+                    cancellationToken);
+
+            if (hit is null)
+            {
+                // Not a failure — an invitation. The caller has the browser key, so it fetches
+                // and hands the answer back through StorePlaceAsync.
+                return new PlaceDetailsDto
+                {
+                    PlaceId = placeId,
+                    Status = RoutingContract.Statuses.NotFound
+                };
+            }
+
+            await _usage.RecordAsync(MapsSku.PlaceDetails, billed: false, 1, cancellationToken);
+
+            return new PlaceDetailsDto
+            {
+                PlaceId = placeId,
+                Latitude = hit.Latitude ?? 0,
+                Longitude = hit.Longitude ?? 0,
+                FormattedAddress = hit.FormattedAddress,
+                Street = hit.Street,
+                City = hit.City,
+                State = hit.State,
+                Zip = hit.Zip,
+                Source = RoutingContract.Sources.Cache,
+                Status = RoutingContract.Statuses.Ok
+            };
+        }
+
+        public async Task StorePlaceAsync(
+            PlaceDetailsDto place,
+            CancellationToken cancellationToken)
+        {
+            if (place is null || string.IsNullOrWhiteSpace(place.PlaceId)) return;
+
+            await UpsertGeocodeAsync(new GeocodeCacheEntry
+            {
+                NormalizedAddress = RouteCacheKey.ForPlace(place.PlaceId),
+                Latitude = place.Latitude,
+                Longitude = place.Longitude,
+                PlaceId = place.PlaceId,
+                FormattedAddress = place.FormattedAddress,
+                Street = place.Street,
+                City = place.City,
+                State = place.State,
+                Zip = place.Zip,
+                Status = GeocodeStatus.Ok,
+                FetchedAtUtc = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Writes a geocode row, updating whatever is already under that key.
+        /// </summary>
+        /// <remarks>
+        /// Two dispatchers dragging pins onto the same corner in the same second would otherwise
+        /// race the unique index, and the loser's answer — already paid for — would be discarded.
+        /// </remarks>
+        private async Task UpsertGeocodeAsync(
+            GeocodeCacheEntry entry,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _context.GeocodeCache
+                    .FirstOrDefaultAsync(
+                        c => c.NormalizedAddress == entry.NormalizedAddress, cancellationToken);
+
+                if (existing is null)
+                {
+                    _context.GeocodeCache.Add(entry);
+                }
+                else
+                {
+                    existing.Latitude = entry.Latitude;
+                    existing.Longitude = entry.Longitude;
+                    existing.PlaceId = entry.PlaceId ?? existing.PlaceId;
+                    existing.FormattedAddress = entry.FormattedAddress;
+                    existing.Street = entry.Street;
+                    existing.City = entry.City;
+                    existing.State = entry.State;
+                    existing.Zip = entry.Zip;
+                    existing.Status = entry.Status;
+                    existing.FetchedAtUtc = entry.FetchedAtUtc;
+                }
+
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogWarning(ex, "A geocode cache row was already present; skipping.");
+
+                foreach (var tracked in _context.ChangeTracker.Entries<GeocodeCacheEntry>().ToList())
+                {
+                    tracked.State = EntityState.Detached;
+                }
+            }
         }
 
         // ---------------------------------------------------------------- legs

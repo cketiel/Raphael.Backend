@@ -209,8 +209,53 @@ namespace Raphael.Shared.DTOs.Routing
         /// <summary>The locality, or null when the point is not in one.</summary>
         public string? City { get; set; }
 
+        /// <summary>The whole line as Google prints it, for the address box on the map.</summary>
+        public string? FormattedAddress { get; set; }
+
+        public string? Street { get; set; }
+
+        public string? State { get; set; }
+
+        public string? Zip { get; set; }
+
+        public double Latitude { get; set; }
+
+        public double Longitude { get; set; }
+
         public string Status { get; set; } = RoutingContract.Statuses.Ok;
 
+        public string Source { get; set; } = RoutingContract.Sources.Cache;
+    }
+
+    /// <summary>
+    /// What a client already fetched from Google about a place, handed over to be remembered.
+    /// </summary>
+    /// <remarks>
+    /// The browser key is the only one with Places enabled, so the map pages stay the caller —
+    /// but they ask here first, and hand back whatever they had to buy. Next time nobody pays.
+    /// </remarks>
+    public class PlaceDetailsDto
+    {
+        public string PlaceId { get; set; } = string.Empty;
+
+        public double Latitude { get; set; }
+
+        public double Longitude { get; set; }
+
+        public string? FormattedAddress { get; set; }
+
+        public string? Street { get; set; }
+
+        public string? City { get; set; }
+
+        public string? State { get; set; }
+
+        public string? Zip { get; set; }
+
+        /// <summary>One of <see cref="RoutingContract.Statuses"/>.</summary>
+        public string Status { get; set; } = RoutingContract.Statuses.Ok;
+
+        /// <summary>One of <see cref="RoutingContract.Sources"/>.</summary>
         public string Source { get; set; } = RoutingContract.Sources.Cache;
     }
 

@@ -37,6 +37,19 @@ namespace Raphael.Api.Services.Routing
             GeocodeBatchRequestDto request,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// What a place the client already looked up contains, if we have been told before.
+        /// </summary>
+        /// <remarks>
+        /// Status <c>NotFound</c> is not a failure here: it means nobody has bought this place
+        /// yet, and the caller — which holds the only key with Places enabled — should fetch it
+        /// and hand it back through <see cref="StorePlaceAsync"/>.
+        /// </remarks>
+        Task<PlaceDetailsDto> GetPlaceAsync(string placeId, CancellationToken cancellationToken);
+
+        /// <summary>Remembers a place a client had to buy, so nobody buys it twice.</summary>
+        Task StorePlaceAsync(PlaceDetailsDto place, CancellationToken cancellationToken);
+
         Task<ReverseGeocodeResultDto> ReverseGeocodeCityAsync(
             ReverseGeocodeRequestDto request,
             CancellationToken cancellationToken);

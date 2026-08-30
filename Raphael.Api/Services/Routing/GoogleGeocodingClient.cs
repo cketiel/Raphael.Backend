@@ -12,6 +12,15 @@ namespace Raphael.Api.Services.Routing
         public string? PlaceId { get; init; }
 
         public string? FormattedAddress { get; init; }
+
+        /// <summary>Street line, from the street number and route components.</summary>
+        public string? Street { get; init; }
+
+        public string? City { get; init; }
+
+        public string? State { get; init; }
+
+        public string? Zip { get; init; }
     }
 
     /// <summary>
@@ -102,19 +111,18 @@ namespace Raphael.Api.Services.Routing
                 return (null, false);
             }
 
-            return (new GoogleGeocodeResult
-            {
-                Latitude = lat.GetDouble(),
-                Longitude = lng.GetDouble(),
-                PlaceId = first.TryGetProperty("place_id", out var placeId) ? placeId.GetString() : null,
-                FormattedAddress = first.TryGetProperty("formatted_address", out var formatted)
-                    ? formatted.GetString()
-                    : null
-            }, false);
+            return Read(first);
         }
 
-        /// <summary>The locality a point sits in, or null when it is not in one.</summary>
-        public async Task<string?> ReverseGeocodeCityAsync(
+        /// <summary>
+        /// The address a point sits at: street, town, state, postcode and the formatted line.
+        /// </summary>
+        /// <remarks>
+        /// This used to return only the town, which meant the map's pin-drag had to ask Google
+        /// itself for the rest — a billed request from the browser that no cache ever saw. It
+        /// returns the whole address now so the map can be served entirely from here.
+        /// </remarks>
+        public async Task<GoogleGeocodeResult?> ReverseGeocodeAsync(
             double latitude,
             double longitude,
             CancellationToken cancellationToken)
@@ -133,31 +141,79 @@ namespace Raphael.Api.Services.Routing
             using var document = JsonDocument.Parse(payload);
 
             if (!document.RootElement.TryGetProperty("results", out var results)
-                || results.ValueKind != JsonValueKind.Array)
+                || results.ValueKind != JsonValueKind.Array
+                || results.GetArrayLength() == 0)
             {
                 return null;
             }
 
-            foreach (var result in results.EnumerateArray())
-            {
-                if (!result.TryGetProperty("address_components", out var components)) continue;
+            // Google orders reverse results from the most precise to the vaguest, so the first
+            // one is the street address and the last is the country.
+            var read = Read(results[0]).Result;
 
+            if (read is null) return null;
+
+            // The point asked about, not the one Google rounded to the middle of the building.
+            // Moving the pin under the dispatcher's cursor would be its own small betrayal.
+            return new GoogleGeocodeResult
+            {
+                Latitude = latitude,
+                Longitude = longitude,
+                PlaceId = read.PlaceId,
+                FormattedAddress = read.FormattedAddress,
+                Street = read.Street,
+                City = read.City,
+                State = read.State,
+                Zip = read.Zip
+            };
+        }
+
+        /// <summary>Pulls one Google result apart into the fields this application stores.</summary>
+        private static (GoogleGeocodeResult? Result, bool DefinitiveNotFound) Read(JsonElement first)
+        {
+            if (!first.TryGetProperty("geometry", out var geometry)
+                || !geometry.TryGetProperty("location", out var location)
+                || !location.TryGetProperty("lat", out var lat)
+                || !location.TryGetProperty("lng", out var lng))
+            {
+                return (null, false);
+            }
+
+            string street = string.Empty, city = null, state = null, zip = null;
+
+            if (first.TryGetProperty("address_components", out var components)
+                && components.ValueKind == JsonValueKind.Array)
+            {
                 foreach (var component in components.EnumerateArray())
                 {
                     if (!component.TryGetProperty("types", out var types)) continue;
 
-                    foreach (var type in types.EnumerateArray())
-                    {
-                        if (type.GetString() != "locality") continue;
+                    var names = types.EnumerateArray().Select(t => t.GetString()).ToList();
 
-                        return component.TryGetProperty("long_name", out var name)
-                            ? name.GetString()
-                            : null;
-                    }
+                    string Long() => component.TryGetProperty("long_name", out var v) ? v.GetString() : null;
+                    string Short() => component.TryGetProperty("short_name", out var v) ? v.GetString() : null;
+
+                    if (names.Contains("street_number")) street = Long() + " ";
+                    if (names.Contains("route")) street += Long();
+                    if (names.Contains("locality")) city = Long();
+                    if (names.Contains("administrative_area_level_1")) state = Short();
+                    if (names.Contains("postal_code")) zip = Long();
                 }
             }
 
-            return null;
+            return (new GoogleGeocodeResult
+            {
+                Latitude = lat.GetDouble(),
+                Longitude = lng.GetDouble(),
+                PlaceId = first.TryGetProperty("place_id", out var placeId) ? placeId.GetString() : null,
+                FormattedAddress = first.TryGetProperty("formatted_address", out var formatted)
+                    ? formatted.GetString()
+                    : null,
+                Street = street.Trim(),
+                City = city,
+                State = state,
+                Zip = zip
+            }, false);
         }
 
         private async Task<string?> GetAsync(string url, CancellationToken cancellationToken)

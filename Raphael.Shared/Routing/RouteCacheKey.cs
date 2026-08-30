@@ -139,5 +139,27 @@ namespace Raphael.Shared.Routing
         /// </summary>
         public static string Coord(double value) =>
             value.ToString("0.######", CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// The cache key for a point somebody dropped a pin on.
+        /// </summary>
+        /// <remarks>
+        /// Rounded to four decimals, about eleven metres — the same grid the route cache uses.
+        /// A dispatcher nudging a pin by a few metres is not asking a different question, and
+        /// keeping full precision would mean paying Google every time the mouse moved.
+        /// </remarks>
+        public static string ForPoint(double latitude, double longitude) =>
+            "@" + ToE4(latitude).ToString(CultureInfo.InvariantCulture)
+                + "," + ToE4(longitude).ToString(CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// The cache key for a Google place chosen from the autocomplete.
+        /// </summary>
+        /// <remarks>
+        /// Google's terms allow a place id to be stored indefinitely, which makes this the one
+        /// key in the table that is unambiguously ours to keep.
+        /// </remarks>
+        public static string ForPlace(string placeId) =>
+            "place:" + (placeId ?? string.Empty).Trim();
     }
 }

@@ -20,9 +20,20 @@ namespace Raphael.Shared.Entities.Routing
         public int Id { get; set; }
 
         /// <summary>
-        /// The address as the cache key: trimmed, upper-cased, punctuation and repeated spaces
-        /// collapsed. Built by <c>RouteCacheKey.NormalizeAddress</c> — never assign it raw.
+        /// The cache key. Three shapes share this table, told apart by their prefix:
         /// </summary>
+        /// <remarks>
+        /// <list type="bullet">
+        /// <item>a plain address — trimmed, upper-cased, punctuation collapsed, built by
+        /// <c>RouteCacheKey.NormalizeAddress</c>;</item>
+        /// <item><c>@lat,lng</c> — a point somebody dropped a pin on, rounded, for reverse
+        /// geocoding;</item>
+        /// <item><c>place:&lt;id&gt;</c> — a Google place chosen from the autocomplete.</item>
+        /// </list>
+        /// One table rather than three because all three answer the same question — where is
+        /// this — and all three expire under the same retention setting and the same purge.
+        /// Never assign this raw: use the builders on <c>RouteCacheKey</c>.
+        /// </remarks>
         public string NormalizedAddress { get; set; } = string.Empty;
 
         public double? Latitude { get; set; }
@@ -34,6 +45,22 @@ namespace Raphael.Shared.Entities.Routing
 
         /// <summary>The address as Google prints it. Useful when a dispatcher disputes a pin.</summary>
         public string? FormattedAddress { get; set; }
+
+        /// <summary>
+        /// The address broken into the four fields every form in this application stores.
+        /// </summary>
+        /// <remarks>
+        /// Kept so a cached answer can fill a customer form without asking Google again. Before
+        /// these existed the map had the coordinates but not the street, and went back to Google
+        /// for a line it had already been told.
+        /// </remarks>
+        public string? Street { get; set; }
+
+        public string? City { get; set; }
+
+        public string? State { get; set; }
+
+        public string? Zip { get; set; }
 
         public GeocodeStatus Status { get; set; }
 
