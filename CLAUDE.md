@@ -22,7 +22,8 @@ el Customer Service Bot y los integradores externos. Si un contrato cambia aquí
 espeja en TypeScript. **Al tocar un DTO, una Entity o la firma de un controller, ejecutar
 `/contract-impact <Símbolo>` antes de cerrar la tarea.** Ver `../_meta/CONTRACT_MAP.md`.
 
-Drift abierto hoy: `ScheduleDto` → Desktop va 8 propiedades por detrás.
+Drift abierto hoy: `ScheduleDto` → a Desktop le faltan 3 propiedades (`CustomerId`,
+`CustomerPhone`, `VehicleRouteId`). Hasta RE-008 este documento decía 8; eran 3.
 
 ## Integración externa — el contrato que no se arregla desplegando
 
