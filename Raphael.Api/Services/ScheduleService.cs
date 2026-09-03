@@ -912,6 +912,21 @@ namespace Raphael.Api.Services
 
         public async Task<bool> UpdateAsync(int id, ScheduleDto dto)
         {
+            // Pull-out and Pull-in are the vehicle leaving the garage and coming back
+            // to it. No patient is waiting on either hour, so when the arithmetic runs
+            // off the ends of the day they are pinned to the ends of the day rather
+            // than refusing the routing: an early start becomes 00:00:00 and a late
+            // return becomes 23:59:59. The dispatcher's recalculation overwrites both
+            // with measured hours immediately afterwards.
+            static TimeSpan? ClampToGarageHour(TimeSpan? value)
+            {
+                if (value is null) return null;
+                if (value.Value < TimeSpan.Zero) return TimeSpan.Zero;
+
+                var endOfDay = new TimeSpan(23, 59, 59);
+                return value.Value > endOfDay ? endOfDay : value.Value;
+            }
+
             var schedules = await _context.Schedules
                 .Include(s => s.Trip)
                 .FirstOrDefaultAsync(r => r.Id == id);
@@ -931,9 +946,11 @@ namespace Raphael.Api.Services
             // measured drive as a pickup, and the router will need both.
             bool justArrived = !schedules.ActualArriveTime.HasValue && dto.Arrive.HasValue;
 
+            var validatedEta = ClampToGarageHour(dto.ETA);
+
             schedules.DistanceToPoint = dto.Distance;
             schedules.TravelTime = dto.Travel;
-            schedules.ETATime = dto.ETA;
+            schedules.ETATime = validatedEta; // dto.ETA;
             schedules.Odometer = dto.Odometer;
             schedules.Sequence = dto.Sequence;
             schedules.Performed = dto.Performed;
