@@ -492,8 +492,14 @@ namespace Raphael.Api.Services
 
                 // 3. Check if there are already schedules for this route on this day.
                 var tripDate = tripToRoute.Date.Date;
+                var nextDay = tripDate.AddDays(1);
+
+                // Half-open range: s.Date.Value.Date wraps the column in CONVERT(date, ...) and
+                // the index on (VehicleRouteId, Date) cannot be seeked through it. This runs on
+                // every trip routed.
                 bool isFirstTripOfDay = !await _context.Schedules
-                    .AnyAsync(s => s.VehicleRouteId == request.VehicleRouteId && s.Date.HasValue && s.Date.Value.Date == tripDate);
+                    .AnyAsync(s => s.VehicleRouteId == request.VehicleRouteId
+                                   && s.Date >= tripDate && s.Date < nextDay);
 
                 if (isFirstTripOfDay)
                 {
@@ -712,8 +718,10 @@ namespace Raphael.Api.Services
 
                 await _context.SaveChangesAsync(); // We save so that the next query sees the changes.
 
-                // 4. Check if there are other trips left for this route on this day.
-                bool otherTripsExist = await _context.Schedules.CountAsync(s => s.VehicleRouteId == vehicleRouteId && s.Date.HasValue && s.Date.Value.Date == tripDate.Date) > 2;
+                // 4. Whether other trips are left for this route on this day is no longer asked.
+                // The answer fed the block below, which is commented out because Pull-out and
+                // Pull-in must survive an empty route — so the count was a round trip whose
+                // result nobody read, and it scanned the route's whole history to get it.
                 /*bool otherTripsExist = await _context.Schedules
                     .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);*/
 

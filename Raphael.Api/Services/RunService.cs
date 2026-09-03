@@ -22,12 +22,19 @@ namespace Raphael.Api.Services
         {
             // Eager loading of all related collections to avoid N+1 problems.
             // AsNoTracking() improves performance on read-only operations.
+            //
+            // AsSplitQuery matters here: three of these Includes are collections, and in one
+            // statement SQL Server has to return their cross product — a route with 5
+            // suspensions, 7 availabilities and 4 funding sources comes back as 140 rows, all
+            // repeating the route, the vehicle and the driver, for EF to fold back into one
+            // object. Split into a query per collection, each row appears once.
             return await _context.VehicleRoutes
                 .Include(vr => vr.Vehicle).ThenInclude(v => v.VehicleGroup)
                 .Include(vr => vr.Driver)
                 .Include(vr => vr.Suspensions)
                 .Include(vr => vr.Availabilities)
                 .Include(vr => vr.FundingSources).ThenInclude(fs => fs.FundingSource)
+                .AsSplitQuery()
                 .AsNoTracking()
                 .ToListAsync();
         }
