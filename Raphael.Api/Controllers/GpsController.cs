@@ -1,7 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Raphael.Api.Realtime;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.DTOs.Realtime;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Interfaces;
+using Raphael.Shared.Time;
 
 namespace Raphael.Api.Controllers
 {
@@ -10,10 +14,20 @@ namespace Raphael.Api.Controllers
     public class GpsController : ControllerBase
     {
         private readonly IGpsService _gpsService;
+        private readonly IDispatchBroadcaster _board;
+        private readonly IOperationClock _clock;
+        private readonly ICurrentUserService _currentUser;
 
-        public GpsController(IGpsService gpsService)
+        public GpsController(
+            IGpsService gpsService,
+            IDispatchBroadcaster board,
+            IOperationClock clock,
+            ICurrentUserService currentUser)
         {
             _gpsService = gpsService;
+            _board = board;
+            _clock = clock;
+            _currentUser = currentUser;
         }
 
         // POST: api/Gps
@@ -28,7 +42,27 @@ namespace Raphael.Api.Controllers
             try
             {
                 await _gpsService.SaveGpsDataAsync(gpsDataDto);
-                
+
+                // Pushed to whoever has that route on screen, instead of every open tab asking
+                // "where is it now" every five seconds. The driver's app reports about every
+                // thirty seconds, so this is one message per vehicle per half minute, delivered
+                // only to the screens actually watching that route.
+                //
+                // The operating day comes from the clock and not from the fix's own date: a
+                // report taken at two in the morning UTC belongs to the previous evening here,
+                // and the screens are grouped by the day the office is working.
+                await _board.VehiclePositionAsync(
+                    new VehiclePositionMessage
+                    {
+                        VehicleRouteId = gpsDataDto.IdVehicleRoute,
+                        Latitude = gpsDataDto.Latitude,
+                        Longitude = gpsDataDto.Longitude,
+                        Speed = gpsDataDto.Speed,
+                        Direction = gpsDataDto.Direction,
+                        AtUtc = DateTime.UtcNow
+                    },
+                    _clock.TodayFor(_currentUser.ProviderId));
+
                 return Ok("GPS data saved successfully.");
             }
             catch (Exception ex)

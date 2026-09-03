@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Raphael.Api.Models;
+using Raphael.Api.Realtime;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
 using Raphael.Api.Services.Notifications;
@@ -219,8 +220,12 @@ builder.Services.AddAuthentication(options =>
 
             var path = context.HttpContext.Request.Path;
 
+            // SignalR can only put its credential in the query string when the transport is
+            // not WebSockets, and this host may fall back to one of those. Both hubs need the
+            // same accommodation.
             if (!string.IsNullOrEmpty(accessToken) &&
-                path.StartsWithSegments("/hubs/notifications"))
+                (path.StartsWithSegments("/hubs/notifications") ||
+                 path.StartsWithSegments("/hubs/dispatch")))
             {
                 context.Token = accessToken;
             }
@@ -311,6 +316,10 @@ builder.Services.AddScoped<VehicleGroupService>();
 builder.Services.AddScoped<ICapacityDetailTypeService, CapacityDetailTypeService>();
 builder.Services.AddScoped<IRunService, RunService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
+
+// The dispatch board channel. Not a notification: see Raphael.Api/Realtime/DispatchHub.cs
+// and _meta/REALTIME_POLICY.md for why it is a hub of its own.
+builder.Services.AddScoped<IDispatchBroadcaster, DispatchBroadcaster>();
 
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<BillingItemService>();
@@ -525,6 +534,7 @@ app.Use(async (context, next) =>
 app.UseAuthorization(); // Do you have permission?
 
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<DispatchHub>("/hubs/dispatch");
 
 app.MapControllers();
 

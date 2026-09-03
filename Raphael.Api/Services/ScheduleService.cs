@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Realtime;
 using Raphael.Api.Services.Notifications;
 using Raphael.Api.Services.Routing;
 using Raphael.Notification.Application.Helpers;
@@ -22,7 +23,9 @@ namespace Raphael.Api.Services
         private readonly IOperationClock _clock;
         private readonly IObservedLegRecorder _observedLegs;
 
-        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs)
+        private readonly IDispatchBroadcaster _board;
+
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs, IDispatchBroadcaster board)
         {
             _context = context;
             _notificationService = notificationService;
@@ -30,6 +33,7 @@ namespace Raphael.Api.Services
             _tripNotifications = tripNotifications;
             _clock = clock;
             _observedLegs = observedLegs;
+            _board = board;
         }
         public async Task<bool> UpdateContactPhoneNumberAsync(int tripId, string newPhoneNumber)
         {
@@ -673,6 +677,15 @@ namespace Raphael.Api.Services
             await _tripNotifications.DriverRouteUpdatedAsync(
                 tripToRoute,
                 RouteChangeTypes.Added);
+
+            // And to the other dispatchers: the trip they still have in their backlog is taken.
+            // Not a notification — nobody has to read this, it just stops a second dispatcher
+            // from routing a trip that is already on a vehicle.
+            await _board.TripRoutedAsync(
+                tripToRoute.Id,
+                request.VehicleRouteId,
+                tripToRoute.Date,
+                tripToRoute.ProviderId);
         }
 
         public async Task CancelRouteForTripAsync(int scheduleId)
@@ -764,6 +777,14 @@ namespace Raphael.Api.Services
                     unroutedTrip,
                     RouteChangeTypes.Removed,
                     formerVehicleRouteId);
+
+                // The trip is waiting again: it has to reappear in the other dispatchers'
+                // backlog, and the route it left has a hole in it that they should see.
+                await _board.TripUnroutedAsync(
+                    unroutedTrip.Id,
+                    formerVehicleRouteId ?? 0,
+                    unroutedTrip.Date,
+                    unroutedTrip.ProviderId);
             }
         }
 
@@ -1057,7 +1078,16 @@ namespace Raphael.Api.Services
                 changed++;
             }
 
-            if (changed > 0) await _context.SaveChangesAsync();
+            if (changed > 0)
+            {
+                await _context.SaveChangesAsync();
+
+                // Anyone else with this route open is looking at the order it had a moment ago.
+                // The message says which route moved and not how: the receiving screen reloads
+                // that one route, which is a single query, and may be showing it under a
+                // different filter than the sender was.
+                await _board.RouteChangedAsync(request.VehicleRouteId, request.Date);
+            }
 
             return changed;
         }
