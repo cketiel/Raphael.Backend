@@ -152,12 +152,29 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// One route's events for one day, in the order the driver will perform them.
+        /// </summary>
+        /// <remarks>
+        /// This is the query behind the top grid of the dispatcher's Schedule tab, and it used
+        /// to be two round trips whose results were concatenated and sorted in memory: one for
+        /// the live events, one to bring back the Pickup of each cancelled trip so the row stays
+        /// visible in red. Both sets come from one pass now, and SQL Server does the ordering.
+        ///
+        /// A cancelled trip still contributes its Pickup and only its Pickup: the row is there
+        /// to tell the dispatcher a hole opened in the route, and two rows would say it twice.
+        /// </remarks>
         public async Task<IEnumerable<ScheduleDto>> GetSchedulesByRouteAndDateAsync(int vehicleRouteId, DateTime date)
         {
-            var noCanceledEvents = await _context.Schedules
-                .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
-                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == date.Date)
-                .Where(s => s.Trip == null || s.Trip.IsCancelled == false) // s.Trip.Status != TripStatus.Canceled
+            var day = date.Date;
+
+            return await _context.Schedules
+                .AsNoTracking()
+                .Where(s => s.VehicleRouteId == vehicleRouteId && s.Date == day)
+                .Where(s => s.Trip == null
+                            || s.Trip.IsCancelled == false
+                            || s.EventType == ScheduleEventType.Pickup)
+                .OrderBy(s => s.Sequence).ThenBy(s => s.ETATime)
                 .Select(s => new ScheduleDto
                 {
 
@@ -194,62 +211,12 @@ namespace Raphael.Api.Services
                     Vehicle = s.VehicleRoute.Vehicle.Name,
                     Patient = s.Trip.Customer.FullName,
 
-                    Status = s.Trip.Status // These are not canceled
+                    // A cancelled trip's row says so, whatever the trip's own status field
+                    // reads: the two markers are allowed to disagree and the dispatcher must
+                    // see the cancellation.
+                    Status = s.Trip.IsCancelled ? "Canceled" : s.Trip.Status
                 })
                 .ToListAsync();
-
-            // Get PICKUPS from CANCELED trips
-            var canceledTripPickups = await _context.Schedules
-                .Include(s => s.Trip)
-                .Where(s => s.VehicleRouteId == vehicleRouteId &&
-                             s.Trip.IsCancelled == true && // We filter by canceled trips
-                             s.EventType == ScheduleEventType.Pickup && // ONLY the pickups
-                             s.Date == date.Date)
-                .Select(s => new ScheduleDto
-                {
-                    Id = s.Id,
-                    TripId = s.TripId,
-                    Name = s.Name,
-                    Pickup = s.ScheduledPickupTime,
-                    Appt = s.ScheduledApptTime,
-                    Address = s.Address,
-                    ScheduleLatitude = s.ScheduleLatitude,
-                    ScheduleLongitude = s.ScheduleLongitude,
-                    Phone = s.Phone,
-                    Comment = s.Comment,
-                    AuthNo = s.AuthNo,
-                    FundingSource = s.FundingSourceName,
-                    Driver = s.VehicleRoute.Driver.FullName,
-
-                    ETA = s.ETATime,
-                    Distance = s.DistanceToPoint,
-                    Travel = s.TravelTime,
-                    Arrive = s.ActualArriveTime,
-                    Perform = s.ActualPerformTime,
-                    ArriveDist = s.ArriveDistance,
-                    PerformDist = s.PerformDistance,
-                    GPSArrive = s.GpsArrive,
-                    Odometer = s.Odometer,
-                    Date = s.Date,
-                    Sequence = s.Sequence,
-                    EventType = s.EventType,
-                    SpaceType = s.SpaceTypeName,
-                    TripType = s.Trip.Type,
-                    Performed = s.Performed,
-                    Run = s.VehicleRoute.Name,
-                    Vehicle = s.VehicleRoute.Vehicle.Name,
-                    Patient = s.Trip.Customer.FullName,
-
-                    Status = "Canceled" // We mark as canceled!
-                })
-                .ToListAsync();
-
-            // Combine and sort the two lists
-            var allEvents = noCanceledEvents.Concat(canceledTripPickups)
-                                         .OrderBy(s => s.Sequence).ThenBy(s => s.ETA)
-                                         .ToList();
-
-            return allEvents;
 
             /*return await _context.Schedules
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
@@ -357,14 +324,29 @@ namespace Raphael.Api.Services
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// The trips of one day that have no route yet — the backlog the dispatcher works from.
+        /// </summary>
+        /// <remarks>
+        /// Cancelled trips are excluded here rather than shipped out and dropped by the client.
+        /// A cancelled trip is not an offer to route anything, so sending three or four hundred
+        /// rows for the client to sieve was paying twice: once on the wire, once in the grid.
+        /// A trip cancelled while a dispatcher already has the tab open is a different matter,
+        /// and that one arrives over the hub.
+        /// </remarks>
         public async Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date)
         {
+            // Half-open range instead of t.Date.Date == date.Date. The second form wraps the
+            // column in CONVERT(date, …), which stops SQL Server seeking any index on Date and
+            // leaves it scanning the whole table for one operating day.
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
             var trips = await _context.Trips
-                .Include(t => t.Customer)
-                .Include(t => t.FundingSource)
-                .Include(t => t.SpaceType)
-                .Where(t => t.VehicleRouteId == null && t.Date.Date == date.Date)
-                //.Where(t => t.VehicleRouteId == null && !t.IsCancelled && t.Date.Date == date.Date)
+                .AsNoTracking()
+                .Where(t => t.VehicleRouteId == null
+                            && !t.IsCancelled
+                            && t.Date >= dayStart && t.Date < dayEnd)
                 .OrderBy(t => t.FromTime)
                 .Select(t => new UnscheduledTripDto
                 {
@@ -777,15 +759,31 @@ namespace Raphael.Api.Services
             }
         }
 
+        /// <summary>
+        /// Renumbers one route's stops for one day, Pull-out first and Pull-in last.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ The day is decided by the schedule's own Date, not by its trip's.
+        ///
+        /// It used to read <c>!s.TripId.HasValue || s.Trip.Date.Date == date.Date</c>, and
+        /// Pull-out and Pull-in carry no TripId — so the first branch matched them on **every
+        /// date the route has ever run**. Routing the first trip of tomorrow renumbered today's
+        /// garage events, which in business terms means reordering the route of a driver who may
+        /// be out on the road. It also grew without limit: two more rows per route per operating
+        /// day, materialised on every routing and every cancellation, for ever.
+        ///
+        /// The range is half-open rather than a .Date comparison on both sides: schedules are
+        /// written with the trip's Date unnormalised, so a row that carries a time of day would
+        /// otherwise disappear from its own route.
+        /// </remarks>
         private async Task RecalculateSequenceForRouteAsync(int vehicleRouteId, DateTime date)
         {
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
             var schedulesToSequence = await _context.Schedules
-                .Include(s => s.Trip)
-                // THIS LINE IS NOW VALID:
-                // Will select:
-                // 1. Schedules WITHOUT TripId (Pull-out/in) AND
-                // 2. Schedules WITH TripId whose travel date matches.
-                .Where(s => s.VehicleRouteId == vehicleRouteId && (!s.TripId.HasValue || s.Trip.Date.Date == date.Date))
+                .Where(s => s.VehicleRouteId == vehicleRouteId
+                            && s.Date >= dayStart && s.Date < dayEnd)
                 //.OrderBy(s => s.ETATime)
                 .OrderBy(s => s.Name == "Pull-in") // false va primero, true (Pull-in) va al final
                 .ThenBy(s => s.Name != "Pull-out") // false (Pull-out) va primero
@@ -992,6 +990,80 @@ namespace Raphael.Api.Services
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Writes a whole route's new order in one go.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately narrower than <see cref="UpdateAsync"/>. Reordering a route says nothing
+        /// about whether a driver arrived anywhere, so this touches only the four fields the
+        /// router recalculates and never trips the arrival detection, the observed-leg recorder
+        /// or the notifications that hang off that method. Dragging a stop cannot, from here,
+        /// tell a patient their driver has arrived.
+        ///
+        /// Stops are matched against the route and the day they claim to belong to; anything
+        /// else in the request is ignored rather than trusted.
+        /// </remarks>
+        public async Task<int> ResequenceAsync(ScheduleResequenceRequest request)
+        {
+            if (request?.Stops is null || request.Stops.Count == 0) return 0;
+
+            var dayStart = request.Date.Date;
+            var dayEnd = dayStart.AddDays(1);
+            var ids = request.Stops.Select(s => s.Id).ToList();
+
+            var schedules = await _context.Schedules
+                .Where(s => ids.Contains(s.Id)
+                            && s.VehicleRouteId == request.VehicleRouteId
+                            && s.Date >= dayStart && s.Date < dayEnd)
+                .ToListAsync();
+
+            if (schedules.Count == 0) return 0;
+
+            var wanted = request.Stops.ToDictionary(s => s.Id);
+            var changed = 0;
+
+            foreach (var schedule in schedules)
+            {
+                if (!wanted.TryGetValue(schedule.Id, out var stop)) continue;
+
+                // Same clamp as the single-row save: the garage events have no patient waiting
+                // on them, so an hour that ran off the end of the day is pinned to the end of
+                // the day rather than refusing the whole reorder.
+                var eta = ClampToDayEnds(stop.ETA);
+                var sequence = schedule.Name == "Pull-out" ? 0 : stop.Sequence;
+
+                if (schedule.Sequence == sequence
+                    && schedule.ETATime == eta
+                    && schedule.TravelTime == stop.Travel
+                    && schedule.DistanceToPoint == stop.Distance)
+                {
+                    continue;
+                }
+
+                schedule.Sequence = sequence;
+                schedule.ETATime = eta;
+                schedule.TravelTime = stop.Travel;
+                schedule.DistanceToPoint = stop.Distance;
+                changed++;
+            }
+
+            if (changed > 0) await _context.SaveChangesAsync();
+
+            return changed;
+        }
+
+        /// <summary>
+        /// Pins an hour that ran off either end of the day to that end of the day.
+        /// </summary>
+        private static TimeSpan? ClampToDayEnds(TimeSpan? value)
+        {
+            if (value is null) return null;
+            if (value.Value < TimeSpan.Zero) return TimeSpan.Zero;
+
+            var endOfDay = new TimeSpan(23, 59, 59);
+            return value.Value > endOfDay ? endOfDay : value.Value;
         }
 
         public async Task<bool> SaveSignatureAsync(int scheduleId, byte[] signature)

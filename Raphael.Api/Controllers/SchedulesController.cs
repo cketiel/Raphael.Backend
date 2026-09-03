@@ -128,6 +128,32 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Writes a whole route's new order in one request.
+        /// </summary>
+        /// <remarks>
+        /// Dragging one stop renumbers every stop after it. Sent one by one, that is a round
+        /// trip per stop to a database reached over the internet, with the route left partly
+        /// renumbered if any of them fails. Here it is one call and one transaction.
+        /// </remarks>
+        [HttpPut("resequence")]
+        [Authorize]
+        public async Task<IActionResult> Resequence([FromBody] ScheduleResequenceRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (request?.Stops is null || request.Stops.Count == 0)
+            {
+                return BadRequest("The request carries no stops to reorder.");
+            }
+
+            var changed = await _scheduleService.ResequenceAsync(request);
+            return Ok(new { changed });
+        }
+
         [HttpPut("{id}/perform")] // La ruta ser�: api/Schedules/5/perform
         public async Task<IActionResult> PerformUpdate(int id, [FromBody] ScheduleDto dto)
         {

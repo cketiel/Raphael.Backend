@@ -481,6 +481,40 @@ namespace Raphael.Shared.DbContexts
                 .WithMany(vr => vr.Schedules)
                 .HasForeignKey(s => s.VehicleRouteId);
 
+            // ===== Indexes for the dispatcher's Schedule screen =====
+            // Until these existed, Schedules carried nothing but the two foreign-key indexes
+            // EF creates by convention. Every read of "this route, this day" seeked on
+            // VehicleRouteId and then scanned what came back looking at Date — for a route with
+            // a year of history, that is a year of rows read to show one morning.
+
+            // The screen's main query, and the one behind every routing and every reorder.
+            // Sequence is included rather than keyed: it is what the results are ordered by,
+            // and carrying it in the leaf spares the sort.
+            modelBuilder.Entity<Schedule>()
+                .HasIndex(s => new { s.VehicleRouteId, s.Date })
+                .IncludeProperties(s => s.Sequence)
+                .HasDatabaseName("IX_Schedules_Route_Date");
+
+            // The driver-facing reads filter by the route's smartphone login, which is a column
+            // on the joined table and was unindexed on both sides of the join.
+            modelBuilder.Entity<VehicleRoute>()
+                .HasIndex(vr => vr.SmartphoneLogin)
+                .HasDatabaseName("IX_VehicleRoutes_SmartphoneLogin");
+
+            // "Where is this vehicle now" — asked for every route on screen, and answered by
+            // ordering that route's whole GPS history by time and taking the first row.
+            modelBuilder.Entity<GPS>()
+                .HasIndex(g => new { g.IdVehicleRoute, g.DateTime })
+                .HasDatabaseName("IX_GPSData_Route_DateTime");
+
+            // The backlog query: the trips of one day that have no route yet. The unique index
+            // on Trip leads with Date, but it is filtered on IsCancelled and cannot serve a
+            // predicate on VehicleRouteId being null.
+            modelBuilder.Entity<Trip>()
+                .HasIndex(t => new { t.Date, t.VehicleRouteId })
+                .HasFilter("[IsCancelled] = 0")
+                .HasDatabaseName("IX_Trips_Date_Route_Active");
+
             // To avoid duplicate trips
             // Define maximum sizes for the columns that will be part of the index
             // SQL Server has a 900 byte limit for index keys. Since we use nvarchar (2 bytes per character), 450 is the safe maximum.

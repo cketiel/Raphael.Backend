@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -235,10 +236,33 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<RaphaelContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-    options.EnableSensitiveDataLogging(); 
-    options.EnableDetailedErrors();
+
+    // ⚠️ Development only, and not merely for the per-query cost of both.
+    // EnableSensitiveDataLogging writes parameter values into the logs, and the parameters of
+    // this database are patient names, addresses and telephone numbers. Running it in
+    // production is exactly the leak the constitution forbids in §3.
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
 });
 
+
+builder.Services.AddResponseCompression(options =>
+{
+    // ⚠️ On for HTTPS, which is a deliberate call and not the framework default.
+    //
+    // The default is off because compressing a TLS response is what BREACH exploits. That
+    // attack needs a secret and attacker-controlled text reflected in the same compressed
+    // body; here the credential is a bearer token that travels in a header and is never
+    // echoed back, and the bodies are trip data. Against that, every response this API sends
+    // goes over the public internet to an office that pulls a whole operating day at a time.
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json" });
+});
 
 // Add services to the container.
 builder.Services.AddControllers(options =>
@@ -447,6 +471,11 @@ app.Logger.LogInformation(
     TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, operationTimeZone),
     DateTime.Now);
 #pragma warning restore RS0030
+
+// Responses are compressed before anything else touches them. The dispatch office pulls a
+// whole operating day — hundreds of rows of JSON — from a server that is not on the local
+// network, so the wire is a real part of how long the Schedule tab takes to open.
+app.UseResponseCompression();
 
 // Activate Rate Limiting
 app.UseIpRateLimiting();
