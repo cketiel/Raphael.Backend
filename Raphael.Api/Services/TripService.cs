@@ -724,6 +724,440 @@ namespace Raphael.Api.Services
             }
         }
 
+        #region CSV import
+
+        /// <summary>
+        /// Space types and patients already resolved in this chunk, by the name they were found under.
+        /// </summary>
+        /// <remarks>
+        /// An entry is written only after the row that resolved it has committed. A row that
+        /// fails rolls its transaction back, and a patient created inside it stops existing —
+        /// caching that id would leave the next row pointing at a customer that is not there.
+        /// </remarks>
+        private sealed class ImportBatchCache
+        {
+            public Dictionary<string, int> SpaceTypes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            public Dictionary<string, int> Customers { get; } = new(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Stores a chunk of a broker's CSV file, one row at a time, in a single request.
+        /// </summary>
+        /// <remarks>
+        /// The desktop app used to walk the file with five to ten threads, and each row cost up
+        /// to six requests of its own: two geocodings, a patient lookup, a patient insert, the
+        /// trip, and the history row. Four hundred trips came to roughly two thousand four
+        /// hundred requests, which the shared host reads as an attack — it withdraws the
+        /// application's permissions, the connection drops, and part of the file never arrives.
+        ///
+        /// <para>
+        /// The work did not get smaller; it moved. Everything a row needs travels with it, so
+        /// the lookups happen here, against a context that is already open, and the history row
+        /// is written inside the same transaction as the trip.
+        /// </para>
+        ///
+        /// <para>
+        /// Per-row transactions are what make the per-row answer honest. The space type and the
+        /// patient have to exist before the trip can point at them, so without one a row that
+        /// failed at the last step would still leave a patient behind: the office would be told
+        /// the trip was rejected while a record of that patient quietly existed.
+        /// </para>
+        /// </remarks>
+        public async Task<TripImportResultDto> ImportTripsAsync(TripImportRequestDto request)
+        {
+            var user = string.IsNullOrWhiteSpace(_currentUserService.UserName)
+                ? "Import"
+                : _currentUserService.UserName!;
+
+            var result = new TripImportResultDto { Timestamp = _clock.UtcNow };
+
+            // Read once for the chunk rather than per row: it is the same value for all of them.
+            var fundingSourceExists = await _context.FundingSources
+                .AsNoTracking()
+                .AnyAsync(f => f.Id == request.FundingSourceId);
+
+            if (!fundingSourceExists)
+            {
+                throw new ArgumentException($"Funding source {request.FundingSourceId} does not exist.");
+            }
+
+            var cache = new ImportBatchCache();
+
+            foreach (var item in request.Items)
+            {
+                var correlationId = Guid.NewGuid().ToString("N");
+
+                try
+                {
+                    var outcome = await ImportSingleTripAsync(item, request.FundingSourceId, user, cache);
+
+                    result.Results.Add(new TripImportItemResultDto
+                    {
+                        TripId = item.TripId,
+                        Status = outcome
+                    });
+
+                    if (outcome == TripImportStatus.Created)
+                    {
+                        result.CreatedCount++;
+                    }
+                    else
+                    {
+                        result.UpdatedCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // The failed row left entities in the tracker belonging to a transaction
+                    // that is already rolled back. They go now, or the next row's save replays
+                    // them and fails for a reason that has nothing to do with it.
+                    DiscardPendingChanges();
+
+                    var error = IntegrationErrorTranslator.Translate(ex);
+
+                    // A refusal is the endpoint working: the row was wrong, not the system.
+                    // Anything else is ours, and the correlation id is how the cause is handed
+                    // over without the message itself crossing the wire — on this schema a
+                    // database error quotes the row it rejected, which is patient data.
+                    if (ex is IntegrationRejectedException)
+                    {
+                        _logger.LogWarning(
+                            "Trip import refused a row. CorrelationId={CorrelationId} User={User} ExternalTripId={ExternalTripId} ErrorCode={ErrorCode}",
+                            correlationId,
+                            user,
+                            item.TripId,
+                            error.Code);
+                    }
+                    else
+                    {
+                        _logger.LogError(
+                            "Trip import failed on a row. CorrelationId={CorrelationId} User={User} ExternalTripId={ExternalTripId} ErrorCode={ErrorCode} Cause={Cause} Stack={Stack}",
+                            correlationId,
+                            user,
+                            item.TripId,
+                            error.Code,
+                            IntegrationErrorTranslator.DescribeForLog(ex),
+                            ex.StackTrace);
+                    }
+
+                    result.Results.Add(new TripImportItemResultDto
+                    {
+                        TripId = item.TripId,
+                        Status = TripImportStatus.Failed,
+                        ErrorCode = error.Code,
+                        Message = error.Message,
+                        Retryable = error.Retryable,
+                        CorrelationId = correlationId
+                    });
+                    result.FailedCount++;
+                }
+            }
+
+            var stored = result.CreatedCount + result.UpdatedCount;
+            result.Success = result.FailedCount == 0;
+            result.Message = result.Success
+                ? $"{stored} trips imported ({result.CreatedCount} new, {result.UpdatedCount} updated)."
+                : $"{stored} trips were imported and {result.FailedCount} were rejected. See Results for the reason on each.";
+
+            return result;
+        }
+
+        /// <summary>Stores one row, or leaves the database exactly as it found it.</summary>
+        /// <returns><see cref="TripImportStatus.Created"/> or <see cref="TripImportStatus.Updated"/>.</returns>
+        private async Task<string> ImportSingleTripAsync(
+            TripImportItemDto item,
+            int fundingSourceId,
+            string user,
+            ImportBatchCache cache)
+        {
+            var externalTripId = item.TripId?.Trim();
+            if (string.IsNullOrEmpty(externalTripId))
+            {
+                throw Reject(
+                    IntegrationErrorCode.InvalidTripId,
+                    "The row has no TripId. It is the identifier the import is matched on, so without it a trip that already exists cannot be told apart from a new booking.");
+            }
+
+            // The unique index over active trips keys on Date, so a trip carrying a time of day
+            // would sit next to the same journey booked at midnight instead of clashing with it.
+            // The date of a trip is a calendar day; the window is FromTime/ToTime.
+            var tripDate = item.Date.Date;
+            var now = _clock.UtcNow;
+
+            // Written into the caches only once the transaction below has committed.
+            string? stagedSpaceTypeKey = null;
+            int stagedSpaceTypeId = 0;
+            string? stagedCustomerKey = null;
+            int stagedCustomerId = 0;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            // 1. Space type, by its short code.
+            var (spaceTypeId, spaceTypeKey, spaceTypeWasCreated) = await ResolveImportSpaceTypeAsync(item, cache);
+            if (spaceTypeWasCreated)
+            {
+                stagedSpaceTypeKey = spaceTypeKey;
+                stagedSpaceTypeId = spaceTypeId;
+            }
+
+            // 2. Patient.
+            var (customerId, customerKey, customerWasCreated) =
+                await ResolveImportCustomerAsync(item, fundingSourceId, spaceTypeId, user, now, cache);
+
+            if (customerWasCreated)
+            {
+                stagedCustomerKey = customerKey;
+                stagedCustomerId = customerId;
+            }
+
+            // 3. The trip itself, matched on the broker's identifier.
+            //
+            // Matched across every trip rather than only the office's own, because that is what
+            // the desktop app did when it held the whole list in memory. Reading it here instead
+            // also fixes a failure mode of that list: it was loaded once when the screen opened,
+            // so a trip created afterwards was invisible and the import tried to insert it twice.
+            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == externalTripId);
+            var isNew = trip == null;
+
+            if (isNew)
+            {
+                trip = new Trip
+                {
+                    TripId = externalTripId,
+                    Created = now,
+
+                    // The office's own bookings land as Assigned. Not read from the row: the
+                    // status of a trip is ours to decide, and a re-import must not rewind one
+                    // that a driver has already started.
+                    Status = TripStatus.Assigned,
+                    IsCancelled = false,
+
+                    // Written on creation only — see TripImportItemDto.WillCall.
+                    WillCall = item.WillCall
+                };
+
+                if (!_currentUserService.IsMilanesInternal && _currentUserService.IntegratorId != null)
+                {
+                    trip.IntegratorId = _currentUserService.IntegratorId;
+                    trip.ProviderId = null;
+                }
+
+                _context.Trips.Add(trip);
+            }
+
+            // ⚠️ Status, IsCancelled, WillCall, Created and VehicleRouteId are absent below on
+            // purpose: they are the fields an update must not touch. A cancelled trip that
+            // appears again in tomorrow's file has its details refreshed and stays cancelled —
+            // reinstating it would put a vehicle on a route for a journey nobody is expecting.
+            trip!.Date = tripDate;
+            trip.Day = tripDate.DayOfWeek.ToString();
+            trip.FromTime = item.FromTime;
+            trip.ToTime = item.ToTime;
+            trip.CustomerId = customerId;
+            trip.SpaceTypeId = spaceTypeId;
+            trip.FundingSourceId = fundingSourceId;
+            trip.PickupAddress = item.PickupAddress;
+            trip.PickupLatitude = item.PickupLatitude;
+            trip.PickupLongitude = item.PickupLongitude;
+            trip.DropoffAddress = item.DropoffAddress;
+            trip.DropoffLatitude = item.DropoffLatitude;
+            trip.DropoffLongitude = item.DropoffLongitude;
+            trip.PickupCity = item.PickupCity;
+            trip.DropoffCity = item.DropoffCity;
+            trip.Distance = item.Distance;
+            trip.Type = item.Type ?? TripType.Appointment;
+            trip.Pickup = item.Pickup;
+            trip.Dropoff = item.Dropoff;
+            trip.PickupPhone = item.PickupPhone;
+            trip.DropoffPhone = item.DropoffPhone;
+            trip.PickupComment = item.PickupComment;
+            trip.DropoffComment = item.DropoffComment;
+
+            _context.TripHistories.Add(new TripHistory
+            {
+                // The navigation rather than trip.Id: on a new trip the identity value is still
+                // a placeholder here, and pointing at the instance lets EF write the real key
+                // once the trip row exists.
+                Trip = trip,
+                User = user,
+                Field = isNew ? "Add_New_Trip" : "Update_Trip",
+                PriorValue = null,
+                NewValue = isNew ? "Trip Created (Import)" : "Trip Updated (Import)",
+                ChangeDate = now
+            });
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            if (stagedSpaceTypeKey != null)
+            {
+                cache.SpaceTypes[stagedSpaceTypeKey] = stagedSpaceTypeId;
+            }
+
+            if (stagedCustomerKey != null)
+            {
+                cache.Customers[stagedCustomerKey] = stagedCustomerId;
+            }
+
+            return isNew ? TripImportStatus.Created : TripImportStatus.Updated;
+        }
+
+        /// <summary>Finds the space type the row names, creating it on first sight.</summary>
+        /// <returns>Its id, the key it is cached under, and whether this call created it.</returns>
+        private async Task<(int Id, string Key, bool Created)> ResolveImportSpaceTypeAsync(
+            TripImportItemDto item,
+            ImportBatchCache cache)
+        {
+            var name = item.SpaceTypeName?.Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                throw Reject(
+                    IntegrationErrorCode.MissingRequiredField,
+                    "The row does not say what kind of space the patient needs. Check the Type column of the file.");
+            }
+
+            if (cache.SpaceTypes.TryGetValue(name, out var cached))
+            {
+                return (cached, name, false);
+            }
+
+            var existing = await _context.SpaceTypes
+                .AsNoTracking()
+                .Where(s => s.Name == name)
+                .Select(s => s.Id)
+                .FirstOrDefaultAsync();
+
+            if (existing != 0)
+            {
+                cache.SpaceTypes[name] = existing;
+                return (existing, name, false);
+            }
+
+            var capacityName = string.IsNullOrWhiteSpace(item.CapacityTypeName)
+                ? name
+                : item.CapacityTypeName.Trim();
+
+            var capacityTypeId = await _context.Capacities
+                .AsNoTracking()
+                .Where(c => c.Name == capacityName)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync();
+
+            if (capacityTypeId == 0)
+            {
+                // The desktop app used to send zero here and let the foreign key reject it, so
+                // the office was told a trip had failed without being told what to fix.
+                throw Reject(
+                    IntegrationErrorCode.InvalidReference,
+                    $"The space type '{name}' does not exist and cannot be created, because the capacity '{capacityName}' it would count against is not configured. Create it under Admin before importing this file.");
+            }
+
+            var spaceType = new SpaceType
+            {
+                Name = name,
+                Description = string.IsNullOrWhiteSpace(item.SpaceTypeDescription) ? name : item.SpaceTypeDescription,
+                CapacityTypeId = capacityTypeId,
+                LoadTime = 0,
+                UnloadTime = 0,
+                IsActive = true
+            };
+
+            _context.SpaceTypes.Add(spaceType);
+            await _context.SaveChangesAsync();
+
+            return (spaceType.Id, name, true);
+        }
+
+        /// <summary>
+        /// Finds the patient the row is for, creating the record on first sight.
+        /// </summary>
+        /// <remarks>
+        /// Matched on RiderId first and on full name together with phone second, which is the
+        /// pair of lookups the desktop app did — one against the list it held in memory, one
+        /// against the server. Name alone is never enough: two patients called John Smith would
+        /// collapse into one record and each would start seeing the other's trips.
+        /// </remarks>
+        /// <returns>The patient's id, the key it is cached under, and whether this call created it.</returns>
+        private async Task<(int Id, string Key, bool Created)> ResolveImportCustomerAsync(
+            TripImportItemDto item,
+            int fundingSourceId,
+            int spaceTypeId,
+            string user,
+            DateTime now,
+            ImportBatchCache cache)
+        {
+            var fullName = item.CustomerFullName?.Trim() ?? string.Empty;
+            var phone = item.CustomerPhone?.Trim();
+            var riderId = item.RiderId?.Trim();
+
+            if (string.IsNullOrEmpty(riderId) && string.IsNullOrEmpty(phone))
+            {
+                throw Reject(
+                    IntegrationErrorCode.PatientNotIdentifiable,
+                    "The patient in this row cannot be identified: it carries neither a rider id nor a phone number. With only a name, two different patients who share one would be merged into a single record.");
+            }
+
+            var key = string.IsNullOrEmpty(riderId) ? $"{fullName} {phone}".Trim() : riderId;
+
+            if (cache.Customers.TryGetValue(key, out var cached))
+            {
+                return (cached, key, false);
+            }
+
+            var byRiderId = await _context.Customers
+                .AsNoTracking()
+                .Where(c => c.RiderId == key)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync();
+
+            if (byRiderId != 0)
+            {
+                cache.Customers[key] = byRiderId;
+                return (byRiderId, key, false);
+            }
+
+            if (!string.IsNullOrEmpty(phone))
+            {
+                var byNameAndPhone = await _context.Customers
+                    .AsNoTracking()
+                    .Where(c => c.FullName == fullName && c.Phone == phone)
+                    .Select(c => c.Id)
+                    .FirstOrDefaultAsync();
+
+                if (byNameAndPhone != 0)
+                {
+                    cache.Customers[key] = byNameAndPhone;
+                    return (byNameAndPhone, key, false);
+                }
+            }
+
+            var customer = new Customer
+            {
+                RiderId = key,
+                FullName = fullName,
+                Phone = phone,
+                MobilePhone = item.CustomerMobilePhone,
+                Address = item.CustomerAddress ?? string.Empty,
+                City = item.CustomerCity ?? string.Empty,
+                State = item.CustomerState ?? string.Empty,
+                Zip = item.CustomerZip ?? string.Empty,
+                Gender = string.IsNullOrWhiteSpace(item.CustomerGender) ? "Male" : item.CustomerGender,
+                DOB = item.CustomerDOB,
+                FundingSourceId = fundingSourceId,
+                SpaceTypeId = spaceTypeId,
+                Created = now,
+                CreatedBy = user
+            };
+
+            _context.Customers.Add(customer);
+            await _context.SaveChangesAsync();
+
+            return (customer.Id, key, true);
+        }
+
+        #endregion
+
         public async Task UpdateTripTypesAsync(List<TripTypeUpdateDto> updates)
         {
             // Opci�n A: EF Core tradicional (Cargar en memoria y actualizar)

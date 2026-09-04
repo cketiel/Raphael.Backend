@@ -40,6 +40,61 @@ namespace Raphael.Api.Controllers
             }
         }
 
+        /// <summary>
+        /// Stores a chunk of a broker's CSV file in one request.
+        /// </summary>
+        /// <remarks>
+        /// Answers per row, so read <i>Results</i> rather than the status code alone: a rejected
+        /// row stores nothing and does not stop the rest of the chunk. Each carries an
+        /// <i>ErrorCode</i>, a message saying what to fix in the file, a <i>Retryable</i> flag and
+        /// a <i>CorrelationId</i> for support.
+        ///
+        /// <para>
+        /// Re-sending a chunk is safe: rows are matched on the broker's own TripId, so a trip
+        /// that already went in is updated rather than duplicated. That is what lets the client
+        /// retry a chunk the shared host refused without the office having to work out which
+        /// half of the file arrived.
+        /// </para>
+        /// </remarks>
+        /// <response code="200">Every row in the chunk was stored.</response>
+        /// <response code="207">Some rows were stored and some were rejected. See Results.</response>
+        /// <response code="400">The chunk is empty, or names a funding source that does not exist.</response>
+        /// <response code="422">Every row in the chunk was rejected. See Results.</response>
+        [HttpPost("import")]
+        [Authorize]
+        [ProducesResponseType(typeof(TripImportResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(TripImportResultDto), StatusCodes.Status207MultiStatus)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(TripImportResultDto), StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> Import([FromBody] TripImportRequestDto request)
+        {
+            if (request?.Items == null || request.Items.Count == 0)
+            {
+                return BadRequest("The trip list cannot be empty.");
+            }
+
+            // No catch on the general case, on purpose. Failures that belong to one row are
+            // translated and reported inside the chunk; anything that escapes is a fault of
+            // ours, and the global handler logs it in full and answers with ProblemDetails.
+            try
+            {
+                var result = await _tripService.ImportTripsAsync(request);
+
+                if (result.FailedCount == 0)
+                {
+                    return Ok(result);
+                }
+
+                return result.CreatedCount + result.UpdatedCount == 0
+                    ? UnprocessableEntity(result)
+                    : StatusCode(StatusCodes.Status207MultiStatus, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
