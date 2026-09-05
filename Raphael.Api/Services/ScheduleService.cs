@@ -12,6 +12,8 @@ using Raphael.Shared.Entities;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Time;
 
+using Raphael.Api.Services.Billing;
+
 namespace Raphael.Api.Services
 {
     public class ScheduleService : IScheduleService
@@ -1391,31 +1393,12 @@ namespace Raphael.Api.Services
 
                     if (trip == null) return null;
 
-                    // --- BILLING CALCULATION LOGIC ---
-                    decimal totalBilled = 0;
-                    double distance = trip.Distance ?? 0;
-
-                    var currentRules = allBillingRules
-                        .Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId)
-                        .ToList();
-
-                    // A. Loading Fee / Pick Up Fee
-                    var loadingFeeItem = currentRules.FirstOrDefault(r =>
-                        r.BillingItem.Description.Contains("Loading Fee", StringComparison.OrdinalIgnoreCase) ||
-                        r.BillingItem.Description.Contains("PICK UP", StringComparison.OrdinalIgnoreCase));
-
-                    if (loadingFeeItem != null) totalBilled += loadingFeeItem.Rate;
-
-                    // B. Miles Calculation (Considering FreeQty)
-                    var milesItem = currentRules.FirstOrDefault(r =>
-                        r.BillingItem.Description.Contains("MILES", StringComparison.OrdinalIgnoreCase));
-
-                    if (milesItem != null)
-                    {
-                        int freeMiles = milesItem.FreeQty ?? 0;
-                        double billableMiles = Math.Max(0, distance - freeMiles);
-                        totalBilled += (decimal)billableMiles * milesItem.Rate;
-                    }
+                    // The figure the Home tab totals for the day has to be the same figure this
+                    // report prints, so both ask TripChargeCalculator rather than each working it
+                    // out. Two copies of a money formula disagree quietly, and the first anyone
+                    // hears of it is an invoice nobody can reconcile.
+                    decimal totalBilled = TripChargeCalculator.For(
+                        allBillingRules, trip.FundingSourceId, trip.SpaceTypeId, trip.Distance);
 
                     // C. Mapping to DTO
                     return new ProductionReportRowDto
@@ -1524,31 +1507,12 @@ namespace Raphael.Api.Services
 
                     if (trip == null) return null;
 
-                    // --- BILLING CALCULATION LOGIC ---
-                    decimal totalBilled = 0;
-                    double distance = trip.Distance ?? 0;
-
-                    var currentRules = allBillingRules
-                        .Where(r => r.FundingSourceId == trip.FundingSourceId && r.SpaceTypeId == trip.SpaceTypeId)
-                        .ToList();
-
-                    // A. Loading Fee / Pick Up Fee
-                    var loadingFeeItem = currentRules.FirstOrDefault(r =>
-                        r.BillingItem.Description.Contains("Loading Fee", StringComparison.OrdinalIgnoreCase) ||
-                        r.BillingItem.Description.Contains("PICK UP", StringComparison.OrdinalIgnoreCase));
-
-                    if (loadingFeeItem != null) totalBilled += loadingFeeItem.Rate;
-
-                    // B. Miles Calculation (Considering FreeQty)
-                    var milesItem = currentRules.FirstOrDefault(r =>
-                        r.BillingItem.Description.Contains("MILES", StringComparison.OrdinalIgnoreCase));
-
-                    if (milesItem != null)
-                    {
-                        int freeMiles = milesItem.FreeQty ?? 0;
-                        double billableMiles = Math.Max(0, distance - freeMiles);
-                        totalBilled += (decimal)billableMiles * milesItem.Rate;
-                    }
+                    // The figure the Home tab totals for the day has to be the same figure this
+                    // report prints, so both ask TripChargeCalculator rather than each working it
+                    // out. Two copies of a money formula disagree quietly, and the first anyone
+                    // hears of it is an invoice nobody can reconcile.
+                    decimal totalBilled = TripChargeCalculator.For(
+                        allBillingRules, trip.FundingSourceId, trip.SpaceTypeId, trip.Distance);
 
                     // C. Mapping to DTO
                     return new ProductionReportRowDto

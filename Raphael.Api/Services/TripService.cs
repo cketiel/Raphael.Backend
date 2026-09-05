@@ -15,6 +15,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 
+using Raphael.Api.Services.Billing;
+
 namespace Raphael.Api.Services
 {
     public class TripService : ITripService
@@ -1534,9 +1536,48 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        /// <summary>
+        /// Fills in what each trip costs, for a page of trips that has already been read.
+        /// </summary>
+        /// <remarks>
+        /// The charge is worked out rather than read: <c>Trip.Charge</c> is a column nothing has
+        /// ever written, which is why the grid's Charge column has always been blank and why a
+        /// total built by summing it would have read $0.00 for ever.
+        ///
+        /// One query for the rules, narrowed to the funding sources and space types actually
+        /// present, and the arithmetic in memory — the same shape the production report uses.
+        /// A trip with no funding source is left null rather than zero: nobody has said what it
+        /// costs, which is not the same as saying it is free.
+        /// </remarks>
+        private async Task<List<TripReadDto>> WithChargesAsync(List<TripReadDto> trips)
+        {
+            if (trips.Count == 0) return trips;
+
+            var fundingSourceIds = trips.Select(t => t.FundingSourceId).Where(id => id != null).Distinct().ToList();
+            var spaceTypeIds = trips.Select(t => t.SpaceTypeId).Distinct().ToList();
+
+            if (fundingSourceIds.Count == 0) return trips;
+
+            var rules = await _context.FundingSourceBillingItems
+                .AsNoTracking()
+                .Include(r => r.BillingItem)
+                .Where(r => fundingSourceIds.Contains(r.FundingSourceId) && spaceTypeIds.Contains(r.SpaceTypeId))
+                .ToListAsync();
+
+            foreach (var trip in trips)
+            {
+                if (trip.FundingSourceId == null) continue;
+
+                trip.Charge = (double)TripChargeCalculator.For(
+                    rules, trip.FundingSourceId, trip.SpaceTypeId, trip.Distance);
+            }
+
+            return trips;
+        }
+
         public async Task<List<TripReadDto>> GetByDateAsync(DateTime date)
         {
-            return await _context.Trips
+            var priced = await _context.Trips
                 .AsNoTracking()
                 .Include(t => t.Customer)
                 .Include(t => t.SpaceType)
@@ -1587,6 +1628,8 @@ namespace Raphael.Api.Services
                     DropoffCity = t.DropoffCity,
                 })
                 .ToListAsync();
+
+            return await WithChargesAsync(priced);
         }
 
         public async Task<List<TripReadDto>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
@@ -1601,7 +1644,7 @@ namespace Raphael.Api.Services
                 throw new ArgumentException("The start date cannot be greater than the end date");
             }
 
-            return await _context.Trips
+            var priced = await _context.Trips
                 .AsNoTracking()
                 .Include(t => t.Customer)
                 .Include(t => t.SpaceType)
@@ -1651,6 +1694,8 @@ namespace Raphael.Api.Services
                     FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
                 })
                 .ToListAsync();
+
+            return await WithChargesAsync(priced);
         }
 
         public async Task<(List<TripReadDto> Trips, int TotalCount)> GetByDatePaginatedAsync(DateTime date, int pageNumber = 1, int pageSize = 20)
