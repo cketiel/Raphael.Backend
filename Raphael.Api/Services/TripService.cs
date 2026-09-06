@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services.Integration;
+using Raphael.Api.Services.Import;
 using Raphael.Api.Services.Notifications;
 using Raphael.Notification.Application.Helpers;
 using Raphael.Notification.Application.Services;
@@ -694,6 +695,72 @@ namespace Raphael.Api.Services
         }
 
         /// <summary>
+        /// Refuses an imported row whose journey is already booked under another identifier.
+        /// </summary>
+        /// <remarks>
+        /// A duplicate here is what the unique index calls one: the same patient, on the same
+        /// calendar day, between the same two addresses, in the same pickup window. Matching the
+        /// row's own TripId is checked first and is not a duplicate - that is an update.
+        ///
+        /// <para>
+        /// This is the import's own guard and not <see cref="GuardAgainstDuplicateActiveTripAsync"/>:
+        /// that one answers an integrator, so it withholds the identifier of a trip the caller
+        /// does not own. Here the caller is the office, and the office owns all of them.
+        /// </para>
+        /// </remarks>
+        private async Task GuardAgainstDuplicateImportedTripAsync(
+            TripImportItemDto item,
+            DateTime tripDate,
+            int customerId,
+            int currentTripId)
+        {
+            var clash = await _context.Trips
+                .AsNoTracking()
+                .Where(t => !t.IsCancelled
+                            && t.Id != currentTripId
+                            && t.Date == tripDate
+                            && t.CustomerId == customerId
+                            && t.PickupAddress == item.PickupAddress
+                            && t.DropoffAddress == item.DropoffAddress
+                            && t.FromTime == item.FromTime
+                            && t.ToTime == item.ToTime)
+                .Select(t => new
+                {
+                    t.TripId,
+                    t.Date,
+                    t.FromTime,
+                    t.ToTime,
+                    t.PickupAddress,
+                    t.DropoffAddress,
+                    t.Status,
+                    PatientName = t.Customer.FullName
+                })
+                .FirstOrDefaultAsync();
+
+            if (clash == null)
+            {
+                return;
+            }
+
+            throw new TripImportConflictException(
+                "This journey is already booked for the patient on that date - same pickup, same "
+                + $"dropoff, same window - under TripId '{clash.TripId}'. Importing it again would "
+                + "put the same ride on the schedule twice. Either correct the TripId in the file "
+                + "so this row updates the existing trip, or cancel the existing one.",
+                new TripImportConflictDto
+                {
+                    TripId = clash.TripId,
+                    Date = clash.Date,
+                    FromTime = clash.FromTime,
+                    ToTime = clash.ToTime,
+                    PatientName = clash.PatientName,
+                    PickupAddress = clash.PickupAddress,
+                    DropoffAddress = clash.DropoffAddress,
+                    Status = clash.Status
+                });
+        }
+
+        /// <summary>
         /// Refuses a trip with an answer already worded for the integrator.
         /// </summary>
         private static IntegrationRejectedException Reject(string code, string message, bool retryable = false)
@@ -809,6 +876,33 @@ namespace Raphael.Api.Services
                         result.UpdatedCount++;
                     }
                 }
+                catch (TripImportConflictException conflict)
+                {
+                    // Caught before the general handler on purpose: this one already knows what
+                    // it collided with, and the translator would only be able to say that
+                    // something did.
+                    DiscardPendingChanges();
+
+                    _logger.LogWarning(
+                        "Trip import refused a row as a duplicate. CorrelationId={CorrelationId} User={User} ExternalTripId={ExternalTripId} ClashesWith={ClashesWith}",
+                        correlationId,
+                        user,
+                        item.TripId,
+                        conflict.Conflict.TripId);
+
+                    result.Results.Add(new TripImportItemResultDto
+                    {
+                        TripId = item.TripId,
+                        Status = TripImportStatus.Failed,
+                        ErrorCode = IntegrationErrorCode.DuplicateActiveTrip,
+                        Message = conflict.Message,
+                        Retryable = false,
+                        CorrelationId = correlationId,
+                        Conflict = conflict.Conflict
+                    });
+
+                    result.FailedCount++;
+                }
                 catch (Exception ex)
                 {
                     // The failed row left entities in the tracker belonging to a transaction
@@ -921,6 +1015,15 @@ namespace Raphael.Api.Services
             // so a trip created afterwards was invisible and the import tried to insert it twice.
             var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == externalTripId);
             var isNew = trip == null;
+
+            // 3b. The same journey, already booked under a different identifier.
+            //
+            // Until now the import found this out the hard way: the unique index over active
+            // trips refused the insert, the translator turned the database error into
+            // DUPLICATE_ACTIVE_TRIP, and the office got "this is a duplicate" with no way of
+            // knowing what of. Asking first costs one indexed read per row and lets the answer
+            // name the trip that is in the way.
+            await GuardAgainstDuplicateImportedTripAsync(item, tripDate, customerId, trip?.Id ?? 0);
 
             if (isNew)
             {

@@ -1,4 +1,4 @@
-namespace Raphael.Shared.DTOs
+﻿namespace Raphael.Shared.DTOs
 {
     /// <summary>What happened to one row of an imported file.</summary>
     public static class TripImportStatus
@@ -45,6 +45,47 @@ namespace Raphael.Shared.DTOs
         /// a database error message on this schema quotes patient data.
         /// </remarks>
         public string? CorrelationId { get; set; }
+
+        /// <summary>
+        /// The trip this row collided with. Null unless <see cref="ErrorCode"/> says it clashed.
+        /// </summary>
+        /// <remarks>
+        /// Only the import fills this in, and only for a dispatcher holding a JWT. It is not on
+        /// the integrator path and must not be put there: it describes a record the integrator
+        /// may not own, and naming somebody else's booking to them is a disclosure. The office
+        /// already sees all of it on the trips grid.
+        /// </remarks>
+        public TripImportConflictDto? Conflict { get; set; }
+    }
+
+    /// <summary>
+    /// The trip that was already there, when a row is refused for duplicating one.
+    /// </summary>
+    /// <remarks>
+    /// "This is a duplicate" is not an answer anybody can act on: the dispatcher has to know
+    /// WHICH trip, or they have to go and hunt for it. Duplicate here means the same patient on
+    /// the same day between the same two addresses in the same window - so those are the fields,
+    /// plus the identifier the existing trip is filed under, which is how it gets found again.
+    /// </remarks>
+    public class TripImportConflictDto
+    {
+        /// <summary>The broker identifier the existing trip is filed under.</summary>
+        public string? TripId { get; set; }
+
+        public DateTime Date { get; set; }
+
+        public TimeSpan? FromTime { get; set; }
+
+        public TimeSpan? ToTime { get; set; }
+
+        public string? PatientName { get; set; }
+
+        public string? PickupAddress { get; set; }
+
+        public string? DropoffAddress { get; set; }
+
+        /// <summary>Where the existing trip has got to, so a started journey is not overwritten.</summary>
+        public string? Status { get; set; }
     }
 
     /// <summary>Result of one import chunk.</summary>
