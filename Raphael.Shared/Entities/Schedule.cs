@@ -61,6 +61,32 @@ namespace Raphael.Shared.Entities
         public double? DistanceToPoint { get; set; } // Distance to point
         public TimeSpan? TravelTime { get; set; } // Travel time between points
 
+        /// <summary>
+        /// How long the driver is planned to sit at a pickup waiting for the hour to come round.
+        /// Null on anything that is not a pickup, and on a pickup with no wait.
+        /// </summary>
+        /// <remarks>
+        /// A vehicle is never shown arriving more than a quarter of an hour before the hour the
+        /// patient was promised — five minutes on a return — so an ETA that would have been
+        /// earlier is raised to the limit. The difference between the hour the driver could have
+        /// been there and the hour the route says they arrive is dead time, and until this field
+        /// existed it was computed, used to raise the ETA, and thrown away.
+        ///
+        /// <para>
+        /// The dispatcher was left reading a column of arrival hours that all looked reasonable
+        /// with no way of telling that one of those drivers was going to stand at a door for two
+        /// hours. On a morning with more trips than vehicles that is capacity being burnt in
+        /// silence.
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠️ Derived, never sent: <c>ScheduleService.ApplyDerivedRouteValuesAsync</c> is the only
+        /// writer, and it recomputes this whenever the route's shape changes. A value a client
+        /// puts in a request is ignored.
+        /// </para>
+        /// </remarks>
+        public TimeSpan? EarlyArrivalWait { get; set; }
+
         public TimeSpan? ActualArriveTime { get; set; }
         public TimeSpan? ActualPerformTime { get; set; } // Time in which it is completed (e.g. the passenger gets on or off)
 

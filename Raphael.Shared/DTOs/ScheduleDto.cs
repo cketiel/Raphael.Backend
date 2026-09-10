@@ -12,6 +12,16 @@ namespace Raphael.Shared.DTOs
         public TimeSpan? ETA { get; set; }
         public double? Distance { get; set; }
         public TimeSpan? Travel { get; set; }
+
+        /// <summary>
+        /// How long the driver waits at this pickup for the hour to come round, or null when
+        /// there is no wait. See <see cref="Entities.Schedule.EarlyArrivalWait"/>.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ Read-only from a client's point of view. The server derives it; a value sent in a
+        /// request is ignored.
+        /// </remarks>
+        public TimeSpan? Wait { get; set; }
         public int? On { get; set; } 
         public string Address { get; set; }
         public double ScheduleLatitude { get; set; }

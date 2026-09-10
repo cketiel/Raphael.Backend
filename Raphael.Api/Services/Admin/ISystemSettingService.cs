@@ -53,5 +53,18 @@ namespace Raphael.Api.Services.Admin
         /// has taken since production began. Shortening it later needs no deployment.
         /// </summary>
         public const string RoutingCacheRetentionDays = "Routing.CacheRetentionDays";
+
+        /// <summary>
+        /// Minutes of driver waiting, at a pickup, from which the dispatch screen marks the whole
+        /// row. Default 30.
+        /// </summary>
+        /// <remarks>
+        /// The chip on the arrival hour shows any wait at all; this is only the point at which it
+        /// becomes worth colouring a row. It belongs to the business and not to the build: an
+        /// operation running tight routes wants to see a quarter of an hour, one with slack would
+        /// have every row painted at that setting and would stop reading the colour.
+        /// </remarks>
+        public const string SchedulingEarlyArrivalWaitHighlightMinutes =
+            "Scheduling.EarlyArrivalWaitHighlightMinutes";
     }
 }

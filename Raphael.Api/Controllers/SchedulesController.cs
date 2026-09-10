@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Raphael.Api.Services;
+using Raphael.Api.Services.Admin;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Time;
 using System.Text.RegularExpressions;
@@ -14,11 +15,49 @@ namespace Raphael.Api.Controllers
     {
         private readonly IScheduleService _scheduleService;
         private readonly IOperationClock _clock;
+        private readonly ISystemSettingService _settings;
 
-        public SchedulesController(IScheduleService scheduleService, IOperationClock clock)
+        /// <summary>The row is coloured from half an hour of waiting when nobody has said otherwise.</summary>
+        private const int DefaultEarlyArrivalWaitHighlightMinutes = 30;
+
+        public SchedulesController(
+            IScheduleService scheduleService,
+            IOperationClock clock,
+            ISystemSettingService settings)
         {
             _scheduleService = scheduleService;
             _clock = clock;
+            _settings = settings;
+        }
+
+        /// <summary>
+        /// The running settings a dispatch screen needs to draw itself.
+        /// </summary>
+        /// <remarks>
+        /// Any signed-in user, unlike the administration endpoint these values live behind, which
+        /// is role 1 only. See <see cref="DispatchSettingsDto"/> for why that line is drawn here
+        /// rather than by widening the other controller.
+        /// </remarks>
+        [HttpGet("dispatch-settings")]
+        [Authorize]
+        public async Task<ActionResult<DispatchSettingsDto>> GetDispatchSettings(
+            CancellationToken cancellationToken)
+        {
+            var setting = await _settings.GetOneAsync(
+                SystemSettingKeys.SchedulingEarlyArrivalWaitHighlightMinutes,
+                cancellationToken);
+
+            // A setting nobody has ever written, or one somebody typed a word into, falls back to
+            // the default rather than failing the screen: the worst case is a row coloured at the
+            // wrong threshold, and refusing to answer would leave the dispatcher without a route.
+            var minutes = int.TryParse(setting?.Value, out var parsed) && parsed >= 0
+                ? parsed
+                : DefaultEarlyArrivalWaitHighlightMinutes;
+
+            return Ok(new DispatchSettingsDto
+            {
+                EarlyArrivalWaitHighlightMinutes = minutes
+            });
         }
 
         [HttpGet("by-run-login")]

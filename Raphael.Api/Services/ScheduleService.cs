@@ -81,6 +81,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -136,6 +137,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -201,6 +203,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -248,6 +251,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -307,6 +311,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -658,6 +663,13 @@ namespace Raphael.Api.Services
                 // 5. Recalculate the sequence of ALL schedules for this route on this day.
                 await RecalculateSequenceForRouteAsync(request.VehicleRouteId, tripToRoute.Date);
 
+                // 5b. And the garage hour, now that we know which stop is first. Inserting a
+                // trip ahead of the whole route moves the departure, and until this line the
+                // only thing that ever moved it was the dispatch client — which is why routing
+                // a six o'clock patient onto a route that started at seven left the driver with
+                // a Pull-out an hour too late.
+                await ApplyDerivedRouteValuesAsync(request.VehicleRouteId, tripToRoute.Date);
+
                 // 6. Save all changes and confirm the transaction.
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -758,6 +770,10 @@ namespace Raphael.Api.Services
 
                 await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
 
+                // Taking the first trip off a route moves the garage hour just as much as
+                // putting one in front of it does.
+                await ApplyDerivedRouteValuesAsync(vehicleRouteId, tripDate);
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
@@ -834,7 +850,274 @@ namespace Raphael.Api.Services
                     schedulesToSequence[i].Sequence = schedulesToSequence.Count - 1; // Ensure Pull-in is always last
                 }
             }
-            
+
+        }
+
+        /// <summary>How long the vehicle needs at the garage before it can leave.</summary>
+        private const int PullOutPreparationMinutes = 20;
+
+        /// <summary>How long a vehicle stands at a stop serving it.</summary>
+        /// <remarks>
+        /// ⚠️ <c>Schedule</c> has no per-stop service time, and <c>ScheduleDto.On</c> — the column
+        /// the dispatcher sees — is filled by no projection in this file, so it is always null and
+        /// both sides fall back to this number. If that column is ever populated, this constant
+        /// and <c>SchedulesViewModel.PlannedDepartureFrom</c> have to learn about it together.
+        /// </remarks>
+        private const int StopServiceMinutes = 15;
+
+        /// <summary>
+        /// The hour the vehicle is planned to leave a stop for the next one.
+        /// </summary>
+        /// <remarks>
+        /// The hour it really happened if it has, the estimate if it has not, plus the time spent
+        /// there. Nothing is spent at the garage: nobody is served at a Pull-out.
+        ///
+        /// <para>
+        /// ⚠️ Mirrors <c>SchedulesViewModel.PlannedDepartureFrom</c> in Raphael.Desktop, and has
+        /// to keep mirroring it. The two chain the same route and must agree on where each leg
+        /// starts, or the hour the dispatcher reads and the wait the server stores describe
+        /// different journeys.
+        /// </para>
+        /// </remarks>
+        private static TimeSpan PlannedDepartureFrom(Schedule stop)
+        {
+            if (stop is null) return TimeSpan.Zero;
+
+            // ⚠️ The perform time only counts while the stop is still marked performed. A
+            // dispatcher can undo a performed stop — see PerformUpdateAsync and the un-perform
+            // action on the schedule grid — and the hour stays in the column while the flag goes.
+            // SchedulesViewModel.DepartureTimeOf tests the flag, so this must too, or the two
+            // chain a route that was un-performed from different starting hours.
+            var arrival = (stop.Performed ? stop.ActualPerformTime : null)
+                          ?? stop.ActualArriveTime
+                          ?? stop.ETATime
+                          ?? TimeSpan.Zero;
+
+            var service = stop.Name == "Pull-out"
+                ? TimeSpan.Zero
+                : TimeSpan.FromMinutes(StopServiceMinutes);
+
+            return arrival + service;
+        }
+
+        /// <summary>
+        /// Derives what the route works out for itself: the garage departure hour, and how long
+        /// each pickup leaves its driver waiting.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ The Pull-out hour is derived data, and until this method existed nothing on the
+        /// server derived it: <see cref="RouteTripAsync"/> wrote it once, when the day's first
+        /// trip was routed, and every later change of shape trusted whatever the dispatch
+        /// client worked out and sent back. Raphael.Desktop has several paths that never send
+        /// it — reassigning a run from the Trips tab is one — and one that computes the hour,
+        /// paints it, and then decides it has nothing to save. The garage hour was then
+        /// describing a route that no longer exists: the driver is told to leave at seven for
+        /// a patient collected at six.
+        ///
+        /// <para>
+        /// Call it after anything that changes a route's shape. Clients may keep computing and
+        /// sending their own value; this runs afterwards and has the last word, so the hour is
+        /// right whether or not any client got round to asking.
+        /// </para>
+        ///
+        /// <para>
+        /// Does not save: the callers are inside transactions of their own and the row is
+        /// tracked. Returns whether it changed anything.
+        /// </para>
+        /// </remarks>
+        private async Task<bool> ApplyDerivedRouteValuesAsync(int vehicleRouteId, DateTime date)
+        {
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            // Whether the trip behind each row is cancelled, asked of the database rather than
+            // walked through a navigation property: the rows are wanted for their own sake and
+            // loading a Trip each to read one flag is a join per stop.
+            var rows = await _context.Schedules
+                .Where(s => s.VehicleRouteId == vehicleRouteId
+                            && s.Date >= dayStart && s.Date < dayEnd)
+                .Select(s => new
+                {
+                    Stop = s,
+                    TripCancelled = s.Trip != null && s.Trip.IsCancelled,
+                    TripType = s.Trip != null ? s.Trip.Type : null
+                })
+                .ToListAsync();
+
+            // ⚠️ Ordered here and not in the query. Every caller renumbers these same rows just
+            // before calling, and those new numbers are only in the change tracker — the
+            // database would sort by the sequence they had a moment ago and hand back the old
+            // first stop.
+            var ordered = rows.OrderBy(r => r.Stop.Sequence ?? int.MaxValue).ToList();
+
+            var changed = ApplyEarlyArrivalWaits(
+                ordered.Select(r => (r.Stop, r.TripCancelled, r.TripType)).ToList());
+
+            var pullOut = ordered.FirstOrDefault(r => r.Stop.Name == "Pull-out")?.Stop;
+            if (pullOut is null) return changed;
+
+            // Once the driver has left, the hour is history and ActualPerformTime holds it.
+            // Moving the estimate now rewrites, on the driver's own screen, a departure that
+            // already happened.
+            if (pullOut.Performed) return changed;
+
+            var firstStop = ordered.FirstOrDefault(r =>
+                    r.Stop.TripId.HasValue
+                    && r.Stop.Name != "Pull-in"
+                    // A cancellation nobody drove to is not a stop: it sets no hour for the
+                    // garage. One the driver did reach is, and it stays in the chain.
+                    && (!r.TripCancelled || r.Stop.ActualArriveTime.HasValue))
+                ?.Stop;
+
+            // An empty route keeps the hour it has. Pull-out and Pull-in survive a route with
+            // no trips left on purpose — see CancelRouteForTripAsync — and inventing a garage
+            // hour with nothing to derive it from is worse than leaving yesterday's.
+            if (firstStop is null) return changed;
+
+            var commitment = firstStop.ScheduledPickupTime ?? firstStop.ScheduledApptTime;
+            if (commitment is null) return changed;
+
+            var hour = ClampToDayEnds(
+                commitment.Value
+                - TimeSpan.FromMinutes(PullOutPreparationMinutes)
+                - (firstStop.TravelTime ?? TimeSpan.Zero));
+
+            if (pullOut.ETATime == hour) return changed;
+
+            pullOut.ETATime = hour;
+            return true;
+        }
+
+        /// <summary>How close to a promised hour a vehicle may be shown arriving.</summary>
+        /// <remarks>
+        /// Five minutes on a return leg: the patient has finished at the clinic and is waiting to
+        /// be collected, so holding the vehicle a quarter of an hour down the road buys nobody
+        /// anything. ⚠️ Mirrors the margins in <c>SchedulesViewModel.ChainEtas</c> and in
+        /// <c>Raphael.Driver</c>'s <c>ApplyEarlyArrivalLimit</c>; all three have to agree.
+        /// </remarks>
+        private static TimeSpan EarlyArrivalMarginFor(string? tripType)
+        {
+            return tripType == "Return" ? TimeSpan.FromMinutes(5) : TimeSpan.FromMinutes(15);
+        }
+
+        /// <summary>A time of day with the seconds cut off, not rounded.</summary>
+        private static TimeSpan ToWholeMinutes(TimeSpan value)
+        {
+            return TimeSpan.FromMinutes(Math.Floor(value.TotalMinutes));
+        }
+
+        /// <summary>
+        /// Works out, for every pickup on the route, how long the driver stands there waiting for
+        /// the hour to come round.
+        /// </summary>
+        /// <remarks>
+        /// The route never shows a vehicle arriving more than a quarter of an hour before the
+        /// hour the patient was promised. What is not shortened is the drive — the roads take
+        /// what they take — so when that rule raises an arrival, the difference is the driver
+        /// sitting in a vehicle outside a house with the engine off.
+        ///
+        /// <para>
+        /// ⚠️ The rule is tested for, not inferred by subtraction. This used to work out the wait
+        /// as <c>ETA − (previous departure + drive)</c> and report whatever came out, which
+        /// assumed the stored chain was consistent with itself. After a reorder it is not: the
+        /// client sends only the rows it changed, a leg nobody could price keeps the drive it had
+        /// against a neighbour it no longer has, and that subtraction then produced a number out
+        /// of the drift and called it waiting. A trip arriving two hours <em>late</em> was
+        /// reported as waiting an hour and eleven minutes — the row painted amber for arriving
+        /// early and red for arriving late at the same time, over a tooltip explaining a rule
+        /// that had never fired.
+        /// </para>
+        ///
+        /// <para>
+        /// So the test is the rule itself. Raising an arrival lands it exactly on
+        /// <c>promised − margin</c>; an arrival anywhere else was not raised, and a stop with no
+        /// promised hour, or one reached at or after it, cannot have been. Where the stored chain
+        /// disagrees with itself the answer is no wait rather than an invented one.
+        /// </para>
+        ///
+        /// <para>
+        /// Dropoffs are excluded because the rule does not apply to them: the patient is already
+        /// in the vehicle and arriving early is simply arriving early. So are the garage events,
+        /// whose scheduled hour is a sentinel rather than a promise to anybody.
+        /// </para>
+        ///
+        /// <para>
+        /// Once the driver has arrived, the plan stops being the story: what really happened is
+        /// in <c>ActualArriveTime</c> and <c>ActualPerformTime</c>. The figure is frozen at
+        /// whatever it last was rather than recomputed against hours that have since moved.
+        /// </para>
+        /// </remarks>
+        /// <param name="ordered">The route's stops, already in running order, each with whether
+        /// the trip behind it is cancelled and what kind of trip it is.</param>
+        /// <returns>Whether any row changed.</returns>
+        private static bool ApplyEarlyArrivalWaits(
+            List<(Schedule Stop, bool TripCancelled, string? TripType)> ordered)
+        {
+            var changed = false;
+            Schedule? previous = null;
+
+            foreach (var (stop, tripCancelled, tripType) in ordered)
+            {
+                // ⚠️ The previous *physical* stop, which is what the chain is built from. A
+                // cancellation nobody drove to is not one: no vehicle ever went there, so it sets
+                // no departure hour for the stop after it. One the driver did reach is a real
+                // stop and stays in the chain.
+                //
+                // Mirrors SchedulesViewModel.FindValidPrevious, and has to: if the two disagree
+                // about which stop a leg starts from, the hour on the dispatcher's screen and the
+                // wait in this column are measuring different journeys.
+                var isPhysicalStop = !tripCancelled || stop.ActualArriveTime.HasValue;
+
+                if (stop.EventType != ScheduleEventType.Pickup)
+                {
+                    if (isPhysicalStop) previous = stop;
+                    continue;
+                }
+
+                var wait = WaitAt(stop, previous, tripType);
+
+                if (stop.EarlyArrivalWait != wait)
+                {
+                    stop.EarlyArrivalWait = wait;
+                    changed = true;
+                }
+
+                if (isPhysicalStop) previous = stop;
+            }
+
+            return changed;
+        }
+
+        /// <summary>
+        /// How long one pickup leaves its driver waiting, or null when the early-arrival rule did
+        /// not put them there.
+        /// </summary>
+        private static TimeSpan? WaitAt(Schedule stop, Schedule? previous, string? tripType)
+        {
+            // Already there: what happened is recorded, and the plan is not the story any more.
+            if (stop.ActualArriveTime.HasValue) return stop.EarlyArrivalWait;
+
+            if (previous is null) return null;
+            if (stop.ETATime is not { } eta) return null;
+            if (stop.ScheduledPickupTime is not { } promised) return null;
+
+            eta = ToWholeMinutes(eta);
+            promised = ToWholeMinutes(promised);
+
+            // Nobody waits past the hour they were promised. A vehicle arriving at or after it
+            // is late or on time, and either way the rule never touched this arrival.
+            if (eta >= promised) return null;
+
+            // And when the rule does touch it, it puts the arrival exactly here. An arrival
+            // anywhere else got there on its own.
+            if (eta != promised - EarlyArrivalMarginFor(tripType)) return null;
+
+            var earliestArrival = ToWholeMinutes(
+                PlannedDepartureFrom(previous) + (stop.TravelTime ?? TimeSpan.Zero));
+
+            var gap = eta - earliestArrival;
+
+            return gap > TimeSpan.Zero ? gap : null;
         }
 
         // Este nuevo metodo actualiza el estado de los viajes
@@ -1080,6 +1363,15 @@ namespace Raphael.Api.Services
                 changed++;
             }
 
+            // After the client's own numbers, and with the last word. A reorder is exactly when
+            // the garage hour moves, and the client is not required to have noticed: it may be
+            // sending only the rows it thinks changed, and one of the paths that computes the
+            // hour on screen never adds the Pull-out row to the batch at all.
+            if (await ApplyDerivedRouteValuesAsync(request.VehicleRouteId, request.Date))
+            {
+                changed++;
+            }
+
             if (changed > 0)
             {
                 await _context.SaveChangesAsync();
@@ -1169,6 +1461,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -1247,6 +1540,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
@@ -1926,6 +2220,7 @@ namespace Raphael.Api.Services
                     ETA = s.ETATime,
                     Distance = s.DistanceToPoint,
                     Travel = s.TravelTime,
+                    Wait = s.EarlyArrivalWait,
                     Arrive = s.ActualArriveTime,
                     Perform = s.ActualPerformTime,
                     ArriveDist = s.ArriveDistance,
