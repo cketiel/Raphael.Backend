@@ -1,4 +1,4 @@
-# Raphael.Backend — .NET 8
+﻿# Raphael.Backend — .NET 8
 
 Núcleo del ecosistema Raphael (NEMT). Reglas globales: `../CLAUDE.md`.
 
@@ -9,7 +9,7 @@ el Customer Service Bot y los integradores externos. Si un contrato cambia aquí
 ## Proyectos
 - `Raphael.Api` — 31 controllers. Entrada: `Raphael.Api/Program.cs`
 - `Raphael.Notification` — Business Events, reglas y canales de entrega (push)
-- `Raphael.Shared` — Entities, DTOs (52), EF Core, servicios de dominio. **No lo consumen los clientes**
+- `Raphael.Shared` — Entities, DTOs (88 tipos en 61 ficheros), EF Core, servicios de dominio. **No lo consumen los clientes**
 
 ## Seguridad
 - **JWT** → Desktop, Driver, Rider.
@@ -18,7 +18,7 @@ el Customer Service Bot y los integradores externos. Si un contrato cambia aquí
 - `appsettings.Production.json` no se lee ni se edita desde aquí.
 
 ## Contratos — regla dura
-`Raphael.Shared/DTOs/*.cs` es la fuente de verdad. Desktop duplica 22 DTOs, Driver 6, Rider los
+`Raphael.Shared/DTOs/*.cs` es la fuente de verdad. Desktop duplica 56 tipos, Driver 10, Rider los
 espeja en TypeScript. **Al tocar un DTO, una Entity o la firma de un controller, ejecutar
 `/contract-impact <Símbolo>` antes de cerrar la tarea.** Ver `../_meta/CONTRACT_MAP.md`.
 
@@ -50,7 +50,7 @@ constraint, y descarta el resto. No lo rodees.
 - Reglas de notificación: `Raphael.Shared/Catalog/NotificationRules/`
 
 ## No leer
-`Raphael.Shared/Migrations/` — **87 archivos, 2.4 MB**. Para conocer el esquema usa la Entity y su
+`Raphael.Shared/Migrations/` — **103 archivos, 3.2 MB**. Para conocer el esquema usa la Entity y su
 Configuration, nunca la migración. Tampoco `bin/`, `obj/`, `*.user`.
 
 ## Comandos
