@@ -242,16 +242,30 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+//
+// Whether this API may write the database's own parameter values into its logs.
+//
+// ⚠️ Those parameters are patient names, addresses, telephone numbers and signatures, and §3
+// of the constitution forbids them in logs and in URLs.
+//
+// This used to be switched on by the environment being called "Development", which tied a
+// safety property to a label. The Azure environment is called Development for entirely
+// ordinary reasons — it is the one that is not production — and it is about to receive a
+// restore of the real database. Nobody chose that combination; it arrived by name.
+//
+// So it is its own key now, and it is off unless somebody writes it down. No environment can
+// acquire it by being called something. Turn it on deliberately, against data you are willing
+// to read in a log, and turn it off when the diagnosis is over.
+//
+const string LogSensitiveDataKey = "Diagnostics:LogSensitiveData";
+var logSensitiveData = builder.Configuration.GetValue<bool>(LogSensitiveDataKey);
+
 // Entity Framework DB
 builder.Services.AddDbContext<RaphaelContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 
-    // ⚠️ Development only, and not merely for the per-query cost of both.
-    // EnableSensitiveDataLogging writes parameter values into the logs, and the parameters of
-    // this database are patient names, addresses and telephone numbers. Running it in
-    // production is exactly the leak the constitution forbids in §3.
-    if (builder.Environment.IsDevelopment())
+    if (logSensitiveData)
     {
         options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
@@ -559,6 +573,17 @@ app.Logger.LogInformation(
     TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, operationTimeZone),
     DateTime.Now);
 #pragma warning restore RS0030
+
+// Said out loud for the same reason as the line above it: a setting this dangerous should not
+// be discoverable only by reading the configuration of a running app. If this appears in a log
+// that anybody but the person diagnosing can read, it has already gone on too long.
+if (logSensitiveData)
+{
+    app.Logger.LogWarning(
+        "{Key} is ON. SQL parameter values — patient names, addresses, telephone numbers — are " +
+        "being written to these logs. This is a diagnostic switch, not a setting: turn it off.",
+        LogSensitiveDataKey);
+}
 
 // First, before anything reads the scheme or the caller's address. Everything below this line
 // — the redirect to HTTPS, the per-IP rate limiter, the telemetry — would otherwise be
