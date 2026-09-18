@@ -3,17 +3,22 @@
 using AspNetCoreRateLimit;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Raphael.Api.Models;
+using Raphael.Api.Observability;
 using Raphael.Api.Realtime;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
@@ -422,20 +427,45 @@ builder.Services.Configure<BotSettings>(builder.Configuration.GetSection("BotSet
 builder.Services.AddScoped<ApiKeyAuthFilter>();
 builder.Services.AddScoped<IBotService, BotService>();
 
-// Allow requests from the etamilanes.com domain
+// Named after what it governs, not after one of the sites it lets in. The old name,
+// "EtamilanesPolicy", described the first client anybody added and then outlived it.
+const string CorsPolicyName = "BrowserClients";
+const string CorsOriginsKey = "Cors:AllowedOrigins";
+
+//
+// Which browsers may call this API.
+//
+// The list used to be six literals compiled into this file, which meant a new front end — or
+// the same front end on a new host — needed a rebuild and a redeploy of the whole API to be
+// allowed to talk to it. It is configuration now because the API is about to exist on two
+// hosts at once: MyASP.NET keeps serving the origins it has always served while Azure comes up
+// under its own domain, and neither list is the other's.
+//
+// Only browsers are governed by this. Desktop and Driver send no Origin header and are
+// unaffected; the ones that are affected are the ETA page, the booking portal and Expo on the
+// web.
+//
+var corsOrigins = builder.Configuration.GetSection(CorsOriginsKey).Get<string[]>()
+                  ?? Array.Empty<string>();
+
+// ⚠️ Fails the deployment rather than the shift, the same as an unrecognised timezone below.
+// AllowCredentials makes "*" illegal, so an empty list is not "everybody": it is nobody, and
+// what the browser shows is a CORS error that names no cause. Outside Development, a
+// configuration that did not arrive stops the app here, where the reason is written down.
+if (corsOrigins.Length == 0 && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException(
+        $"'{CorsOriginsKey}' is empty. It must list the browser origins allowed to call this " +
+        "API, scheme and host, no trailing slash. Refusing to start: an empty list authorises " +
+        "nobody and surfaces hours later as an unexplained CORS failure in somebody's browser.");
+}
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("EtamilanesPolicy", policy =>
+    options.AddPolicy(CorsPolicyName, policy =>
     {
         policy
-            .WithOrigins(
-                "https://etamilanes.com",
-                "https://www.etamilanes.com",
-                "https://raphaeltransport.com",
-                "https://www.raphaeltransport.com",
-                "http://localhost:8081", // Expo Metro Bundler
-                "http://localhost:19006"  // Web Expo
-            )
+            .WithOrigins(corsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -465,6 +495,55 @@ builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection(
 builder.Services.AddInMemoryRateLimiting();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
+//
+// What the request looked like before the reverse proxy touched it.
+//
+// App Service terminates TLS at its front end and hands the request to the container over
+// plain HTTP, on a private address. Two things in this pipeline read the wrong value without
+// this, and both fail in ways that do not look like a proxy problem:
+//
+//   · UseHttpsRedirection sees scheme "http" and answers 307 to the very same URL, which the
+//     front end forwards again as http. That is an infinite redirect, not an error message.
+//   · The IP rate limiter sees the front end's address for every caller on earth, so the five
+//     logins a minute allowed per IP become five logins a minute for the whole company.
+//
+// ⚠️ KnownNetworks and KnownProxies are cleared on purpose. By default the middleware only
+// trusts a forwarder on loopback, and Azure's front end is neither loopback nor an address
+// known in advance, so the defaults make it drop the headers in silence — indistinguishable
+// from never having added it. Clearing them is safe here because nothing reaches this
+// container except through that front end.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+//
+// Telemetry.
+//
+// Reads APPLICATIONINSIGHTS_CONNECTION_STRING from configuration, which the Azure environment
+// sets and MyASP.NET does not. Absent, the SDK collects nothing and the app runs exactly as it
+// does today — which is what lets the same build serve both hosts during the migration.
+//
+// ⚠️ The initializer is not decoration. Without it this sends bearer tokens and patient
+// addresses to a store outside the building; see QueryStringScrubbingInitializer.
+builder.Services.AddApplicationInsightsTelemetry();
+builder.Services.AddSingleton<ITelemetryInitializer, QueryStringScrubbingInitializer>();
+
+//
+// Health.
+//
+// Two endpoints, because the question "is this process alive" and the question "can this
+// process do its job" have different consequences when the answer is no. App Service probes
+// the first and restarts what fails it; a human reads the second. See DatabaseHealthCheck.
+//
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>(
+        "database",
+        HealthStatus.Unhealthy,
+        tags: new[] { DatabaseHealthCheck.ReadyTag });
+
 var app = builder.Build();
 
 // Said out loud at startup so a misconfiguration is visible on the first line of the log
@@ -480,6 +559,11 @@ app.Logger.LogInformation(
     TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, operationTimeZone),
     DateTime.Now);
 #pragma warning restore RS0030
+
+// First, before anything reads the scheme or the caller's address. Everything below this line
+// — the redirect to HTTPS, the per-IP rate limiter, the telemetry — would otherwise be
+// describing the reverse proxy instead of the client. See ForwardedHeadersOptions above.
+app.UseForwardedHeaders();
 
 // Responses are compressed before anything else touches them. The dispatch office pulls a
 // whole operating day — hundreds of rows of JSON — from a server that is not on the local
@@ -515,7 +599,7 @@ app.UseStaticFiles();  // To serve files from wwwroot
 
 app.UseHttpsRedirection();
 
-app.UseCors("EtamilanesPolicy");
+app.UseCors(CorsPolicyName);
 app.UseRateLimiter(); // Activate middleware Anti-bots  
 
 // Apply Security Headers
@@ -535,6 +619,27 @@ app.UseAuthorization(); // Do you have permission?
 
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<DispatchHub>("/hubs/dispatch");
+
+//
+// Liveness. Anonymous because the thing that calls it is the App Service health check, which
+// has no credential and never will; and because a probe that answers 401 is a probe that says
+// "unhealthy" about a perfectly healthy instance, so the platform would restart it.
+//
+// Predicate false on purpose: it runs no checks. Answering at all is the whole signal — this
+// process is up, accepting sockets and routing requests. It is not an opinion about the
+// database, and it must not become one: see DatabaseHealthCheck.
+//
+// It carries nothing about the system in its body, which is why it can be public.
+//
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false })
+   .AllowAnonymous();
+
+// Readiness, for a person. Behind authentication because "the database is unreachable" is a
+// fact about the inside of the system and there is no reason to publish it.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains(DatabaseHealthCheck.ReadyTag)
+}).RequireAuthorization();
 
 app.MapControllers();
 
