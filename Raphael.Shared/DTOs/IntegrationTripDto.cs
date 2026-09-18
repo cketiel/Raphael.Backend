@@ -1,4 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// IFormFile. It used to arrive by itself: the Web SDK adds ASP.NET Core's namespaces to the
+// implicit usings, and this project was declared with that SDK by mistake. A class library does
+// not get them, so the one ASP.NET Core type in this file names where it comes from.
+using Microsoft.AspNetCore.Http;
+using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.DTOs
 {

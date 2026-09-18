@@ -1,4 +1,20 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<!--
+  A class library, declared as one.
+
+  This said Microsoft.NET.Sdk.Web until 2026-09-17, left over from having been scaffolded with
+  `dotnet new webapi`. That SDK defaults OutputType to Exe, so this library was built as an
+  application and emitted a Raphael.Shared.runtimeconfig.json of its own. The publish folder
+  then held two of them, and App Service Linux, which decides what to run by looking for exactly
+  one, refused to guess and started its own welcome page instead. The deployment reported
+  success, the site answered 200 on / and every route returned 404.
+
+  FrameworkReference, not the Web SDK, is how a library uses ASP.NET Core types. It is needed
+  here for one: IntegrationTripDto.Attachment is an IFormFile, because integrators upload trip
+  paperwork as multipart. That is a live contract with an outside company and is not something
+  to change while tidying a csproj. A FrameworkReference on a library produces no
+  runtimeconfig.json, which is the whole point.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -8,6 +24,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn> <!-- Hide missing comment warnings -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
