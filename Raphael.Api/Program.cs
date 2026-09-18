@@ -709,6 +709,19 @@ using (var scope = app.Services.CreateScope())
             "requests against a database that is not in the shape this build expects.");
         throw;
     }
+
+    // Firebase, built here on purpose rather than left to the first caller.
+    //
+    // It is a singleton, so it is otherwise constructed the first time somebody needs to
+    // notify a driver -- which is to say, at the exact moment a missing credential costs a
+    // notification and the furthest possible point from anyone who could act on it. Resolving
+    // it now moves that answer into the startup log, next to the database's.
+    //
+    // It does NOT throw, unlike the block above, and the difference is deliberate: a database
+    // in the wrong shape makes every answer suspect, while no Firebase credential costs push
+    // notifications and nothing else. Refusing to start over the second would take dispatch
+    // down to protect a feature.
+    services.GetRequiredService<IFirebaseMessagingService>();
 }
 
 // Middleware (Errors)
