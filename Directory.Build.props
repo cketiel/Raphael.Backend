@@ -31,4 +31,53 @@
     <WarningsAsErrors>$(WarningsAsErrors);RS0030</WarningsAsErrors>
   </PropertyGroup>
 
+  <!--
+    ======================================================================================
+    The version of Raphael.Backend.
+    ======================================================================================
+
+    One number for the three projects, because they ship as one unit: Raphael.Api never runs
+    against a Raphael.Shared from a different build, so giving them separate numbers would
+    only create a pair that can disagree.
+
+    This number IS the tag. .github/workflows/prod_app-raphael-prod-scus.yml compares the tag
+    being deployed against this line and refuses to publish if they differ, so `v1.4.0` in
+    production can only be the code that declared 1.4.0 here. Bump it in the commit that
+    closes a slice, then tag. Never tag first. See _meta/GIT_WORKFLOW.md §6.
+
+    Only Version is declared. AssemblyVersion, FileVersion and InformationalVersion are
+    derived from it by the SDK, and writing all four by hand is how three of them end up
+    saying different things.
+
+    What this buys beyond the tag: Application Insights reads it into application_Version by
+    itself, so every trace and every exception in production carries the build that raised it.
+    "Which versions does this fault happen on?" stops being somebody's recollection.
+  -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <!--
+    The commit and the build time are injected, not declared.
+
+    CI passes SourceRevisionId (appended by the SDK to InformationalVersion as "+<sha>") and
+    BuildTimestampUtc. Neither is set on a developer's machine, and that is the point: a
+    binary with no commit and no timestamp did not come from the workflow, which is worth
+    knowing when it turns up somewhere it should not be.
+
+    ⚠️ Not defaulted to "now". A value that changes on every evaluation rewrites the generated
+    AssemblyInfo on every build, which makes every local build a full rebuild — a real cost,
+    paid daily, for a field nobody reads outside a deployment.
+  -->
+  <PropertyGroup>
+    <BuildTimestampUtc Condition="'$(BuildTimestampUtc)' == ''"></BuildTimestampUtc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>BuildTimestampUtc</_Parameter1>
+      <_Parameter2>$(BuildTimestampUtc)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

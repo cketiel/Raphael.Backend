@@ -25,6 +25,7 @@ using Raphael.Api.Services.Admin;
 using Raphael.Api.Services.Notifications;
 using Raphael.Api.Services.Routing;
 using Raphael.Api.Settings;
+using Raphael.Api.Versioning;
 using Raphael.Notification.Application.DependencyInjection;
 using Raphael.Notification.Infrastructure.DependencyInjection;
 using Raphael.Notification.Infrastructure.Realtime.DependencyInjection;
@@ -72,10 +73,14 @@ builder.Services.AddNotificationRealtime(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
+    // ⚠️ This "v1" is the name of the OpenAPI document, not the version of the build serving
+    // it. They are different numbers that move for different reasons, and reading this one as
+    // "the API is at version 1" is how the question "which version is in production?" went a
+    // year without an answer. The build number is at GET /api/version; see ApiContract.
+    options.SwaggerDoc(ApiContract.Document, new OpenApiInfo
     {
         Title = "Raphael Backend API",
-        Version = "v1"
+        Version = ApiContract.Document
     });
 
     // --- CONFIGURATION FOR JWT IN SWAGGER ---
@@ -482,7 +487,16 @@ builder.Services.AddCors(options =>
             .WithOrigins(corsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowCredentials()
+
+            // A browser hands JavaScript only the handful of response headers it is told to,
+            // and these two are the ones a page is meant to read. Without this the rider app
+            // running on the web is told nothing when its version is out of date -- the header
+            // arrives, the browser drops it, and the notice never appears. Desktop and Driver
+            // are unaffected either way: no browser sits between them and this API.
+            .WithExposedHeaders(
+                ClientVersionHeaders.Status,
+                ClientVersionHeaders.Minimum);
     });
 });
 
@@ -545,6 +559,23 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddSingleton<ITelemetryInitializer, QueryStringScrubbingInitializer>();
 
+// Which application, and which of its versions, made the call. The SDK stamps the other half —
+// it reads the assembly version this build declares into application_Version on its own, which
+// is why Directory.Build.props declares one. With both, "the import failed on Tuesday" is a
+// query and not an interrogation. See ClientVersionTelemetryInitializer.
+builder.Services.AddSingleton<ITelemetryInitializer, ClientVersionTelemetryInitializer>();
+
+//
+// The oldest version of each client application this build expects to serve.
+//
+// Configuration rather than a constant because the floor rises the day a release is actually
+// distributed to the people who use it, which is never the day the server code was written.
+// Empty is a valid answer and the one it ships with: nobody is reported as outdated until
+// somebody decides what current means.
+//
+builder.Services.Configure<ClientCompatibilityOptions>(
+    builder.Configuration.GetSection(ClientCompatibilityOptions.SectionName));
+
 // And the health probe, which is a minute-by-minute heartbeat rather than traffic, does not
 // need to be stored 43,000 times a month to be believed. Only while it succeeds: see
 // HealthProbeTelemetryProcessor.
@@ -595,6 +626,11 @@ if (logSensitiveData)
 // describing the reverse proxy instead of the client. See ForwardedHeadersOptions above.
 app.UseForwardedHeaders();
 
+// Who is calling, and how old they are. Placed here, above the rate limiter, so that a call
+// rejected with a 429 is still attributed to the application that made it — a burst from one
+// version of Raphael.Desktop is precisely the kind of thing worth being able to see.
+app.UseMiddleware<ClientCompatibilityMiddleware>();
+
 // Responses are compressed before anything else touches them. The dispatch office pulls a
 // whole operating day — hundreds of rows of JSON — from a server that is not on the local
 // network, so the wire is a real part of how long the Schedule tab takes to open.
@@ -603,22 +639,38 @@ app.UseResponseCompression();
 // Activate Rate Limiting
 app.UseIpRateLimiting();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Raphael Backend API v1");
-});
-
-// Swagger (optional)
-if (app.Environment.IsDevelopment())
+//
+// Swagger, everywhere except production.
+//
+// ⚠️ This used to be registered three times — once unconditionally, once inside a check for
+// Development that therefore did nothing, and once more under a comment that said
+// "IsProduction". The effect was that the document and its UI were served to anybody who asked,
+// in every environment.
+//
+// That is being changed the week production starts holding real patient data. Swagger publishes
+// the whole shape of the system: 31 controllers, every DTO, and the existence and header name of
+// both machine-to-machine keys. None of it is PHI, and publishing it is not a breach — it is the
+// map somebody would otherwise have to guess at, handed over anonymously, on a host that from
+// this week is inside the same perimeter as production (CLAUDE.md §3).
+//
+// What is lost, and where it went:
+//
+//   · Integrators explore against DEV, which exists for exactly this and holds no live traffic.
+//     Their contract is _meta/INTEGRATION_API_SPEC.md, which is the document they code against
+//     anyway — Swagger was never the agreement.
+//   · "Which build is this?" was the other thing the Swagger page was used for in production,
+//     and it never actually answered it. GET /api/version does, and is anonymous for that reason.
+//
+if (!app.Environment.IsProduction())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint(
+            $"/swagger/{ApiContract.Document}/swagger.json",
+            $"Raphael Backend API {ApiContract.Document}");
+    });
 }
-
-// app.Environment.IsProduction
-app.UseSwagger();
-app.UseSwaggerUI();
 
 app.UseAuthentication(); // Who is the user?
 
