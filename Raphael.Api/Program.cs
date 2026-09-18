@@ -545,6 +545,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddApplicationInsightsTelemetry();
 builder.Services.AddSingleton<ITelemetryInitializer, QueryStringScrubbingInitializer>();
 
+// And the health probe, which is a minute-by-minute heartbeat rather than traffic, does not
+// need to be stored 43,000 times a month to be believed. Only while it succeeds: see
+// HealthProbeTelemetryProcessor.
+builder.Services.AddApplicationInsightsTelemetryProcessor<HealthProbeTelemetryProcessor>();
+
 //
 // Health.
 //
@@ -656,7 +661,9 @@ app.MapHub<DispatchHub>("/hubs/dispatch");
 //
 // It carries nothing about the system in its body, which is why it can be public.
 //
-app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false })
+app.MapHealthChecks(
+       HealthProbeTelemetryProcessor.LivenessPath,
+       new HealthCheckOptions { Predicate = _ => false })
    .AllowAnonymous();
 
 // Readiness, for a person. Behind authentication because "the database is unreachable" is a
