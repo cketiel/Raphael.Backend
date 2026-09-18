@@ -668,23 +668,40 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 
 app.MapControllers();
 
-// Initialize database (Apply migrations and initial data)
+//
+// Bring the database up to this build, and stop if that cannot be done.
+//
+// ⚠️ This used to log the failure and carry on, and that is not a small difference. On
+// 2026-09-18 the first Azure database applied its 51 migrations, failed to seed its users on
+// an unmapped NOT NULL column, and the API started anyway — reporting healthy, serving
+// Swagger, and unable to authenticate a single person. The exception was three hours down a
+// container log that nobody had a reason to open.
+//
+// An API whose schema did not finish arriving is not a degraded API, it is one that will
+// answer wrongly. Failing here costs a restart loop that says what is wrong on every pass;
+// continuing costs an afternoon.
+//
+// Note this is deliberately louder than /health, which stays a liveness probe and says
+// nothing about the database on purpose — see DatabaseHealthCheck.
+//
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var loggerFactory = services.GetRequiredService<ILoggerFactory>();    
-    
+    var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger<Program>();
+
     try
     {
         var initializer = services.GetRequiredService<IDbInitializer>();
-        initializer.Initialize();      
+        initializer.Initialize();
     }
     catch (Exception ex)
     {
-        var logger = loggerFactory.CreateLogger<Program>();
-        logger.LogError(ex, "An error occurred when executing the migration");
+        logger.LogCritical(
+            ex,
+            "Database initialisation failed. Refusing to start: this process would serve " +
+            "requests against a database that is not in the shape this build expects.");
+        throw;
     }
-
 }
 
 // Middleware (Errors)
