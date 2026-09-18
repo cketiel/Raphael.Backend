@@ -1,0 +1,254 @@
+#
+# Deploys Raphael.Api to PRODUCTION.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# Why this is a separate workflow, and why a push does not trigger it
+# ─────────────────────────────────────────────────────────────────────────────────────────
+#
+# Raphael.Backend commits straight to `main` -- no branches, no pull requests (CLAUDE.md §8).
+# The DEV workflow deploys every one of those commits, which is right for DEV and would be
+# indefensible here: it would put every commit, including the one somebody pushed to see
+# whether it compiles, in front of patients.
+#
+# So the trigger is a tag. Pushing `v1.4.0` deploys the code that tag points at and nothing
+# else, which also makes the question this design exists to answer checkable: what is in
+# production is the tag, and a tag is a commit.
+#
+#   main    -> DEV, on every push     (main_app-raphael-dev-scus.yml)
+#   vX.Y.Z  -> PROD, on the tag       (this file)
+#
+# Every commit therefore runs in DEV before a tag can promote it. That is the test server
+# whose absence exempted this repository from tags and releases in the first place; it has
+# existed since 2026-09-17, so the exemption has expired. See _meta/GIT_WORKFLOW.md §6.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# Why the deploy job names an environment
+# ─────────────────────────────────────────────────────────────────────────────────────────
+#
+# Two reasons, and the second is not optional.
+#
+#   1. `production` carries a required reviewer, so a tag does not reach patients without
+#      somebody saying yes, and GitHub records who said it and when. On a support ticket
+#      that history is the answer to "when did this go out, and who approved it".
+#
+#   2. An Azure federated credential matches its subject EXACTLY -- there are no wildcards
+#      in the generally available feature. A tag-triggered job presents
+#      `repo:cketiel/Raphael.Backend:ref:refs/tags/v1.4.0`, a different subject for every
+#      release, which would mean one credential per tag. Naming an environment changes the
+#      subject to `repo:cketiel/Raphael.Backend:environment:production`, which is constant.
+#      That credential is created by _meta/azure/New-RaphaelEnvironment.ps1.
+#
+# There is no workflow_dispatch. Re-running this run is how a tag is redeployed; anything
+# else would let production hold code that no tag names.
+#
+name: Deploy to Azure Web App - app-raphael-prod-scus (PRODUCTION)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history, so the second guard can ask whether this tag is on main.
+          fetch-depth: 0
+
+      #
+      # The tag cannot lie.
+      #
+      # Directory.Build.props declares the version, the running API reports it at
+      # /api/version, and this refuses to go further if the tag disagrees with it. Without
+      # this step the version on a support ticket is a hope.
+      #
+      - name: The tag must be the declared version
+        run: |
+          declared=$(sed -n 's|.*<Version>\([^<]*\)</Version>.*|\1|p' Directory.Build.props | head -1)
+          tagged="${GITHUB_REF_NAME#v}"
+
+          echo "Declared in Directory.Build.props: $declared"
+          echo "Tag being deployed:                $tagged"
+
+          if [ -z "$declared" ]; then
+            echo "::error::No <Version> found in Directory.Build.props."
+            exit 1
+          fi
+
+          if [ "$declared" != "$tagged" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the declared version $declared. Bump Directory.Build.props, commit, and tag that commit -- never move the tag."
+            exit 1
+          fi
+
+      #
+      # A tag on a commit that is not on main is code nobody merged. It would deploy happily,
+      # and afterwards main would not contain what production runs.
+      #
+      - name: The tag must be on main
+        run: |
+          git fetch --no-tags origin main
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_SHA is not an ancestor of origin/main. Production only runs code that is on main."
+            exit 1
+          fi
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Build with dotnet
+        run: dotnet build Raphael.Backend.sln --configuration Release
+
+      #
+      # SourceRevisionId is appended by the SDK to InformationalVersion, and BuildTimestampUtc
+      # is written into assembly metadata. Together they are what lets /api/version/details
+      # say which commit this binary is and when it was produced. Neither is set on a
+      # developer's machine, so a binary without them did not come from here.
+      #
+      - name: dotnet publish
+        run: |
+          dotnet publish Raphael.Api/Raphael.Api.csproj \
+            -c Release --no-build \
+            -p:SourceRevisionId=${{ github.sha }} \
+            -p:BuildTimestampUtc=$(date -u +%Y-%m-%dT%H:%M:%S.0000000Z) \
+            -o ${{env.DOTNET_ROOT}}/myapp
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: .net-app
+          path: ${{env.DOTNET_ROOT}}/myapp
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    # Holds the reviewer that gates this, and the Azure identity of the PROD subscription --
+    # a different subscription from DEV, so these secrets are the environment's and not the
+    # repository's.
+    environment:
+      name: production
+      url: https://api.raphaeldh.com
+
+    permissions:
+      id-token: write # OIDC: GitHub proves who it is, Azure returns a short-lived token
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: .net-app
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'app-raphael-prod-scus'
+          slot-name: 'Production'
+          package: .
+
+      #
+      # Proves the deployment against the public hostname rather than trusting the platform's
+      # own "deployment succeeded". /health is a liveness probe: it says the process is up and
+      # routing requests, which is exactly what was failing while PROD had no code and
+      # answered 503 in a loop. It says nothing about the database, on purpose.
+      #
+      - name: The deployed API answers
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://api.raphaeldh.com/health || true)
+            echo "attempt $attempt: /health -> $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 15
+          done
+
+          echo "::error::https://api.raphaeldh.com/health did not answer 200 after six attempts."
+          exit 1
+
+      #
+      # And that what answers is the build just deployed. A green deployment whose host still
+      # serves the previous binary is the failure this catches, and it is the one that would
+      # otherwise be discovered by a user.
+      #
+      - name: The version served is the version deployed
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          served=$(curl -sf https://api.raphaeldh.com/api/version | jq -r '.version // empty')
+
+          echo "Expected: $expected"
+          echo "Served:   $served"
+
+          if [ "$served" != "$expected" ]; then
+            echo "::error::api.raphaeldh.com reports version '$served', not '$expected'."
+            exit 1
+          fi
+
+  #
+  # The GitHub Release is created only once production is serving the tag, so a Release on
+  # this repository means "this was in production", not "this compiled".
+  #
+  release:
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: .net-app
+          path: publish
+
+      - name: Package the deployed bits
+        run: |
+          cd publish
+          zip -qr "../Raphael.Api-${GITHUB_REF_NAME}.zip" .
+
+      #
+      # The notes are the CHANGELOG entry, not a second telling of it. Notes written
+      # separately disagree with the repository within two versions, and then neither can be
+      # trusted on a ticket.
+      #
+      - name: Take the notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { capturing = 1; next }
+            capturing && /^## \[/ { exit }
+            capturing { print }
+          ' CHANGELOG.md > notes.md
+
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no '## [$version]' section. A release with no notes answers none of the questions a ticket asks."
+            exit 1
+          fi
+
+          cat notes.md
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            "Raphael.Api-${GITHUB_REF_NAME}.zip"
