@@ -168,6 +168,10 @@ jobs:
       # routing requests, which is exactly what was failing while PROD had no code and
       # answered 503 in a loop. It says nothing about the database, on purpose.
       #
+      # ⚠️ And it says nothing about WHICH container answered. It stops at the first 200,
+      # which during a deployment can be the one about to be replaced. That is a first
+      # signal, not proof; the step below is the one that decides.
+      #
       - name: The deployed API answers
         run: |
           for attempt in 1 2 3 4 5 6; do
@@ -185,18 +189,60 @@ jobs:
       # serves the previous binary is the failure this catches, and it is the one that would
       # otherwise be discovered by a user.
       #
+      # ⚠️ It asks three times in a row, and the reason is written here because this step
+      # already cried wolf once. On 2026-09-19 v1.1.0 deployed correctly -- production served
+      # it, and the migration it carried applied itself -- and this step failed anyway with
+      # "reports version '', not '1.1.0'". An EMPTY version, not a wrong one: nothing answered.
+      #
+      # A deployment restarts the container more than once and the warm-up probe takes 89 to
+      # 100 seconds each time, so there is a window, minutes wide, where the host is up, then
+      # down, then up. The /health loop above had already gone green against the container
+      # that was about to be replaced, and the single curl that used to be here landed in the
+      # gap that followed.
+      #
+      # So one answer proves nothing, and one silence disproves nothing. What is asked for is
+      # the right version three times running, over a window wider than the restart cycle.
+      #
       - name: The version served is the version deployed
         run: |
           expected="${GITHUB_REF_NAME#v}"
-          served=$(curl -sf https://api.raphaeldh.com/api/version | jq -r '.version // empty')
+          streak=0
+          served=''
 
-          echo "Expected: $expected"
-          echo "Served:   $served"
+          # Let the outgoing container go before asking anything.
+          #
+          # Measured on the run that failed: the deploy action returned at 18:11:07 and
+          # /health answered 200 at 18:11:07 -- zero seconds later, which can only have been
+          # the container that was about to be replaced. Asking immediately asks the wrong
+          # process.
+          #
+          # ⚠️ This narrows a race, it does not close it. Redeploying a version production is
+          # already serving could still be answered three times by the outgoing container and
+          # pass without the new one ever being seen. Closing that needs the commit, which
+          # /api/version/details carries and which needs a token this job does not have.
+          sleep 60
 
-          if [ "$served" != "$expected" ]; then
-            echo "::error::api.raphaeldh.com reports version '$served', not '$expected'."
-            exit 1
-          fi
+          for attempt in $(seq 1 40); do
+            served=$(curl -sf --max-time 20 https://api.raphaeldh.com/api/version | jq -r '.version // empty' || true)
+
+            if [ "$served" = "$expected" ]; then
+              streak=$((streak + 1))
+            else
+              streak=0
+            fi
+
+            echo "attempt $attempt: served '$served', expected '$expected'  (in a row: $streak)"
+
+            if [ "$streak" -ge 3 ]; then
+              echo "api.raphaeldh.com served $expected three times running."
+              exit 0
+            fi
+
+            sleep 15
+          done
+
+          echo "::error::api.raphaeldh.com never served '$expected' three times running within ten minutes. Last answer: '$served'."
+          exit 1
 
   #
   # The GitHub Release is created only once production is serving the tag, so a Release on
