@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
+using Raphael.Api.Services.Auth;
 using Raphael.Api.Services.Notifications;
 using Raphael.Api.Settings;
 using Raphael.Shared.DbContexts;
@@ -8,9 +8,6 @@ using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Time;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.SignalR;
 using Raphael.Notification.Infrastructure.Realtime.Hubs;
@@ -22,7 +19,6 @@ namespace Raphael.Api.Services
     public class RiderService : IRiderService
     {
         private readonly RaphaelContext _context;
-        private readonly JwtSettings _jwtSettings;
         private readonly IExpoPushService _expoPushService;
 
         private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
@@ -31,14 +27,16 @@ namespace Raphael.Api.Services
 
         private readonly IOperationClock _clock;
 
-        public RiderService(RaphaelContext context, IOptions<JwtSettings> jwtOptions, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService, ITripNotificationPublisher tripNotifications, IOperationClock clock)
+        private readonly IAuthTokenService _authTokens;
+
+        public RiderService(RaphaelContext context, IHubContext<NotificationHub, INotificationClient> hubContext, IExpoPushService expoPushService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IAuthTokenService authTokens)
         {
             _context = context;
-            _jwtSettings = jwtOptions.Value;
             _hubContext = hubContext;
             _expoPushService = expoPushService;
             _tripNotifications = tripNotifications;
             _clock = clock;
+            _authTokens = authTokens;
         }
 
         public async Task<ExpoPushResult> SendTestPushAsync(int customerId, string message)
@@ -108,7 +106,7 @@ namespace Raphael.Api.Services
                  });
          }*/
 
-        public async Task<RiderAuthResponse?> IdentifyAsync(RiderIdentifyRequest request)
+        public async Task<RiderAuthResponse?> IdentifyAsync(RiderIdentifyRequest request, string? clientApp = null)
         {
             // 1. Phone number cleanup (digits only)
             var cleanRequestPhone = Regex.Replace(request.Phone, @"[^\d]", "");
@@ -139,11 +137,20 @@ namespace Raphael.Api.Services
                 return null;
             }
 
+            // One place mints tokens now, for the patient as well as for staff. The access
+            // token's lifetime moved out of this method and into SessionPolicy:Apps:Rider,
+            // where the fact that it is still a year long is visible to anybody reading the
+            // configuration instead of buried in a private helper.
+            var issued = await _authTokens.IssueForCustomerAsync(customer, clientApp);
+
             return new RiderAuthResponse
             {
-                Token = GenerateRiderToken(customer),
+                Token = issued.AccessToken,
                 IsSuccess = true,
-                Customer = MapToCustomerResponseDto(customer)
+                Customer = MapToCustomerResponseDto(customer),
+                AccessTokenExpiresAtUtc = issued.AccessTokenExpiresAtUtc,
+                RefreshToken = issued.RefreshToken,
+                RefreshTokenExpiresAtUtc = issued.RefreshTokenExpiresAtUtc
             };
         }
 
@@ -402,30 +409,6 @@ namespace Raphael.Api.Services
         }
 
         // --- PRIVATE HELPERS ---
-
-        private string GenerateRiderToken(Customer customer)
-        {
-            var claims = new[] {
-                new Claim(JwtRegisteredClaimNames.Sub, customer.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.UniqueName, customer.FullName),
-                new Claim("CustomerId", customer.Id.ToString()),
-                new Claim("CustomerName", customer.FullName),
-                new Claim(ClaimTypes.Role, "Rider")
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _jwtSettings.Issuer,
-                audience: _jwtSettings.Audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(365), // Sesión persistente
-                signingCredentials: creds
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
 
         private static CustomerResponseDto MapToCustomerResponseDto(Customer c) => new()
         {

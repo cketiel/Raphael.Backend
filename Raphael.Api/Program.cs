@@ -1,4 +1,4 @@
-
+﻿
 
 using AspNetCoreRateLimit;
 using FluentValidation;
@@ -22,6 +22,7 @@ using Raphael.Api.Observability;
 using Raphael.Api.Realtime;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
+using Raphael.Api.Services.Auth;
 using Raphael.Api.Services.Notifications;
 using Raphael.Api.Services.Routing;
 using Raphael.Api.Settings;
@@ -244,7 +245,19 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings.Issuer,
         ValidAudience = jwtSettings.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
+
+        // ⚠️ The default here is FIVE MINUTES, and it is applied silently. Measured on
+        // 2026-09-19: a token issued with a one-minute lifetime was still accepted seventy
+        // seconds later, because the library adds the skew to every expiry it checks. Every
+        // session length configured anywhere in this application was therefore five minutes
+        // longer than it said, which was harmless while the number was ten hours and is not
+        // once it is sixty minutes.
+        //
+        // Thirty seconds instead of zero: the clocks that matter are Azure's own and are
+        // synchronised, but a request already in flight when its token expires should not be
+        // punished for the round trip. Anything beyond that is what the refresh token is for.
+        ClockSkew = TimeSpan.FromSeconds(30)
     };
 
     options.Events = new JwtBearerEvents
@@ -627,6 +640,28 @@ builder.Services.AddSingleton<ITelemetryInitializer, ClientVersionTelemetryIniti
 builder.Services.Configure<ClientCompatibilityOptions>(
     builder.Configuration.GetSection(ClientCompatibilityOptions.SectionName));
 
+//
+// How long a session lasts, per client application.
+//
+// A driver's phone and a dispatch workstation want opposite answers -- one is carried through a
+// shift by one person, the other sits in an office and can be walked away from with a patient's
+// address on screen -- so this is a policy per application rather than one number. See
+// SessionPolicyOptions for the reasoning and for how these bind as Azure App Settings.
+//
+var sessionPolicySection = builder.Configuration.GetSection(SessionPolicyOptions.SectionName);
+builder.Services.Configure<SessionPolicyOptions>(sessionPolicySection);
+
+// Validated here rather than on first use: a session length that cannot mean anything should
+// stop a deployment, not mint one unusable token per sign-in until somebody notices.
+var sessionPolicies = sessionPolicySection.Get<SessionPolicyOptions>() ?? new SessionPolicyOptions();
+sessionPolicies.Default.Validate("Default");
+foreach (var policy in sessionPolicies.Apps)
+{
+    policy.Value?.Validate(policy.Key);
+}
+
+builder.Services.AddScoped<IAuthTokenService, AuthTokenService>();
+
 // And the health probe, which is a minute-by-minute heartbeat rather than traffic, does not
 // need to be stored 43,000 times a month to be believed. Only while it succeeds: see
 // HealthProbeTelemetryProcessor.
@@ -660,6 +695,26 @@ app.Logger.LogInformation(
     TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, operationTimeZone),
     DateTime.Now);
 #pragma warning restore RS0030
+
+//
+// Said out loud for the same reason as the timezone above it: a session length is a security
+// decision and it should not take reading the configuration of a running app to find out what
+// was chosen. Anything longer than a day is called out by name -- the patient app still carries
+// a year, inherited from when its token could not be renewed at all, and that number should
+// keep being uncomfortable to read until it is gone.
+//
+foreach (var configured in sessionPolicies.Apps)
+{
+    if (configured.Value is { AccessTokenMinutes: > 1440 })
+    {
+        app.Logger.LogWarning(
+            "Session policy for {ClientApp} issues access tokens valid for {Days:F1} days. An " +
+            "access token cannot be revoked before it expires, so this is how long a stolen one " +
+            "keeps working.",
+            configured.Key,
+            configured.Value.AccessTokenMinutes / 1440.0);
+    }
+}
 
 // Said out loud for the same reason as the line above it: a setting this dangerous should not
 // be discoverable only by reading the configuration of a running app. If this appears in a log

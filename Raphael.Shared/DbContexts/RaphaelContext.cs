@@ -112,6 +112,16 @@ namespace Raphael.Shared.DbContexts
 
         #endregion
 
+        #region Authentication
+
+        /// <summary>
+        /// Server-side sessions. Before this existed, signing out did nothing the server knew
+        /// about and rotating the signing key was the only way to revoke anything.
+        /// </summary>
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+        #endregion
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
@@ -122,6 +132,70 @@ namespace Raphael.Shared.DbContexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // ======================================================
+            // Authentication — server-side sessions
+            // ======================================================
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.ToTable("RefreshTokens");
+                entity.HasKey(x => x.Id);
+
+                // Base64 of a SHA-256 is always 44 characters. Bounded on purpose: an
+                // unbounded string here would be an nvarchar(max) that cannot be indexed,
+                // and every refresh is a lookup by this column.
+                entity.Property(x => x.TokenHash)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(x => x.ReplacedByTokenHash)
+                    .HasMaxLength(64);
+
+                entity.Property(x => x.ClientApp)
+                    .IsRequired()
+                    .HasMaxLength(40);
+
+                entity.Property(x => x.RevokedReason)
+                    .HasMaxLength(60);
+
+                // The hot path: every refresh is "find the row for this hash". Unique because
+                // two rows for one token would make reuse detection pick one at random.
+                entity.HasIndex(x => x.TokenHash)
+                    .IsUnique()
+                    .HasDatabaseName("IX_RefreshTokens_TokenHash");
+
+                // Reuse detection revokes a whole family at once, so the family is looked up
+                // as a set.
+                entity.HasIndex(x => x.FamilyId)
+                    .HasDatabaseName("IX_RefreshTokens_FamilyId");
+
+                // What the eventual cleanup job will sweep by, and what answers "is this
+                // person still signed in anywhere".
+                entity.HasIndex(x => x.AbsoluteExpiresAtUtc)
+                    .HasDatabaseName("IX_RefreshTokens_AbsoluteExpiresAtUtc");
+
+                // ⚠️ Two optional subjects, exactly one set per row -- staff sign in through
+                // AuthController and are Users; patients identify through RiderController and
+                // are Customers. Cascade on both: a person's sessions are not evidence and
+                // have no reason to outlive them.
+                entity.HasOne(x => x.User)
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Customer)
+                    .WithMany()
+                    .HasForeignKey(x => x.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // The database enforces "exactly one subject" rather than trusting every code
+                // path to remember. A row with neither would be a session belonging to nobody;
+                // a row with both would be a session belonging to two people.
+                entity.ToTable(t => t.HasCheckConstraint(
+                    "CK_RefreshTokens_OneSubject",
+                    "([UserId] IS NOT NULL AND [CustomerId] IS NULL) OR ([UserId] IS NULL AND [CustomerId] IS NOT NULL)"));
+            });
+
             // ⚠️ No relationship to Notifications on purpose. This table exists to outlive
             // the rows it describes; a cascade from a deleted notification would erase the
             // evidence of its own deletion.

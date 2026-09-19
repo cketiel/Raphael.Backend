@@ -5,7 +5,7 @@ namespace Raphael.Api.Services
 {
     public interface IRiderService
     {
-        Task<RiderAuthResponse?> IdentifyAsync(RiderIdentifyRequest request);
+        Task<RiderAuthResponse?> IdentifyAsync(RiderIdentifyRequest request, string? clientApp = null);
         Task<IEnumerable<ScheduleDto>> GetMySchedulesAsync(int customerId, DateTime date);
         Task<IEnumerable<TripReadDto>> GetMyTripHistoryAsync(int customerId, DateTime startDate, DateTime endDate);
         Task<List<GpsDataDto>> GetMyActiveVehicleLocationAsync(int customerId);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Versioning;
 using Raphael.Api.Services;
 using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
 using Raphael.Notification.Application.Commands.MarkNotificationViewed;
@@ -159,7 +160,11 @@ namespace Raphael.Api.Controllers
         [HttpPost("auth/identify")]
         public async Task<IActionResult> Identify([FromBody] RiderIdentifyRequest request)
         {
-            var response = await _riderService.IdentifyAsync(request);
+            var clientApp = Request.Headers.TryGetValue(ClientVersionHeaders.App, out var app)
+                ? app.ToString()
+                : null;
+
+            var response = await _riderService.IdentifyAsync(request, clientApp);
             return response == null ? Unauthorized("Patient not found in Raphael Ecosystem.") : Ok(response);
         }
 

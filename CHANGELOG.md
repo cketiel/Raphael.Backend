@@ -19,6 +19,57 @@ give:
 
 ---
 
+## [Unreleased]
+
+**Migrations:** yes — `AddRefreshTokens`. Additive: one new table, five indexes, two foreign
+keys, one check constraint. Nothing existing is altered or dropped.
+**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released.
+
+### Added
+
+- **A session can be renewed instead of ending.** `POST /api/Auth/refresh` exchanges a refresh
+  token for a new access token and a new refresh token; `POST /api/Auth/logout` revokes one.
+  Until now a token was minted at sign-in and nothing could take it back or extend it, so every
+  expiry was somebody typing their password again — in the office, in the middle of a dispatch
+  screen with unsaved work, and for a driver, in the middle of a route.
+- **Token theft is detectable.** Refresh tokens rotate on every use and carry a family id. A
+  token presented after it has already been rotated means two parties hold the same credential,
+  so the whole family is revoked. A repeat within 30 seconds is treated as a retry instead, and
+  that grace matters: without it, one dropped response on a phone with bad signal would sign a
+  driver out mid-route.
+- **Session length is configured per application**, under `SessionPolicy`. A dispatch
+  workstation is a shared office machine that can be left alone with a patient's address on
+  screen; a driver's phone is carried by one person through a shift. Those want opposite
+  answers, and now they get them.
+- **`POST /api/Auth/login` and `POST /api/Rider/auth/identify` also return** `refreshToken`,
+  `accessTokenExpiresAtUtc` and `refreshTokenExpiresAtUtc`. Purely additive: a client that does
+  not know these fields deserialises the response as before and ignores them.
+
+### Changed
+
+- **Tokens are minted in one place.** `AuthController` and `RiderService` each built their own
+  JWT, with different lifetimes and no shared notion of a session. Both now go through
+  `AuthTokenService`.
+- **`Jwt:ExpiresInMinutes` is superseded** by `SessionPolicy`. ⚠️ `SessionPolicy:Default`
+  carries its old value of 600 on purpose: a client that sends no `X-Client-App` — which is
+  every Desktop 1.8.1 and Driver 1.4.0 in the field — must keep behaving exactly as it does
+  today. It drops to 60 once all three applications identify themselves and can refresh.
+
+### Fixed
+
+- **A token was accepted for five minutes after it expired.** `ClockSkew` was left at its
+  default, which is applied silently, so every configured lifetime was five minutes longer than
+  it said. Measured: a token issued with a one-minute lifetime was still accepted seventy
+  seconds later. Now 30 seconds, enough for a request already in flight and no more. Harmless
+  while the number was ten hours; not harmless once it is sixty minutes.
+
+### Removed
+
+- **`POST /api/Auth/loginTest`**, which was anonymous and returned `{"message":"Login
+  successful"}` without looking at anything.
+
+---
+
 ## [1.0.0] - 2026-09-18
 
 The first named build of `Raphael.Backend`, and the one that starts production on Azure.
