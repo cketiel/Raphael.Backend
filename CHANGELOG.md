@@ -23,6 +23,32 @@ give:
 
 ---
 
+## [1.1.1] - 2026-09-19
+
+**Migrations:** no. The schema is the one 1.1.0 left.
+**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released.
+
+⚠️ **The application is byte for byte what 1.1.0 was.** The only difference between the two
+tags is a workflow file, which is not in the published output at all. This number exists
+because 1.1.0 reached production and its GitHub Release never got created, and moving a tag is
+worse than spending a number.
+
+### Fixed
+
+- **The production pipeline asked the container that was being replaced.** 1.1.0 deployed
+  correctly — production served it, and the migration it carried applied itself — and the
+  pipeline reported `api.raphaeldh.com reports version '', not '1.1.0'`. An empty version, not
+  a wrong one: nothing answered. Azure's deploy action returns before the application
+  restarts, so `/health` answered 200 zero seconds after the deploy finished, from the process
+  about to be shut down, and the single version check that followed landed in the gap.
+- The version check now waits for the outgoing container to go, then asks for the expected
+  version **three times running** over up to ten minutes. A deployment restarts the container
+  more than once and each warm-up takes 89 to 100 seconds, so one answer proves nothing and
+  one silence disproves nothing. `/health` no longer claims to prove the deployment: it stops
+  at the first 200 and cannot say which container produced it.
+
+---
+
 ## [1.1.0] - 2026-09-19
 
 **Migrations:** yes — `AddRefreshTokens`. Additive: one new table, five indexes, two foreign
