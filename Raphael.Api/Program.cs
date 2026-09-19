@@ -290,10 +290,36 @@ builder.Services.AddAuthorization();
 const string LogSensitiveDataKey = "Diagnostics:LogSensitiveData";
 var logSensitiveData = builder.Configuration.GetValue<bool>(LogSensitiveDataKey);
 
+//
+// ⚠️ Fails the deployment rather than the shift, like the signing key above.
+//
+// This exists so the connection string can be taken OUT of the committed appsettings.json,
+// where it sat holding the credentials of the live production database in a public
+// repository. The guard is what makes removing it safe: without one, an environment that
+// failed to supply its own would have quietly inherited the published credentials and worked
+// perfectly, which is the failure nobody notices.
+//
+// Where it comes from: Key Vault via ConnectionStrings__DefaultConnection in Azure, the
+// server's own appsettings.Production.json on MyASP.NET, and appsettings.Development.json —
+// which points at localhost with Windows authentication and is therefore not a secret.
+//
+const string ConnectionStringKey = "DefaultConnection";
+var connectionString = builder.Configuration.GetConnectionString(ConnectionStringKey);
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        $"'ConnectionStrings:{ConnectionStringKey}' is empty. It is deliberately not in any " +
+        "committed file. Supply it from Key Vault (app setting " +
+        "'ConnectionStrings__DefaultConnection'), from the server's own " +
+        "appsettings.Production.json, or from appsettings.Development.json for a local " +
+        "database. Refusing to start: there is no database to serve trips from.");
+}
+
 // Entity Framework DB
 builder.Services.AddDbContext<RaphaelContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSqlServer(connectionString);
 
     if (logSensitiveData)
     {
