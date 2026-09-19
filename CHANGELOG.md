@@ -21,9 +21,17 @@ give:
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-09-19
+
 **Migrations:** yes — `AddRefreshTokens`. Additive: one new table, five indexes, two foreign
-keys, one check constraint. Nothing existing is altered or dropped.
-**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released.
+keys, one check constraint. Nothing existing is altered or dropped. It applies itself when the
+API starts, which is what `Database:MigrateOnStartup` governs; redeploying 1.0.0 afterwards
+would put the code back and leave the table, which is harmless because nothing in 1.0.0 reads it.
+**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released. Every client in the
+field predates `X-Client-App` and refresh tokens, and is answered exactly as before: the whole
+release is expand, with no contract step.
 
 ### Added
 
