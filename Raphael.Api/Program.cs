@@ -754,6 +754,27 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<DispatchHub>("/hubs/dispatch");
 
 //
+// The root, which exists for the platform and not for a person.
+//
+// App Service keeps a warm instance by asking for "/" every few minutes, and an API that serves
+// no root answered 404 to every one of them. On the first day in Azure production that was 32 of
+// the 44 requests Application Insights had recorded: 73% of the traffic, all of it failures that
+// meant nothing. A failure ratio made of noise is one nobody reads, and the day it is real
+// nobody will believe it either.
+//
+// Anonymous, and that is the written justification the constitution asks for: the caller is the
+// platform's warm-up ping, which has no credential and never will. It answers exactly what
+// GET /api/version already answers anonymously — the build and the environment — so it publishes
+// nothing that was not already public, and nothing about a patient.
+//
+app.MapGet("/", (IWebHostEnvironment environment) => Results.Ok(new ApiVersionDto
+   {
+       Version = BuildInfo.Version,
+       Environment = environment.EnvironmentName
+   }))
+   .AllowAnonymous();
+
+//
 // Liveness. Anonymous because the thing that calls it is the App Service health check, which
 // has no credential and never will; and because a probe that answers 401 is a probe that says
 // "unhealthy" about a perfectly healthy instance, so the platform would restart it.
