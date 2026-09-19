@@ -44,13 +44,6 @@ keys, one check constraint. Nothing existing is altered or dropped.
 - **`POST /api/Auth/login` and `POST /api/Rider/auth/identify` also return** `refreshToken`,
   `accessTokenExpiresAtUtc` and `refreshTokenExpiresAtUtc`. Purely additive: a client that does
   not know these fields deserialises the response as before and ignores them.
-- **The API refuses to migrate a database that has tables but no migration history.** Entity
-  Framework reads an absent `__EFMigrationsHistory` as "nothing applied yet", so on a database
-  that already holds data it would consider all 53 migrations pending and start creating tables
-  that exist — failing partway, having already written. Measured: with this guard the process
-  stops before the first statement and says what is wrong; without it, it created
-  `__EFMigrationsHistory` and then died on `There is already an object named 'Trips'`. The case
-  this is written for is a restore.
 
 ### Changed
 
@@ -61,18 +54,6 @@ keys, one check constraint. Nothing existing is altered or dropped.
   carries its old value of 600 on purpose: a client that sends no `X-Client-App` — which is
   every Desktop 1.8.1 and Driver 1.4.0 in the field — must keep behaving exactly as it does
   today. It drops to 60 once all three applications identify themselves and can refresh.
-- **Startup migration will survive a big one.** Applying pending migrations on startup is not
-  new — the API has done it for a year — but it ran with Entity Framework's 30 second command
-  timeout, no retry and no lock. Migrations now run with a 300 second timeout under
-  `Database:CommandTimeoutSeconds`, retry a transient SQL fault up to five times with backoff,
-  and hold a session-scoped application lock so two instances cannot migrate or seed at once.
-  `AddRefreshTokens` took 5.8 seconds against an empty database; an `ALTER TABLE` over a table
-  holding years of trips is the case these numbers exist for, and 30 seconds would have failed
-  it halfway and stopped the API from starting.
-- **`Database:MigrateOnStartup` is written down** in `appsettings.json` and as an App Service
-  setting in both environments, instead of being inherited from the default in the code. The
-  value is the same, `true`. What changes is that in production a schema change on an
-  unrequested recycle is now something somebody decided.
 
 ### Fixed
 
