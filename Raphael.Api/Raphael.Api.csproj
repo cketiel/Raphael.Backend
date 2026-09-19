@@ -4,6 +4,18 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!--
+      Where a developer's own secrets live: outside the repository, per machine, in the user
+      profile. It is what makes it possible for the committed appsettings files to hold no key
+      at all and still be runnable.
+
+        dotnet user-secrets set "Jwt:Key" "<a long random value>"
+
+      run from this project's folder. This identifier is not a secret: it is the folder name
+      the values are filed under, inside the user profile.
+    -->
+    <UserSecretsId>raphael-api-8f2c41d6-5a3b-4e19-9c07-2d6b8ae41f53</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

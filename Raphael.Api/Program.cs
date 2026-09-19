@@ -203,6 +203,31 @@ var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.Configure<JwtSettings>(jwtSection);
 var jwtSettings = jwtSection.Get<JwtSettings>();
 
+//
+// ⚠️ Fails the deployment rather than the shift, the same as an empty CORS list and an
+// unrecognised timezone below.
+//
+// This exists so the signing key can be taken OUT of the committed appsettings.json. While a
+// working key sat in that file, a deployment that failed to supply its own silently inherited
+// the one published in a public repository — the worst possible failure, because everything
+// works and every token the API issues can be forged by anyone who read the file.
+//
+// Without this guard the symptom of a missing key is an ArgumentNullException from
+// Encoding.UTF8.GetBytes, thrown from inside the authentication builder, which reads as a
+// framework fault rather than a configuration one.
+//
+// Where it comes from: Key Vault via the app setting Jwt__Key in Azure, and User Secrets on a
+// developer's machine (dotnet user-secrets set "Jwt:Key" "<a long random value>").
+//
+if (string.IsNullOrWhiteSpace(jwtSettings?.Key))
+{
+    throw new InvalidOperationException(
+        "'Jwt:Key' is empty. It is the key this API signs and validates every token with, and " +
+        "it is deliberately not in any committed file. Supply it from Key Vault (app setting " +
+        "'Jwt__Key') or, on a development machine, from User Secrets. Refusing to start: an " +
+        "API that cannot verify a token cannot tell a dispatcher from a stranger.");
+}
+
 // Add Authentication
 builder.Services.AddAuthentication(options =>
 {
