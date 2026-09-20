@@ -651,9 +651,26 @@ builder.Services.Configure<ClientCompatibilityOptions>(
 var sessionPolicySection = builder.Configuration.GetSection(SessionPolicyOptions.SectionName);
 builder.Services.Configure<SessionPolicyOptions>(sessionPolicySection);
 
+var sessionPolicies = sessionPolicySection.Get<SessionPolicyOptions>() ?? new SessionPolicyOptions();
+
+//
+// ⚠️ The "//Desktop", "//Driver" and "//Rider" keys in appsettings.json are comments -- this
+// file has no other way to carry one -- but the binder does not know that. It binds each of
+// them into Apps as a default-constructed policy, so the dictionary arrives holding three
+// applications that do not exist, each with the class defaults of 60 and 60.
+//
+// Harmless where a policy is looked up by name, which is what AuthTokenService does and why
+// this went unnoticed. Not harmless where Apps is iterated: the renewal check below reported
+// three phantom applications as broken, which is exactly the noise that buries the one real
+// finding next to it. Dropped once, here, rather than guarded against three times downstream.
+//
+foreach (var comment in sessionPolicies.Apps.Keys.Where(k => k.StartsWith("//")).ToList())
+{
+    sessionPolicies.Apps.Remove(comment);
+}
+
 // Validated here rather than on first use: a session length that cannot mean anything should
 // stop a deployment, not mint one unusable token per sign-in until somebody notices.
-var sessionPolicies = sessionPolicySection.Get<SessionPolicyOptions>() ?? new SessionPolicyOptions();
 sessionPolicies.Default.Validate("Default");
 foreach (var policy in sessionPolicies.Apps)
 {
@@ -714,6 +731,49 @@ foreach (var configured in sessionPolicies.Apps)
             configured.Key,
             configured.Value.AccessTokenMinutes / 1440.0);
     }
+}
+
+//
+// ⚠️ The one relationship between these numbers that decides whether a session can renew AT
+// ALL, and the one nothing was checking.
+//
+// The sliding window is pushed forward when the refresh token is USED, and it is only used
+// when the access token expires. So a window shorter than the access token has always closed
+// by the time anybody reaches for it: the refresh token is dead before its first use, every
+// time, and the user is sent back to the sign-in screen at the very moment the whole refresh
+// mechanism exists to avoid.
+//
+// Not hypothetical. Desktop shipped with 60 minutes of access token against a 30 minute
+// window and did exactly that on 2026-09-19, an hour into the first real test.
+//
+// A warning rather than a refusal to start, unlike the signing key or the connection string,
+// and the reason is Rider: it violates this today with a one-year access token that cannot be
+// brought down until the patient app that can renew is actually distributed. Refusing to
+// start would force an absurd number into that slot to satisfy the check, which is hiding the
+// problem rather than seeing it. This names it instead, every start, until it is gone.
+//
+foreach (var configured in sessionPolicies.Apps.Prepend(
+             new KeyValuePair<string, SessionPolicy>("Default", sessionPolicies.Default)))
+{
+    if (configured.Value is null || configured.Value.RefreshSlidingMinutes > configured.Value.AccessTokenMinutes)
+    {
+        continue;
+    }
+
+    // ⚠️ Each placeholder exactly once. A structured log template is positional, so naming
+    // {Access} twice against three arguments throws FormatException from inside the logger --
+    // which is unhandled, at startup, and stops the API from running at all. That is not a
+    // guess: this warning did it on 2026-09-19, the first time it was run.
+    app.Logger.LogWarning(
+        "Session policy for {ClientApp} CANNOT RENEW: the refresh token expires after " +
+        "{Sliding} minutes of inactivity while the access token lasts {Access} minutes, so " +
+        "the window has always closed before the first renewal is attempted. Every session " +
+        "on this application therefore ends at the sign-in screen when its access token " +
+        "does, whatever the user was doing. RefreshSlidingMinutes must be greater than " +
+        "AccessTokenMinutes.",
+        configured.Key,
+        configured.Value.RefreshSlidingMinutes,
+        configured.Value.AccessTokenMinutes);
 }
 
 // Said out loud for the same reason as the line above it: a setting this dangerous should not
