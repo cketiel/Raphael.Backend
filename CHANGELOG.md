@@ -23,6 +23,46 @@ give:
 
 ---
 
+## [1.1.2] - 2026-09-19
+
+**Migrations:** no.
+**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released.
+
+⚠️ **Sessions on `Raphael.Desktop` behave differently, and that is the fix.** Its access token
+drops from 60 minutes to 15. Nothing in any client hardcodes that number — they read
+`accessTokenExpiresAtUtc` — and every copy in the field predates `X-Client-App`, so it falls
+back to `Default` and is unaffected.
+
+### Fixed
+
+- **A Desktop session could not be renewed. Not once, for anybody.** Its policy was a 60
+  minute access token against a 30 minute refresh window, and the window is only pushed
+  forward when the refresh token is used — which only happens when the access token expires.
+  The window had therefore always closed half an hour before anything reached for it: the
+  server answered `Expired`, the client correctly ended the session, and the dispatcher was
+  sent back to the sign-in screen an hour into the shift. That is precisely what refresh
+  tokens were added in 1.1.0 to prevent. Desktop is now 15 and 30, which makes the intent
+  written in its own configuration comment true: half an hour of inactivity ends a session,
+  a working day ends it regardless.
+- **`SessionPolicy:Default` had the same contradiction**, 600 against 60. It costs nothing
+  today, because every client that falls back to Default predates refresh tokens and never
+  asks to renew, but it was waiting for the first one that does. Now 720.
+- **The comment keys in `SessionPolicy:Apps` were being read as applications.** `//Desktop`,
+  `//Driver` and `//Rider` bind into the dictionary as policies carrying the class defaults.
+  Invisible where a policy is looked up by name, which is every request; visible the moment
+  anything iterates the dictionary.
+
+### Added
+
+- **The startup log names any application whose session cannot renew** — one line per
+  application whose refresh window is shorter than its access token, saying so in those
+  words. Nothing was checking that relationship, and it is the only one of the three that
+  decides whether renewal is possible at all. It reports rather than refusing to start,
+  because `Rider` violates it today with a one-year access token that cannot come down until
+  the patient app that can renew is distributed.
+
+---
+
 ## [1.1.1] - 2026-09-19
 
 **Migrations:** no. The schema is the one 1.1.0 left.
