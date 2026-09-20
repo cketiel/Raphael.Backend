@@ -23,6 +23,39 @@ give:
 
 ---
 
+## [1.1.3] - 2026-09-19
+
+**Migrations:** no.
+**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released.
+
+### Changed
+
+- **A `Raphael.Desktop` session now lasts one working day and is never interrupted.** 1440
+  minutes of access token, 1380 of refresh, a 24 hour ceiling — and the point of those
+  numbers is that **nothing is ever renewed**. The refresh token is only reached for when the
+  access token expires, and here the access token outlasts the session, so that moment never
+  arrives. Signing in happens when the application is opened, which is the only time a
+  dispatcher should be asked. Decided by the owner after being thrown out mid-shift by the
+  previous settings.
+  ⚠️ The refresh window is deliberately **shorter** than the access token and must stay that
+  way. A renewal at 23 hours would mint a fresh 24 hour access token, and the ceiling does
+  not cap the access token, so the session would run to 47 hours.
+  ⚠️ What it costs, recorded rather than discovered later: an access token cannot be revoked,
+  so a stolen one works for 24 hours instead of 15 minutes, and the half-hour inactivity
+  window is gone — a workstation left alone stays usable for the rest of the day.
+
+### Fixed
+
+- **The startup check stopped crying wolf, and started saying something truer.** It warned
+  whenever a refresh window was shorter than an access token, which is a fault only when the
+  session is meant to outlive the token; where the two end together, as Desktop now does by
+  design, nothing needs renewing. It now warns instead when an access token outlives the
+  ceiling — which is a real defect, because an access token cannot be revoked and the ceiling
+  is therefore not a limit but a comment. `Rider` is in exactly that state: a one-year token
+  under a ninety-day ceiling.
+
+---
+
 ## [1.1.2] - 2026-09-19
 
 **Migrations:** no.

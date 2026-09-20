@@ -755,7 +755,42 @@ foreach (var configured in sessionPolicies.Apps)
 foreach (var configured in sessionPolicies.Apps.Prepend(
              new KeyValuePair<string, SessionPolicy>("Default", sessionPolicies.Default)))
 {
-    if (configured.Value is null || configured.Value.RefreshSlidingMinutes > configured.Value.AccessTokenMinutes)
+    if (configured.Value is null)
+    {
+        continue;
+    }
+
+    var ceilingMinutes = configured.Value.RefreshAbsoluteHours * 60;
+
+    //
+    // ⚠️ An access token cannot be revoked before it expires, so when it outlives the
+    // ceiling, the ceiling is not a limit — it is a comment. The session really lasts as long
+    // as the access token, whatever the other two numbers claim. Rider is in exactly this
+    // state: a one-year token under a ninety-day ceiling.
+    //
+    if (configured.Value.AccessTokenMinutes > ceilingMinutes)
+    {
+        app.Logger.LogWarning(
+            "Session policy for {ClientApp} has a ceiling it cannot enforce: the access token " +
+            "lasts {Access} minutes and RefreshAbsoluteHours is {Ceiling} minutes. An access " +
+            "token cannot be revoked, so the session really lasts {Access2} minutes and the " +
+            "ceiling means nothing.",
+            configured.Key,
+            configured.Value.AccessTokenMinutes,
+            ceilingMinutes,
+            configured.Value.AccessTokenMinutes);
+
+        continue;
+    }
+
+    //
+    // Renewal only has to be possible when the session is meant to OUTLIVE its access token.
+    // Where the ceiling and the access token end together — Desktop, deliberately, since
+    // 2026-09-19 — nothing is ever renewed and nothing is wrong with that. Warning about it
+    // would be crying wolf at a design decision.
+    //
+    if (ceilingMinutes <= configured.Value.AccessTokenMinutes ||
+        configured.Value.RefreshSlidingMinutes > configured.Value.AccessTokenMinutes)
     {
         continue;
     }
