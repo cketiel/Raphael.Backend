@@ -197,6 +197,26 @@ public static class NotificationRuleCatalog
 
         #endregion
 
+        #region DRIVER_CALL_REQUEST_CLAIMED
+
+        new()
+        {
+            RuleCode = "RULE_DRIVER_CALL_REQUEST_CLAIMED_DRIVER",
+            RuleName = "Call Request Claimed - Driver",
+            Description = "Tells the driver the office took their request and a call is coming.",
+            BusinessEventCode = "DRIVER_CALL_REQUEST_CLAIMED",
+            Type = NotificationType.Confirmation,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.Driver],
+            // Push on purpose: the driver is usually in the navigation app, and knowing the call
+            // is coming is what stops them phoning the office again.
+            Channels = [DeliveryChannel.InApp, DeliveryChannel.Push],
+            Actions = []
+        },
+
+        #endregion
+
         #region TRIP_REACTIVATED
 
         new()

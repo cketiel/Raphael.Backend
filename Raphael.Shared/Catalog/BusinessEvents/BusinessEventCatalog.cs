@@ -444,6 +444,24 @@ public static class BusinessEventCatalog
             Source = "DriverService"
         },
 
+        // Its own group: SUPPORT already belongs to the RIDER category, and the seeder finds
+        // groups by code, so reusing it would file a driver event under patients.
+        new()
+        {
+            CategoryCode = "DRIVER_OPERATIONS",
+            CategoryName = "Driver Operations",
+            CategoryDescription = "Events generated during driver operations.",
+
+            GroupCode = "DISPATCH_SUPPORT",
+            GroupName = "Dispatch Support",
+            GroupDescription = "Events related to drivers asking the dispatch office for help.",
+
+            EventCode = "DRIVER_CALL_REQUEST_CLAIMED",
+            EventName = "Driver Call Request Claimed",
+            EventDescription = "A dispatcher took the driver's request to be called back.",
+            Source = "CallRequestService"
+        },
+
 
         new()
         {

@@ -1,4 +1,5 @@
 using System;
+using Raphael.Shared.DTOs.CallRequests;
 
 namespace Raphael.Shared.DTOs.Realtime
 {
@@ -77,5 +78,23 @@ namespace Raphael.Shared.DTOs.Realtime
         public string? Direction { get; set; }
 
         public DateTime AtUtc { get; set; }
+    }
+
+    /// <summary>
+    /// A driver's call request changed: it arrived, was reminded, taken, released or closed.
+    /// </summary>
+    /// <remarks>
+    /// Carries the driver's and the route's names, which are staff data, and no patient data.
+    /// <see cref="Change"/> is one of the timeline types (Requested, Reminded, Claimed, TakenOver,
+    /// Released, CallNotAnswered, DriverAvailable, Resolved, Cancelled, Reopened, Expired).
+    /// </remarks>
+    public class CallRequestChangedMessage
+    {
+        public string Change { get; set; } = string.Empty;
+
+        /// <summary>Who caused it, so their own screen does not announce it back to them. Null for the system.</summary>
+        public int? ByUserId { get; set; }
+
+        public CallRequestSummaryDto Request { get; set; } = new();
     }
 }

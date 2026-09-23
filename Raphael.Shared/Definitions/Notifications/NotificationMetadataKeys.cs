@@ -79,6 +79,9 @@ public static class NotificationMetadataKeys
     /// What happened to the trip on the route. See <see cref="RouteChangeTypes"/>.
     /// </summary>
     public const string RouteChange = "RouteChange";
+
+    /// <summary>Identifier of the driver's call request, so the app can refresh its button.</summary>
+    public const string CallRequestId = "CallRequestId";
 }
 
 /// <summary>

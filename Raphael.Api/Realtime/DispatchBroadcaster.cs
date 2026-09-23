@@ -20,6 +20,8 @@ namespace Raphael.Api.Realtime
         /// evening of the day before in most of the country.
         /// </param>
         Task VehiclePositionAsync(VehiclePositionMessage position, DateTime operatingDate);
+
+        Task CallRequestChangedAsync(CallRequestChangedMessage message, int? providerId);
     }
 
     /// <inheritdoc />
@@ -97,6 +99,21 @@ namespace Raphael.Api.Realtime
                 () => _hub.Clients
                     .Group(DispatchGroups.Route(position.VehicleRouteId, operatingDate))
                     .VehiclePosition(position));
+
+        public Task CallRequestChangedAsync(CallRequestChangedMessage message, int? providerId) =>
+            SafeAsync(
+                nameof(CallRequestChangedAsync),
+                async () =>
+                {
+                    await _hub.Clients
+                        .Group(DispatchGroups.CallRequests(DispatchGroups.InternalScope))
+                        .CallRequestChanged(message);
+
+                    if (providerId.HasValue && providerId.Value > 0)
+                        await _hub.Clients
+                            .Group(DispatchGroups.CallRequests(providerId))
+                            .CallRequestChanged(message);
+                });
 
         /// <summary>
         /// The provider's own board, and the internal one. A message goes to both because the

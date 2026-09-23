@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Raphael.Shared.Definitions.CallRequests;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Domain.Common;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Entities.CallRequests;
 using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Entities.Routing;
 using Raphael.Shared.Routing;
@@ -122,6 +124,14 @@ namespace Raphael.Shared.DbContexts
 
         #endregion
 
+        #region Driver call requests
+
+        public DbSet<DriverCallRequest> DriverCallRequests { get; set; }
+
+        public DbSet<DriverCallRequestEvent> DriverCallRequestEvents { get; set; }
+
+        #endregion
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
@@ -194,6 +204,59 @@ namespace Raphael.Shared.DbContexts
                 entity.ToTable(t => t.HasCheckConstraint(
                     "CK_RefreshTokens_OneSubject",
                     "([UserId] IS NOT NULL AND [CustomerId] IS NULL) OR ([UserId] IS NULL AND [CustomerId] IS NOT NULL)"));
+            });
+
+            // ======================================================
+            // Driver call requests
+            // ======================================================
+
+            // ⚠️ No foreign keys to Users, VehicleRoutes or Schedules on purpose: a request is
+            // history, and a constraint here would make deleting a route, a stop or a user fail
+            // where it works today.
+            modelBuilder.Entity<DriverCallRequest>(entity =>
+            {
+                entity.ToTable("DriverCallRequests");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.DriverName).IsRequired().HasMaxLength(150);
+                entity.Property(x => x.RouteName).HasMaxLength(100);
+                entity.Property(x => x.ClaimedByName).HasMaxLength(150);
+                entity.Property(x => x.ResolvedByName).HasMaxLength(150);
+                entity.Property(x => x.ReasonCode).HasMaxLength(30);
+                entity.Property(x => x.ResolutionNote).HasMaxLength(CallRequestReasonCodes.NoteMaxLength);
+                entity.Property(x => x.OperatingDate).HasColumnType("date");
+                entity.Property(x => x.RowVersion).IsRowVersion();
+                entity.Ignore(x => x.IsOpen);
+
+                // One open case per driver, enforced by the database: two taps racing each
+                // other cannot open two cases; the loser fails here and becomes a reminder.
+                entity.HasIndex(x => x.DriverId)
+                    .IsUnique()
+                    .HasFilter("[Status] IN (0, 1)")
+                    .HasDatabaseName("IX_DriverCallRequests_Driver_Open");
+
+                entity.HasIndex(x => new { x.Status, x.QueuedAtUtc })
+                    .HasDatabaseName("IX_DriverCallRequests_Status_Queue");
+
+                entity.HasIndex(x => new { x.OperatingDate, x.DriverId })
+                    .HasDatabaseName("IX_DriverCallRequests_Day_Driver");
+
+                entity.HasMany(x => x.Events)
+                    .WithOne(e => e.CallRequest)
+                    .HasForeignKey(e => e.CallRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<DriverCallRequestEvent>(entity =>
+            {
+                entity.ToTable("DriverCallRequestEvents");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.ByName).HasMaxLength(150);
+                entity.Property(x => x.Detail).HasMaxLength(150);
+
+                entity.HasIndex(x => new { x.CallRequestId, x.AtUtc })
+                    .HasDatabaseName("IX_DriverCallRequestEvents_Request_At");
             });
 
             // ⚠️ No relationship to Notifications on purpose. This table exists to outlive

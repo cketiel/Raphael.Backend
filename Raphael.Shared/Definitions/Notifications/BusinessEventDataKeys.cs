@@ -60,6 +60,9 @@ public static class BusinessEventDataKeys
     /// Travels with <c>DRIVER_ROUTE_UPDATED</c>.
     /// </summary>
     public const string RouteChange = "RouteChange";
+
+    /// <summary>Identifier of the driver's call request. Travels with <c>DRIVER_CALL_REQUEST_CLAIMED</c>.</summary>
+    public const string CallRequestId = "CallRequestId";
 }
 
 /// <summary>

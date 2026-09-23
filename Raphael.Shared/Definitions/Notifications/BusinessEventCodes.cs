@@ -90,4 +90,10 @@ public static class BusinessEventCodes
     /// <see cref="WillCallActivated"/>, so the patient learns the office knows.
     /// </summary>
     public const string WillCallAcknowledged = "WILL_CALL_ACKNOWLEDGED";
+
+    /// <summary>
+    /// A dispatcher took the driver's request to be called back, so a call is coming. Only on the
+    /// first take, not on a hand-over: the driver has already been told once.
+    /// </summary>
+    public const string DriverCallRequestClaimed = "DRIVER_CALL_REQUEST_CLAIMED";
 }

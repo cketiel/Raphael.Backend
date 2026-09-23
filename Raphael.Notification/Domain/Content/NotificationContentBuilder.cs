@@ -259,6 +259,17 @@ public static class NotificationContentBuilder
                 return ("Will Call Confirmed",
                     $"Our dispatch office is arranging your ride. A vehicle should reach you by {FormatOperationTime(acknowledgedDeadline, operationZone)}.");
 
+            case BusinessEventCodes.DriverCallRequestClaimed:
+
+                var callRequestId = GetString(context, BusinessEventDataKeys.CallRequestId);
+
+                if (!string.IsNullOrWhiteSpace(callRequestId))
+                    parameters[NotificationMetadataKeys.CallRequestId] = callRequestId;
+
+                // No dispatcher name: a push lands on a lock screen, and the app shows who it is.
+                return ("Dispatch is on it",
+                    "Dispatch has your request and will call you shortly. Keep your phone at hand.");
+
             default:
 
                 return (rule.Name, rule.Description);
