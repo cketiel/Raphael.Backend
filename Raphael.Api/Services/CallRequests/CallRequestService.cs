@@ -290,38 +290,77 @@ namespace Raphael.Api.Services.CallRequests
                 : null;
         }
 
-        /// <summary>The route the driver named, if it is theirs; otherwise today's, if they have only one.</summary>
+        /// <summary>
+        /// The driver's line for the request. Every driver has one: a request without it sends the
+        /// dispatcher looking for something the database already knows.
+        /// </summary>
+        /// <remarks>
+        /// In order, and the first that answers wins:
+        /// <list type="number">
+        /// <item>the line the app sent, if it is this driver's and running that day;</item>
+        /// <item>the line with trips that day (the lowest id, if somehow there are two);</item>
+        /// <item>the driver's line running that day by its dates, the most recent if several;</item>
+        /// <item>the line the app sent, if it is theirs, even outside its dates;</item>
+        /// <item>the driver's most recent line, whatever its dates.</item>
+        /// </list>
+        /// The app sends what it knows, and it does not always know: on the screen where the run is
+        /// chosen there is no run yet. Nothing here rejects the request: asking for help never fails
+        /// over a piece of context.
+        /// </remarks>
         private async Task<(int? Id, string? Name)> ResolveRouteAsync(
             int driverId,
             int? requestedRouteId,
             DateTime today,
             CancellationToken cancellationToken)
         {
-            if (requestedRouteId is > 0)
-            {
-                var route = await _context.VehicleRoutes
-                    .AsNoTracking()
-                    .Where(r => r.Id == requestedRouteId.Value && r.DriverId == driverId)
-                    .Select(r => new { r.Id, r.Name })
-                    .FirstOrDefaultAsync(cancellationToken);
-
-                if (route is not null)
-                    return (route.Id, route.Name);
-            }
-
             var tomorrow = today.AddDays(1);
 
-            var candidates = await _context.Schedules
+            var lines = await _context.VehicleRoutes
                 .AsNoTracking()
-                .Where(s => s.VehicleRoute.DriverId == driverId && s.Date >= today && s.Date < tomorrow)
-                .Select(s => new { s.VehicleRouteId, s.VehicleRoute.Name })
-                .Distinct()
-                .Take(2)
+                .Where(r => r.DriverId == driverId)
+                .Select(r => new { r.Id, r.Name, r.FromDate, r.ToDate })
                 .ToListAsync(cancellationToken);
 
-            return candidates.Count == 1
-                ? (candidates[0].VehicleRouteId, candidates[0].Name)
-                : (null, null);
+            if (lines.Count == 0)
+                return (null, null);
+
+            bool RunsToday(DateTime from, DateTime? to) =>
+                from < tomorrow && (to is null || to.Value >= today);
+
+            var requested = requestedRouteId is > 0
+                ? lines.FirstOrDefault(r => r.Id == requestedRouteId.Value)
+                : null;
+
+            if (requested is not null && RunsToday(requested.FromDate, requested.ToDate))
+                return (requested.Id, requested.Name);
+
+            var withTrips = await _context.Schedules
+                .AsNoTracking()
+                .Where(s => s.VehicleRoute.DriverId == driverId && s.Date >= today && s.Date < tomorrow)
+                .Select(s => s.VehicleRouteId)
+                .Distinct()
+                .OrderBy(id => id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var tripLine = lines.FirstOrDefault(r => r.Id == withTrips);
+
+            if (tripLine is not null)
+                return (tripLine.Id, tripLine.Name);
+
+            var running = lines
+                .Where(r => RunsToday(r.FromDate, r.ToDate))
+                .OrderByDescending(r => r.FromDate)
+                .FirstOrDefault();
+
+            if (running is not null)
+                return (running.Id, running.Name);
+
+            if (requested is not null)
+                return (requested.Id, requested.Name);
+
+            var latest = lines.OrderByDescending(r => r.FromDate).First();
+
+            return (latest.Id, latest.Name);
         }
 
         private async Task<int?> ResolveScheduleAsync(int? scheduleId, int? routeId, CancellationToken cancellationToken)
