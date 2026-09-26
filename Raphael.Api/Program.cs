@@ -23,6 +23,7 @@ using Raphael.Api.Realtime;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
 using Raphael.Api.Services.Auth;
+using Raphael.Api.Services.CallRequests;
 using Raphael.Api.Services.Notifications;
 using Raphael.Api.Services.Routing;
 using Raphael.Api.Settings;
@@ -408,6 +409,13 @@ builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 // The dispatch board channel. Not a notification: see Raphael.Api/Realtime/DispatchHub.cs
 // and _meta/REALTIME_POLICY.md for why it is a hub of its own.
 builder.Services.AddScoped<IDispatchBroadcaster, DispatchBroadcaster>();
+
+// Drivers asking the office to call them back. The queue lives in its own tables and travels
+// over the dispatch board hub; see _meta/CALL_REQUESTS_SPEC.md.
+builder.Services.Configure<CallRequestOptions>(
+    builder.Configuration.GetSection(CallRequestOptions.SectionName));
+builder.Services.AddSingleton<ICallerRoles, CallerRoles>();
+builder.Services.AddScoped<ICallRequestService, CallRequestService>();
 
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<BillingItemService>();

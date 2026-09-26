@@ -54,7 +54,7 @@
     "Which versions does this fault happen on?" stops being somebody's recollection.
   -->
   <PropertyGroup>
-    <Version>1.1.3</Version>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 
   <!--

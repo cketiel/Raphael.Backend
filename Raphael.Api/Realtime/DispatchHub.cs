@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Raphael.Api.Services.Auth;
 using System.Globalization;
-using System.Security.Claims;
 
 namespace Raphael.Api.Realtime
 {
@@ -22,6 +22,13 @@ namespace Raphael.Api.Realtime
     [Authorize]
     public class DispatchHub : Hub<IDispatchClient>
     {
+        private readonly ICallerRoles _roles;
+
+        public DispatchHub(ICallerRoles roles)
+        {
+            _roles = roles;
+        }
+
         /// <summary>
         /// Starts listening to a day's backlog: trips routed and unrouted by anyone else.
         /// </summary>
@@ -57,16 +64,37 @@ namespace Raphael.Api.Realtime
         }
 
         /// <summary>
+        /// Starts listening to the drivers' call-back queue. Office staff only: the queue names
+        /// drivers and who is handling them, which is nobody else's business.
+        /// </summary>
+        public async Task WatchCallRequests()
+        {
+            if (Context.User is null || !_roles.IsOffice(Context.User)) return;
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, DispatchGroups.CallRequests(CallerScope()));
+        }
+
+        public async Task UnwatchCallRequests()
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, DispatchGroups.CallRequests(CallerScope()));
+        }
+
+        /// <summary>
         /// Which board this connection is allowed on, taken from the token and never from the
         /// caller. A user who belongs to a provider hears that provider; one who does not is
         /// internal and hears the scope every message is also published to.
         /// </summary>
+        /// <remarks>
+        /// ⚠️ The login issues the claim as <c>UserProviderId</c>. This used to read
+        /// <c>ProviderId</c>, which no token carries, so every user landed in the internal scope
+        /// and heard every provider.
+        /// </remarks>
         private string CallerScope()
         {
-            var raw = Context.User?.FindFirst("ProviderId")?.Value;
+            var providerId = Context.User is null ? null : _roles.ProviderIdOf(Context.User);
 
-            return int.TryParse(raw, out var providerId) && providerId > 0
-                ? providerId.ToString(CultureInfo.InvariantCulture)
+            return providerId.HasValue
+                ? providerId.Value.ToString(CultureInfo.InvariantCulture)
                 : DispatchGroups.InternalScope;
         }
 

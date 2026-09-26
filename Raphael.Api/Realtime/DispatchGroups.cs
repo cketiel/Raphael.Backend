@@ -29,6 +29,13 @@ namespace Raphael.Api.Realtime
         public static string Route(int vehicleRouteId, DateTime date) =>
             $"route:{vehicleRouteId}:{Day(date)}";
 
+        /// <summary>The drivers' call-back queue. Not per day: a case stays open until someone closes it.</summary>
+        public static string CallRequests(string scope) =>
+            $"callrequests:{scope}";
+
+        public static string CallRequests(int? providerId) =>
+            CallRequests(providerId.HasValue ? providerId.Value.ToString() : InternalScope);
+
         /// <summary>
         /// The day part of a group name. Invariant and date-only: a group name is an identifier,
         /// and one that changed shape with the server's culture would silently split an office

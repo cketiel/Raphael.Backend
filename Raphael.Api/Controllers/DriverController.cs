@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Raphael.Api.Services;
+using Raphael.Api.Services.CallRequests;
 using Raphael.Notification.Application.Commands.MarkAllNotificationsViewed;
 using Raphael.Notification.Application.Commands.MarkNotificationAcknowledged;
 using Raphael.Notification.Application.Commands.MarkNotificationUnviewed;
@@ -15,6 +16,7 @@ using Raphael.Notification.Application.Queries.GetRecipientNotifications;
 using Raphael.Notification.Infrastructure.Realtime;
 using Raphael.Notification.Infrastructure.Realtime.Services;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs.CallRequests;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Interfaces;
@@ -49,6 +51,7 @@ namespace Raphael.Api.Controllers
         private readonly DeleteSignalHandler _deleteSignalHandler;
         private readonly INotificationDispatcher _dispatcher;
         private readonly IConnectionManager _connectionManager;
+        private readonly ICallRequestService _callRequests;
 
         public DriverController(
             IDriverService driverService,
@@ -64,8 +67,10 @@ namespace Raphael.Api.Controllers
             MarkNotificationAcknowledgedHandler markAcknowledgedHandler,
             DeleteSignalHandler deleteSignalHandler,
             INotificationDispatcher dispatcher,
-            IConnectionManager connectionManager)
+            IConnectionManager connectionManager,
+            ICallRequestService callRequests)
         {
+            _callRequests = callRequests;
             _deleteSignalHandler = deleteSignalHandler;
             _dispatcher = dispatcher;
             _connectionManager = connectionManager;
@@ -275,6 +280,55 @@ namespace Raphael.Api.Controllers
                 cancellationToken);
 
             return Ok(new { affected });
+        }
+
+        #endregion
+
+        #region Call requests
+
+        /// <summary>The driver's open request to be called back, if any, and when they may press again.</summary>
+        [HttpGet("call-requests/current")]
+        public async Task<IActionResult> GetMyCallRequest(CancellationToken cancellationToken)
+        {
+            if (!TryGetDriverId(out var driverId))
+                return Forbid();
+
+            return Ok(await _callRequests.GetDriverStateAsync(driverId, cancellationToken));
+        }
+
+        /// <summary>Asks the office to call back, or reminds it if a request is already open.</summary>
+        [HttpPost("call-requests")]
+        public async Task<IActionResult> RequestCall(
+            [FromBody] CreateCallRequestDto? input,
+            CancellationToken cancellationToken)
+        {
+            if (!TryGetDriverId(out var driverId))
+                return Forbid();
+
+            return Ok(await _callRequests.RequestOrRemindAsync(driverId, input ?? new CreateCallRequestDto(), cancellationToken));
+        }
+
+        /// <summary>"I can talk now", after the office tried to call and could not reach the driver.</summary>
+        [HttpPost("call-requests/{id:int}/available")]
+        public async Task<IActionResult> MarkAvailable(int id, CancellationToken cancellationToken)
+        {
+            if (!TryGetDriverId(out var driverId))
+                return Forbid();
+
+            var result = await _callRequests.DriverAvailableAsync(driverId, id, cancellationToken);
+
+            return result.Outcome == CallRequestOutcome.NotFound ? NotFound() : Ok(result.Value);
+        }
+
+        [HttpPost("call-requests/{id:int}/cancel")]
+        public async Task<IActionResult> CancelCallRequest(int id, CancellationToken cancellationToken)
+        {
+            if (!TryGetDriverId(out var driverId))
+                return Forbid();
+
+            var result = await _callRequests.CancelByDriverAsync(driverId, id, cancellationToken);
+
+            return result.Outcome == CallRequestOutcome.NotFound ? NotFound() : Ok(result.Value);
         }
 
         #endregion
