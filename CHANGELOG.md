@@ -23,6 +23,36 @@ give:
 
 ---
 
+## [1.2.0] - 2026-09-25
+
+**Migrations:** yes — `20260923213336_AddDriverCallRequests`. It only creates two tables and
+touches no existing data, so redeploying `v1.1.3` leaves them unused rather than broken.
+**Clients:** unchanged — Desktop ≥1.8.1, Driver ≥1.4.0, Rider not released. The call queue needs
+Desktop 1.10.0 and Driver 1.6.0; older clients never see it.
+
+⚠️ **Deploying does not update the notification catalog.** Run
+`_meta/tools/Sync-NotificationCatalog.ps1` against the environment afterwards, or the driver is
+never told that the office has taken the call.
+
+### Added
+
+- **Drivers ask the office to call them back** (RE-026). A driver has at most one open request,
+  guaranteed by a filtered unique index: pressing again adds a reminder and keeps the place in the
+  queue, with a minimum interval between signals (`CallRequests:MinSecondsBetweenDriverSignals`,
+  120 s). The office claims, hands over, releases, marks "no answer", resolves with a reason from a
+  fixed list, and reopens. Every transition is atomic and a lost race answers 409 with who holds
+  the case. The timeline is append-only and records who did what.
+- Driver endpoints under `api/driver/call-requests`; office endpoints under `api/call-requests`,
+  JWT only, denied to drivers, riders and integrators, and scoped to the caller's provider.
+- The dispatch hub carries the queue live (`callrequests:{providerId|all}`, `CallRequestChanged`),
+  with no patient data and never the resolution note.
+- Business event `DRIVER_CALL_REQUEST_CLAIMED` and rule `RULE_DRIVER_CALL_REQUEST_CLAIMED_DRIVER`:
+  in-app and push to the driver when the office takes the call. No names in the text.
+- A request without a line is assigned the driver's line for the business day: the one with trips
+  today, then the one running by its dates, then the most recent.
+
+---
+
 ## [1.1.3] - 2026-09-19
 
 **Migrations:** no.
