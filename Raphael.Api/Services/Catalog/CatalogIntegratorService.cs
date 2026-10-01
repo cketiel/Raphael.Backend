@@ -648,8 +648,17 @@ namespace Raphael.Api.Services.Catalog
             // Everything the batch is about to touch, fetched once. Row by row this would be one
             // round trip per row, which over a 2,000-row file is the difference between seconds
             // and minutes.
-            var keys = new Dictionary<string, CatalogIntegratorImportRowDto>();
-            var prepared = new List<(CatalogIntegratorImportRowDto Row, string Key)>();
+            // One entry per distinct entity, holding every row of the file that turned out
+            // to be that entity.
+            //
+            // ⚠️ A repeat is not a rejection. The source files say as much — the hospitals
+            // sheet prints "una institución puede aparecer en más de un registro" above its
+            // own header, and 381 of its rows are 331 institutions. Rejecting the repeats
+            // also made the answer depend on where the batch boundary fell: a twin inside
+            // the same batch of 100 was refused, a twin in the next batch was an update.
+            // Same file, two different stories.
+            var grouped = new Dictionary<string, List<CatalogIntegratorImportRowDto>>();
+            var order = new List<string>();
 
             foreach (var row in request.Rows)
             {
@@ -657,9 +666,9 @@ namespace Raphael.Api.Services.Catalog
 
                 if (string.IsNullOrWhiteSpace(name))
                 {
-                    // A blank name is not a rejection. The source files are full of spacing rows
-                    // — the assisted living file has 2,515 of them — and reporting each one as a
-                    // problem would bury the real problems.
+                    // Spacing rows, not problems: the assisted living sheet has 2,515 of them,
+                    // and reporting each one would bury the real problems.
+                    result.Skipped++;
                     continue;
                 }
 
@@ -671,17 +680,17 @@ namespace Raphael.Api.Services.Catalog
 
                 var key = CatalogText.BuildMatchKey(request.CategoryId, name, row.Zip);
 
-                if (keys.ContainsKey(key))
+                if (!grouped.TryGetValue(key, out var bucket))
                 {
-                    result.Rows.Add(Reject(row.RowNumber, CatalogImportErrorCodes.DuplicateInBatch, "Name"));
-                    continue;
+                    bucket = new List<CatalogIntegratorImportRowDto>();
+                    grouped[key] = bucket;
+                    order.Add(key);
                 }
 
-                keys[key] = row;
-                prepared.Add((row, key));
+                bucket.Add(row);
             }
 
-            var keyList = keys.Keys.ToList();
+            var keyList = order.ToList();
 
             var existing = await _context.CatalogIntegrators
                 .Where(c => keyList.Contains(c.MatchKey))
@@ -695,8 +704,9 @@ namespace Raphael.Api.Services.Catalog
             // not exist a moment ago and only get an id once SaveChanges returns.
             var saved = new List<(CatalogImportRowResultDto Line, CatalogIntegrator Entity)>();
 
-            foreach (var (row, key) in prepared)
+            foreach (var key in order)
             {
+                var rows = grouped[key];
                 var isNew = !existing.TryGetValue(key, out var entity);
 
                 if (isNew)
@@ -717,17 +727,29 @@ namespace Raphael.Api.Services.Catalog
                     entity.UpdatedByProviderId = providerId;
                 }
 
-                ApplyImportRow(entity!, row, request, key, counties);
+                // Applied in file order, so the last row wins on anything it states — and
+                // FillGaps below keeps what the earlier rows knew and the last one left blank.
+                // One record of an institution carries the email, another carries the phone.
+                foreach (var row in rows)
+                {
+                    ApplyImportRow(entity!, row, request, key, counties);
+                }
 
                 var line = new CatalogImportRowResultDto
                 {
-                    RowNumber = row.RowNumber,
-                    Outcome = isNew ? CatalogImportOutcome.Created : CatalogImportOutcome.Updated
+                    RowNumber = rows[0].RowNumber,
+                    Outcome = isNew ? CatalogImportOutcome.Created : CatalogImportOutcome.Updated,
+                    MergedRowCount = rows.Count,
+                    MergedRowNumbers = rows.Count > 1
+                        ? rows.Select(r => r.RowNumber).ToList()
+                        : null
                 };
 
                 result.Rows.Add(line);
                 saved.Add((line, entity!));
             }
+
+            result.Merged = result.Rows.Sum(r => Math.Max(0, r.MergedRowCount - 1));
 
             try
             {
@@ -739,7 +761,7 @@ namespace Raphael.Api.Services.Catalog
                 // habit of logging what failed is how patient data ends up in a log file.
                 _logger.LogError(exception,
                     "Catalog integrator import batch {BatchId} failed to save {RowCount} rows.",
-                    request.ImportBatchId, prepared.Count);
+                    request.ImportBatchId, order.Count);
 
                 foreach (var line in result.Rows)
                 {
@@ -774,23 +796,24 @@ namespace Raphael.Api.Services.Catalog
         {
             entity.CategoryId = request.CategoryId;
             entity.Name = row.Name!.Trim();
-            entity.Address = Truncate(Clean(row.Address), 300);
-            entity.City = Truncate(Clean(row.City), 100);
-            entity.CountyRaw = Truncate(Clean(row.County), 100);
-            entity.State = Truncate(Clean(row.State), 2) ?? "FL";
-            entity.Zip = Truncate(Clean(row.Zip), 20);
-            entity.Phone = Truncate(Clean(row.Phone), 40);
-            entity.Email = Truncate(Clean(row.Email), 200);
-            entity.Website = Truncate(Clean(row.Website), 300);
-            entity.ContactName = Truncate(Clean(row.ContactName), 200);
-            entity.FacilityType = Truncate(Clean(row.FacilityType), 150);
-            entity.Beds = row.Beds;
-            entity.ChainName = Truncate(Clean(row.ChainName), 200);
+            entity.Address = Keep(entity.Address, Truncate(Clean(row.Address), 300));
+            entity.City = Keep(entity.City, Truncate(Clean(row.City), 100));
+            entity.CountyRaw = Keep(entity.CountyRaw, Truncate(Clean(row.County), 100));
+            entity.State = Keep(entity.State, Truncate(Clean(row.State), 2)) ?? "FL";
+            entity.Zip = Keep(entity.Zip, Truncate(Clean(row.Zip), 20));
+            entity.Phone = Keep(entity.Phone, Truncate(Clean(row.Phone), 40));
+            entity.Email = Keep(entity.Email, Truncate(Clean(row.Email), 200));
+            entity.Website = Keep(entity.Website, Truncate(Clean(row.Website), 300));
+            entity.ContactName = Keep(entity.ContactName, Truncate(Clean(row.ContactName), 200));
+            entity.FacilityType = Keep(entity.FacilityType, Truncate(Clean(row.FacilityType), 150));
+            entity.Beds = Keep(entity.Beds, row.Beds);
+            entity.ChainName = Keep(entity.ChainName, Truncate(Clean(row.ChainName), 200));
 
-            entity.CountyId = entity.CountyRaw is not null
-                && counties.TryGetValue(CatalogText.Normalize(entity.CountyRaw), out var countyId)
-                    ? countyId
-                    : null;
+            if (entity.CountyRaw is not null
+                && counties.TryGetValue(CatalogText.Normalize(entity.CountyRaw), out var countyId))
+            {
+                entity.CountyId = countyId;
+            }
 
             if (row.Latitude.HasValue && row.Longitude.HasValue)
             {
@@ -808,6 +831,25 @@ namespace Raphael.Api.Services.Catalog
             entity.SearchText = CatalogText.BuildSearchText(
                 entity.Name, entity.City, entity.CountyRaw, entity.Zip, entity.Address, entity.ContactName);
         }
+
+        /// <summary>
+        /// The incoming value when it says something, otherwise what was already there.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ An empty cell in these files means "not verified", not "has none" — every one of
+        /// the six sheets prints that above its own header. Writing the blank through would
+        /// turn one record's silence into the deletion of another record's phone number.
+        ///
+        /// <para>
+        /// The consequence to be aware of: a value really removed at the source is not removed
+        /// here by re-importing. Clearing a field is an edit somebody makes on the screen.
+        /// </para>
+        /// </remarks>
+        private static string? Keep(string? current, string? incoming) =>
+            string.IsNullOrWhiteSpace(incoming) ? current : incoming;
+
+        private static T? Keep<T>(T? current, T? incoming) where T : struct =>
+            incoming ?? current;
 
         /// <summary>
         /// Cuts a value to what the column holds instead of letting the whole batch fail.

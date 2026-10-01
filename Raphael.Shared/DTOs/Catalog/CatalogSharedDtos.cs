@@ -143,24 +143,49 @@ namespace Raphael.Shared.DTOs.Catalog
         public List<T> Rows { get; set; } = new();
     }
 
-    /// <summary>What happened to each row, one entry per row sent.</summary>
+    /// <summary>What happened to the batch, and to each entity in it.</summary>
+    /// <remarks>
+    /// One entry per distinct <em>entity</em>, not per row of the file: a file can name the
+    /// same institution several times, and those rows become one entry.
+    /// </remarks>
     public class CatalogImportResultDto
     {
         public int Created { get; set; }
         public int Updated { get; set; }
         public int Failed { get; set; }
 
+        /// <summary>
+        /// Rows that were folded into another row of the same file, counting the repeats and
+        /// not the entity they joined.
+        /// </summary>
+        /// <remarks>
+        /// Reported because it is surprising and benign: 381 hospital rows are 331 hospitals,
+        /// and a user who sees 331 arrive from a 381-row file deserves to be told why rather
+        /// than left to assume fifty failed.
+        /// </remarks>
+        public int Merged { get; set; }
+
+        /// <summary>Rows with no name at all — the blank lines the source files are full of.</summary>
+        public int Skipped { get; set; }
+
         public List<CatalogImportRowResultDto> Rows { get; set; } = new();
     }
 
     public class CatalogImportRowResultDto
     {
+        /// <summary>The first row of the file that described this entity.</summary>
         public int RowNumber { get; set; }
 
         /// <summary>The catalog row it became, when it became one.</summary>
         public int? Id { get; set; }
 
         public CatalogImportOutcome Outcome { get; set; }
+
+        /// <summary>How many rows of the file described this entity. One, normally.</summary>
+        public int MergedRowCount { get; set; } = 1;
+
+        /// <summary>The row numbers, when there was more than one. Null otherwise.</summary>
+        public List<int>? MergedRowNumbers { get; set; }
 
         /// <summary>
         /// A code, not a sentence: the client owns the wording and the translation.
@@ -184,7 +209,6 @@ namespace Raphael.Shared.DTOs.Catalog
         public const string NameMissing = "NAME_MISSING";
         public const string NameTooLong = "NAME_TOO_LONG";
         public const string CategoryUnknown = "CATEGORY_UNKNOWN";
-        public const string DuplicateInBatch = "DUPLICATE_IN_BATCH";
         public const string FieldTooLong = "FIELD_TOO_LONG";
         public const string SaveFailed = "SAVE_FAILED";
     }
