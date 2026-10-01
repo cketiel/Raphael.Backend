@@ -1,4 +1,4 @@
-﻿
+
 
 using AspNetCoreRateLimit;
 using FluentValidation;
@@ -24,6 +24,7 @@ using Raphael.Api.Services;
 using Raphael.Api.Services.Admin;
 using Raphael.Api.Services.Auth;
 using Raphael.Api.Services.CallRequests;
+using Raphael.Api.Services.Catalog;
 using Raphael.Api.Services.Notifications;
 using Raphael.Api.Services.Routing;
 using Raphael.Api.Settings;
@@ -494,6 +495,12 @@ builder.Services.AddHttpClient<GoogleRoutesClient>();
 builder.Services.AddHttpClient<GoogleGeocodingClient>();
 builder.Services.AddScoped<IRoutingService, RoutingService>();
 builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
+
+// The directory of who we could work with, and the way from it into who we do. Scoped like
+// everything else that touches the context: each one reads the caller's company off the token.
+builder.Services.AddScoped<ICatalogIntegratorService, CatalogIntegratorService>();
+builder.Services.AddScoped<ICatalogProviderService, CatalogProviderService>();
+builder.Services.AddScoped<ICatalogLookupService, CatalogLookupService>();
 
 // Counts what we ask Google and what the cache answers, so the administrator's panel can show
 // the bill and the saving instead of an opinion about them.

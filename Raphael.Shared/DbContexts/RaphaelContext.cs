@@ -6,6 +6,7 @@ using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.Domain.Common;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.CallRequests;
+using Raphael.Shared.Entities.Catalog;
 using Raphael.Shared.Entities.Notifications;
 using Raphael.Shared.Entities.Routing;
 using Raphael.Shared.Routing;
@@ -129,6 +130,29 @@ namespace Raphael.Shared.DbContexts
         public DbSet<DriverCallRequest> DriverCallRequests { get; set; }
 
         public DbSet<DriverCallRequestEvent> DriverCallRequestEvents { get; set; }
+
+        #endregion
+
+        #region Entity catalog
+
+        /// <summary>
+        /// Entities that could send us trips, whether or not we work with them yet.
+        /// See <see cref="CatalogIntegrator"/>.
+        /// </summary>
+        public DbSet<CatalogIntegrator> CatalogIntegrators { get; set; }
+
+        /// <summary>
+        /// Entities that could carry out trips, whether or not we work with them yet.
+        /// See <see cref="CatalogProvider"/>.
+        /// </summary>
+        public DbSet<CatalogProvider> CatalogProviders { get; set; }
+
+        public DbSet<CatalogIntegratorCategory> CatalogIntegratorCategories { get; set; }
+
+        public DbSet<CatalogProviderCategory> CatalogProviderCategories { get; set; }
+
+        /// <summary>Counties, for grouping the catalog and for filtering it.</summary>
+        public DbSet<County> Counties { get; set; }
 
         #endregion
 
@@ -690,6 +714,159 @@ namespace Raphael.Shared.DbContexts
                (_currentUserService.IntegratorId != null && c.IntegratorId == _currentUserService.IntegratorId) ||
                (_currentUserService.ProviderId != null)
            );
+
+
+            // ======================================================
+            // Entity catalog - who we could work with, not who we do
+            // ======================================================
+            //
+            // Two independent tables on purpose. An integrator and a provider are different
+            // animals, with different source files and different columns; folding them into one
+            // table with a discriminator would leave half the columns empty on every row.
+
+            modelBuilder.Entity<CatalogIntegratorCategory>(entity =>
+            {
+                entity.HasIndex(x => x.Code).IsUnique();
+
+                entity.HasData(
+                    new CatalogIntegratorCategory { Id = 1, Code = "NursingHome", NameEn = "Nursing homes", NameEs = "Nursing homes", DisplayOrder = 1 },
+                    new CatalogIntegratorCategory { Id = 2, Code = "AssistedLiving", NameEn = "Assisted living / residential care", NameEs = "Assisted living / residencias de cuidado", DisplayOrder = 2 },
+                    new CatalogIntegratorCategory { Id = 3, Code = "Hospital", NameEn = "Hospitals", NameEs = "Hospitales", DisplayOrder = 3 });
+            });
+
+            modelBuilder.Entity<CatalogProviderCategory>(entity =>
+            {
+                entity.HasIndex(x => x.Code).IsUnique();
+
+                entity.HasData(
+                    new CatalogProviderCategory { Id = 1, Code = "NemtCompany", NameEn = "NEMT companies", NameEs = "Empresas NEMT", DisplayOrder = 1 },
+                    new CatalogProviderCategory { Id = 2, Code = "NemtBroker", NameEn = "NEMT brokers", NameEs = "Brokers NEMT", DisplayOrder = 2 },
+                    new CatalogProviderCategory { Id = 3, Code = "PrivateAmbulance", NameEn = "Private ambulance companies", NameEs = "Empresas de ambulancias privadas", DisplayOrder = 3 });
+            });
+
+            modelBuilder.Entity<County>(entity =>
+            {
+                entity.HasIndex(x => new { x.State, x.Name }).IsUnique();
+
+                // The 67 counties of Florida. Seeded because the import matches the county column
+                // of the source files against this list, and a county that is merely whatever the
+                // file happened to spell is not something anybody can filter by.
+                static County Fl(int id, string name) => new County { Id = id, State = "FL", Name = name };
+
+                entity.HasData(
+                    Fl(1, "Alachua"), Fl(2, "Baker"), Fl(3, "Bay"),
+                    Fl(4, "Bradford"), Fl(5, "Brevard"), Fl(6, "Broward"),
+                    Fl(7, "Calhoun"), Fl(8, "Charlotte"), Fl(9, "Citrus"),
+                    Fl(10, "Clay"), Fl(11, "Collier"), Fl(12, "Columbia"),
+                    Fl(13, "DeSoto"), Fl(14, "Dixie"), Fl(15, "Duval"),
+                    Fl(16, "Escambia"), Fl(17, "Flagler"), Fl(18, "Franklin"),
+                    Fl(19, "Gadsden"), Fl(20, "Gilchrist"), Fl(21, "Glades"),
+                    Fl(22, "Gulf"), Fl(23, "Hamilton"), Fl(24, "Hardee"),
+                    Fl(25, "Hendry"), Fl(26, "Hernando"), Fl(27, "Highlands"),
+                    Fl(28, "Hillsborough"), Fl(29, "Holmes"), Fl(30, "Indian River"),
+                    Fl(31, "Jackson"), Fl(32, "Jefferson"), Fl(33, "Lafayette"),
+                    Fl(34, "Lake"), Fl(35, "Lee"), Fl(36, "Leon"),
+                    Fl(37, "Levy"), Fl(38, "Liberty"), Fl(39, "Madison"),
+                    Fl(40, "Manatee"), Fl(41, "Marion"), Fl(42, "Martin"),
+                    Fl(43, "Miami-Dade"), Fl(44, "Monroe"), Fl(45, "Nassau"),
+                    Fl(46, "Okaloosa"), Fl(47, "Okeechobee"), Fl(48, "Orange"),
+                    Fl(49, "Osceola"), Fl(50, "Palm Beach"), Fl(51, "Pasco"),
+                    Fl(52, "Pinellas"), Fl(53, "Polk"), Fl(54, "Putnam"),
+                    Fl(55, "Santa Rosa"), Fl(56, "Sarasota"), Fl(57, "Seminole"),
+                    Fl(58, "St. Johns"), Fl(59, "St. Lucie"), Fl(60, "Sumter"),
+                    Fl(61, "Suwannee"), Fl(62, "Taylor"), Fl(63, "Union"),
+                    Fl(64, "Volusia"), Fl(65, "Wakulla"), Fl(66, "Walton"),
+                    Fl(67, "Washington"));
+            });
+
+            modelBuilder.Entity<CatalogIntegrator>(entity =>
+            {
+                entity.HasOne(x => x.Category)
+                    .WithMany()
+                    .HasForeignKey(x => x.CategoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.County)
+                    .WithMany()
+                    .HasForeignKey(x => x.CountyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // The natural key. Re-importing the same file has to update these rows rather
+                // than double the catalog - see CatalogIntegrator.MatchKey.
+                entity.HasIndex(x => x.MatchKey)
+                    .IsUnique()
+                    .HasDatabaseName("IX_CatalogIntegrators_MatchKey");
+
+                entity.HasIndex(x => new { x.CategoryId, x.Name })
+                    .HasDatabaseName("IX_CatalogIntegrators_Category_Name");
+
+                entity.HasIndex(x => x.CountyId)
+                    .HasDatabaseName("IX_CatalogIntegrators_County");
+
+                entity.HasIndex(x => x.City)
+                    .HasDatabaseName("IX_CatalogIntegrators_City");
+
+                entity.HasIndex(x => x.PhoneDigits)
+                    .HasDatabaseName("IX_CatalogIntegrators_PhoneDigits");
+            });
+
+            modelBuilder.Entity<CatalogProvider>(entity =>
+            {
+                entity.HasOne(x => x.Category)
+                    .WithMany()
+                    .HasForeignKey(x => x.CategoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.County)
+                    .WithMany()
+                    .HasForeignKey(x => x.CountyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.MatchKey)
+                    .IsUnique()
+                    .HasDatabaseName("IX_CatalogProviders_MatchKey");
+
+                entity.HasIndex(x => new { x.CategoryId, x.Name })
+                    .HasDatabaseName("IX_CatalogProviders_Category_Name");
+
+                entity.HasIndex(x => x.CountyId)
+                    .HasDatabaseName("IX_CatalogProviders_County");
+
+                entity.HasIndex(x => x.City)
+                    .HasDatabaseName("IX_CatalogProviders_City");
+
+                entity.HasIndex(x => x.PhoneDigits)
+                    .HasDatabaseName("IX_CatalogProviders_PhoneDigits");
+
+                // Filtered: outside the NPPES file almost nothing has an NPI, and an index over
+                // thousands of nulls indexes nothing worth reading.
+                entity.HasIndex(x => x.Npi)
+                    .HasFilter("[Npi] IS NOT NULL")
+                    .HasDatabaseName("IX_CatalogProviders_Npi");
+            });
+
+            // The link back from what we operate to where it came from. This pair is what
+            // answers "do I already have this one?" for the company asking - OwnerProviderId
+            // null being the general broker.
+            modelBuilder.Entity<Integrator>()
+                .HasOne(i => i.CatalogIntegrator)
+                .WithMany()
+                .HasForeignKey(i => i.CatalogIntegratorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Integrator>()
+                .HasIndex(i => new { i.CatalogIntegratorId, i.OwnerProviderId })
+                .HasDatabaseName("IX_Integrators_Catalog_Owner");
+
+            modelBuilder.Entity<Provider>()
+                .HasOne(p => p.CatalogProvider)
+                .WithMany()
+                .HasForeignKey(p => p.CatalogProviderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Provider>()
+                .HasIndex(p => new { p.CatalogProviderId, p.OwnerProviderId })
+                .HasDatabaseName("IX_Providers_Catalog_Owner");
 
             #region Notification Module
 

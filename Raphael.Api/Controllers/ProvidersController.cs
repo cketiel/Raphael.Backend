@@ -1,10 +1,31 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 using System.Threading.Tasks;
 
 namespace Raphael.Api.Controllers
 {
+    /// <summary>
+    /// The providers we actually work with: the companies whose vehicles carry out our trips.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ Writing is administrators only, added in RE-027. Reading is not: the two
+    /// <c>contact</c> endpoints serve the office contact card that the driver app shows, and
+    /// <c>GetAll</c> feeds screens that are not restricted to role 1.
+    ///
+    /// <para>
+    /// <c>PUT contact</c> is deliberately left as it was, and it is a known hole: a driver can
+    /// change the office phone number. Closing it means also removing the editable field from
+    /// the driver screen, which is a change to an app installed on 31 phones — it is written up
+    /// in BACKLOG.md and does not belong in this slice.
+    /// </para>
+    ///
+    /// <para>
+    /// The entities that could become providers, but are not yet, live in
+    /// <c>api/admin/catalog/providers</c>.
+    /// </para>
+    /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
     public class ProvidersController : ControllerBase
@@ -49,7 +70,9 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _providerService.GetAllAsync());
+
         [HttpPost]
+        [Authorize(Roles = "1")]
         public async Task<IActionResult> Create([FromForm] ProviderDto dto) 
         {
             var result = await _providerService.CreateAsync(dto);
@@ -57,11 +80,14 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "1")]
         public async Task<IActionResult> Update(int id, [FromForm] ProviderDto dto) 
         {
             var success = await _providerService.UpdateAsync(id, dto);
             return success ? Ok() : NotFound();
         }
-        [HttpDelete("{id}")] public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "1")]
+        public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
     }
 }

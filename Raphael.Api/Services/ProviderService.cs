@@ -1,7 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Interfaces;
 using System.Threading.Tasks;
 
 namespace Raphael.Api.Services
@@ -11,11 +12,16 @@ namespace Raphael.Api.Services
         private readonly RaphaelContext _context;
         private const int ContactProviderId = 1;
         private readonly IWebHostEnvironment _environment;
+        private readonly ICurrentUserService _currentUser;
 
-        public ProviderService(RaphaelContext context, IWebHostEnvironment environment)
+        public ProviderService(
+            RaphaelContext context,
+            IWebHostEnvironment environment,
+            ICurrentUserService currentUser)
         {
             _context = context;
             _environment = environment;
+            _currentUser = currentUser;
         }
 
         public async Task<ProviderDto?> GetContactProviderAsync()
@@ -37,7 +43,11 @@ namespace Raphael.Api.Services
                 Phone = provider.Phone,
                 Logo = provider.Logo,
                 Latitude = provider.Latitude,
-                Longitude = provider.Longitude
+                Longitude = provider.Longitude,
+                TimeZoneId = provider.TimeZoneId,
+                Website = provider.Website,
+                ContactName = provider.ContactName,
+                Comments = provider.Comments
             };
         }
 
@@ -57,6 +67,9 @@ namespace Raphael.Api.Services
             provider.Logo = providerDto.Logo;
             provider.Latitude = providerDto.Latitude;
             provider.Longitude = providerDto.Longitude;
+            provider.Website = providerDto.Website;
+            provider.ContactName = providerDto.ContactName;
+            provider.Comments = providerDto.Comments;
 
             await _context.SaveChangesAsync();
             return true;
@@ -74,7 +87,13 @@ namespace Raphael.Api.Services
                     Phone = p.Phone,
                     Logo = p.Logo,
                     Latitude = p.Latitude,
-                    Longitude = p.Longitude
+                    Longitude = p.Longitude,
+                    TimeZoneId = p.TimeZoneId,
+                    Website = p.Website,
+                    ContactName = p.ContactName,
+                    Comments = p.Comments,
+                    CatalogProviderId = p.CatalogProviderId,
+                    OwnerProviderId = p.OwnerProviderId
                 }).ToListAsync();
         }
 
@@ -94,7 +113,15 @@ namespace Raphael.Api.Services
                 Phone = dto.Phone,
                 Logo = fileName, // Guardamos solo "guid.jpg"
                 Latitude = dto.Latitude,
-                Longitude = dto.Longitude
+                Longitude = dto.Longitude,
+                TimeZoneId = dto.TimeZoneId,
+                Website = dto.Website,
+                ContactName = dto.ContactName,
+                Comments = dto.Comments,
+                CatalogProviderId = dto.CatalogProviderId,
+
+                // From the token, never from the request. See IntegratorService.
+                OwnerProviderId = _currentUser.ProviderId
             };
 
             _context.Providers.Add(provider);
@@ -115,6 +142,16 @@ namespace Raphael.Api.Services
             provider.Phone = dto.Phone;
             provider.Latitude = dto.Latitude;
             provider.Longitude = dto.Longitude;
+            provider.TimeZoneId = dto.TimeZoneId;
+            provider.Website = dto.Website;
+            provider.ContactName = dto.ContactName;
+            provider.Comments = dto.Comments;
+
+            // Set once, when the row is created out of the catalog. See IntegratorService.
+            if (provider.CatalogProviderId is null)
+            {
+                provider.CatalogProviderId = dto.CatalogProviderId;
+            }
 
             if (dto.LogoFile != null)
             {
