@@ -67,9 +67,22 @@ namespace Raphael.Api.Services
             provider.Logo = providerDto.Logo;
             provider.Latitude = providerDto.Latitude;
             provider.Longitude = providerDto.Longitude;
-            provider.Website = providerDto.Website;
-            provider.ContactName = providerDto.ContactName;
-            provider.Comments = providerDto.Comments;
+
+            // ⚠️ Only when the caller actually sent them, and this is not a nicety.
+            //
+            // Raphael.Driver has its own copy of ProviderDto (Raphael.Driver/DTOs/ProviderDto.cs)
+            // that predates these three fields, and it PUTs this endpoint from the contact card
+            // on the driver's screen. Writing them through unconditionally means a driver
+            // saving the office phone number silently erases the website, the contact name and
+            // the notes somebody typed in the back office — on an app installed on 31 phones
+            // that nobody can update today.
+            //
+            // Expand / contract, GIT_WORKFLOW.md section 4: a backend change may never assume
+            // the client already knows about the field. Clearing one of these is an edit made
+            // on the screen that owns them.
+            if (providerDto.Website is not null) provider.Website = providerDto.Website;
+            if (providerDto.ContactName is not null) provider.ContactName = providerDto.ContactName;
+            if (providerDto.Comments is not null) provider.Comments = providerDto.Comments;
 
             await _context.SaveChangesAsync();
             return true;
