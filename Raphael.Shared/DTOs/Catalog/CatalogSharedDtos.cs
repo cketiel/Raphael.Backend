@@ -112,7 +112,7 @@ namespace Raphael.Shared.DTOs.Catalog
 
         public int PageSize { get; set; } = 50;
 
-        public CatalogSortBy SortBy { get; set; } = CatalogSortBy.Relevance;
+        public CatalogSortBy SortBy { get; set; } = CatalogSortBy.Group;
     }
 
     public enum CatalogSortBy
@@ -122,7 +122,18 @@ namespace Raphael.Shared.DTOs.Catalog
         Name = 1,
         City = 2,
         /// <summary>Most recently added to the catalog first.</summary>
-        Newest = 3
+        Newest = 3,
+
+        /// <summary>
+        /// By group, and inside each group by best match. The default.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ This is what lets the grid draw a header per group. A page of fifty rows can
+        /// only be grouped on screen if rows of one group arrive together, so the grouping is
+        /// a property of the order the server returns, not a decision the grid can make on its
+        /// own. Relevance still applies — inside the group.
+        /// </remarks>
+        Group = 4
     }
 
     /// <summary>One row of a file being imported, already mapped to our field names.</summary>

@@ -98,6 +98,18 @@ namespace Raphael.Api.Services.Catalog
                     Npi = c.Npi,
                     ServiceLevel = c.ServiceLevel,
                     LicenseExpiresOn = c.LicenseExpiresOn,
+                    Address = c.Address,
+                    Comments = c.Comments,
+                    IsPrimaryNemt = c.IsPrimaryNemt,
+                    SourceUpdatedOn = c.SourceUpdatedOn,
+                    EmsLicense = c.EmsLicense,
+                    PlanSegment = c.PlanSegment,
+                    CoverageArea = c.CoverageArea,
+                    ProviderContact = c.ProviderContact,
+                    EvidenceNote = c.EvidenceNote,
+                    Latitude = c.Latitude,
+                    Longitude = c.Longitude,
+                    GeocodeStatus = (int)c.GeocodeStatus,
                     IsActive = c.IsActive,
                     HasCoordinates = c.Latitude != null && c.Longitude != null,
                     MyProviderId = mine
@@ -235,6 +247,27 @@ namespace Raphael.Api.Services.Catalog
 
                 case CatalogSortBy.Newest:
                     return query.OrderByDescending(c => c.CreatedAtUtc).ThenBy(c => c.Id);
+
+                case CatalogSortBy.Group:
+                    // Group first so the rows of one group arrive together and the grid can
+                    // draw a header over them; relevance still decides the order inside.
+                    if (normalizedTerm.Length == 0)
+                    {
+                        return query
+                            .OrderBy(c => c.Category.DisplayOrder)
+                            .ThenBy(c => c.Name)
+                            .ThenBy(c => c.Id);
+                    }
+
+                    var groupedStart = " " + normalizedTerm;
+
+                    return query
+                        .OrderBy(c => c.Category.DisplayOrder)
+                        .ThenByDescending(c => c.SearchText.StartsWith(normalizedTerm)
+                            ? 3
+                            : c.SearchText.Contains(groupedStart) ? 2 : 1)
+                        .ThenBy(c => c.Name)
+                        .ThenBy(c => c.Id);
 
                 default:
                     if (normalizedTerm.Length == 0)

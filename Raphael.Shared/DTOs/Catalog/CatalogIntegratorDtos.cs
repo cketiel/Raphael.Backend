@@ -41,6 +41,21 @@ namespace Raphael.Shared.DTOs.Catalog
         /// provider has no business knowing who else is talking to whom.
         /// </summary>
         public int? AddedByCompanyCount { get; set; }
+
+        // ---- The rest of the row ----------------------------------------------------
+        // Everything the detail panel holds, because the grid shows every column: this is
+        // the list somebody dials from, and a phone number behind a double click is a phone
+        // number nobody finds.
+
+        public string? Address { get; set; }
+        public string? ChainName { get; set; }
+        public string? Comments { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
+        /// <summary>Why it has no coordinates, when it has none. See GeocodeStatus.</summary>
+        public int GeocodeStatus { get; set; }
     }
 
     /// <summary>The whole row, for the detail panel.</summary>

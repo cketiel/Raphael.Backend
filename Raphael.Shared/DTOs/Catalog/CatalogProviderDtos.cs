@@ -36,6 +36,26 @@ namespace Raphael.Shared.DTOs.Catalog
 
         /// <summary>Total companies that added it. Only the general broker is told.</summary>
         public int? AddedByCompanyCount { get; set; }
+
+        // ---- The rest of the row ----------------------------------------------------
+        // See the integrator twin: the grid shows every column.
+
+        public string? Address { get; set; }
+        public string? Comments { get; set; }
+
+        public bool? IsPrimaryNemt { get; set; }
+        public DateTime? SourceUpdatedOn { get; set; }
+        public string? EmsLicense { get; set; }
+        public string? PlanSegment { get; set; }
+        public string? CoverageArea { get; set; }
+        public string? ProviderContact { get; set; }
+        public string? EvidenceNote { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
+        /// <summary>Why it has no coordinates, when it has none. See GeocodeStatus.</summary>
+        public int GeocodeStatus { get; set; }
     }
 
     /// <summary>The whole row, for the detail panel.</summary>
