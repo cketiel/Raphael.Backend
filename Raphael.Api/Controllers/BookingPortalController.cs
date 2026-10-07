@@ -122,10 +122,20 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet("my-trips")]
-        public async Task<IActionResult> GetMyTrips([FromQuery] DateTime startDate, [FromQuery] DateTime? endDate)
+        [ProducesResponseType(typeof(List<TripReadDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<List<TripReadDto>>> GetMyTrips([FromQuery] DateTime startDate, [FromQuery] DateTime? endDate)
         {
+            var end = endDate ?? startDate;
+
+            // The service refuses this with an ArgumentException, which reached the clinic as a 500.
+            if (end.Date < startDate.Date)
+            {
+                return BadRequest("The end date cannot be earlier than the start date.");
+            }
+
             // El Global Query Filter en RaphaelContext ya se encarga de filtrar por IntegratorId
-            var trips = await _tripService.GetByDateRangeAsync(startDate, endDate ?? startDate);
+            var trips = await _tripService.GetByDateRangeAsync(startDate, end);
             return Ok(trips);
         }
 
@@ -182,7 +192,9 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet("my-funding-source")]
-        public async Task<IActionResult> GetMyFundingSource([FromServices] IIntegratorService integratorService)
+        [ProducesResponseType(typeof(FundingSource), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<FundingSource>> GetMyFundingSource([FromServices] IIntegratorService integratorService)
         {
             var fundingSource = await integratorService.GetFundingSourceByIntegratorIdAsync(CurrentIntegratorId);
             if (fundingSource == null) return NotFound("No funding source linked to this integrator.");
