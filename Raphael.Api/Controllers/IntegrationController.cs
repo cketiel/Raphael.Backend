@@ -168,20 +168,16 @@ namespace Raphael.Api.Controllers
             if (externalIds == null || !externalIds.Any())
                 return BadRequest("The list of TripIds cannot be empty.");
 
-            try
+            // No catch: the global handler logs the exception and answers with a bare
+            // ProblemDetails. An exception's text can carry the row it failed on — a date, an
+            // address, a patient's phone — and it must never reach a third party.
+            var count = await _tripService.CancelIntegrationTripsAsync(externalIds, CurrentIntegratorId, CurrentIntegratorName);
+            return Ok(new
             {
-                var count = await _tripService.CancelIntegrationTripsAsync(externalIds, CurrentIntegratorId, CurrentIntegratorName);
-                return Ok(new
-                {
-                    Success = true,
-                    Message = $"{count} trips were successfully canceled.",
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
-            }
+                Success = true,
+                Message = $"{count} trips were successfully canceled.",
+                Timestamp = DateTime.UtcNow
+            });
         }
 
         /// <summary>
@@ -208,40 +204,36 @@ namespace Raphael.Api.Controllers
             if (!date.HasValue && (externalIds == null || !externalIds.Any()))
                 return BadRequest("Please provide either a date in the query string or a list of TripIds in the request body.");
 
-            try
-            {
-                var trips = await _tripService.GetIntegrationTripDetailsAsync(date, externalIds, CurrentIntegratorId);
+            // No catch: the global handler logs the exception and answers with a bare
+            // ProblemDetails. An exception's text can carry the row it failed on — a date, an
+            // address, a patient's phone — and it must never reach a third party.
+            var trips = await _tripService.GetIntegrationTripDetailsAsync(date, externalIds, CurrentIntegratorId);
 
-                // Mapping to DTO to expose only necessary fields and protect internal entity structure
-                var response = trips.Select(t => new IntegrationTripDto
-                {
-                    TripId = t.TripId,
-                    Status = t.Status,
-                    Date = t.Date,
-                    FromTime = t.FromTime,
-                    ToTime = t.ToTime,
-                    CustomerFullName = t.Customer?.FullName,
-                    CustomerGender = t.Customer?.Gender,
-                    PickupAddress = t.PickupAddress,
-                    PickupLatitude = t.PickupLatitude,
-                    PickupLongitude = t.PickupLongitude,
-                    DropoffAddress = t.DropoffAddress,
-                    DropoffLatitude = t.DropoffLatitude,
-                    DropoffLongitude = t.DropoffLongitude,
-                    Distance = t.Distance ?? 0,
-                    PickupComment = t.PickupComment,
-                    DropoffComment = t.DropoffComment,
-                    SpaceTypeName = t.SpaceType?.Name,
-                    FundingSourceName = t.FundingSource?.Name,
-                    Type = t.Type
-                });
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            // Mapping to DTO to expose only necessary fields and protect internal entity structure
+            var response = trips.Select(t => new IntegrationTripDto
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+                TripId = t.TripId,
+                Status = t.Status,
+                Date = t.Date,
+                FromTime = t.FromTime,
+                ToTime = t.ToTime,
+                CustomerFullName = t.Customer?.FullName,
+                CustomerGender = t.Customer?.Gender,
+                PickupAddress = t.PickupAddress,
+                PickupLatitude = t.PickupLatitude,
+                PickupLongitude = t.PickupLongitude,
+                DropoffAddress = t.DropoffAddress,
+                DropoffLatitude = t.DropoffLatitude,
+                DropoffLongitude = t.DropoffLongitude,
+                Distance = t.Distance ?? 0,
+                PickupComment = t.PickupComment,
+                DropoffComment = t.DropoffComment,
+                SpaceTypeName = t.SpaceType?.Name,
+                FundingSourceName = t.FundingSource?.Name,
+                Type = t.Type
+            });
+
+            return Ok(response);
         }
 
         #region Notification Management
