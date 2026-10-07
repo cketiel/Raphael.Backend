@@ -60,7 +60,22 @@ namespace Raphael.Api.Controllers
                     }
                     oldStatus = status;
                 }
-               
+
+                // The return leg is created, never updated: nothing links it to its outbound trip,
+                // so resubmitting an existing trip as a round trip would book a second return —
+                // a second vehicle and a second invoice. Once it exists, it is edited on its own.
+                // Without a time the upsert skips the return without a word, and the patient is
+                // left at the clinic with nobody booked to bring them home.
+                if (trip.IsRoundTrip && !trip.ReturnTime.HasValue)
+                {
+                    return BadRequest("A round trip needs a return time.");
+                }
+
+                if (trip.IsRoundTrip && await OutboundTripExistsAsync(trip, isEdit))
+                {
+                    return BadRequest("This trip already exists, so its return cannot be created again. Edit the return trip on its own.");
+                }
+
                 var results = await _tripService.UpsertPortalTripsAsync(new List<PortalTripDto> { trip }, CurrentIntegratorId);
 
                 string user = _currentUserService.UserName ?? "PortalUser";
@@ -92,6 +107,22 @@ namespace Raphael.Api.Controllers
             {
                 return StatusCode(500, $"Error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Whether the upsert would update an existing trip rather than create one — the same two
+        /// lookups <c>ProcessSingleTripAsync</c> makes: the internal id, then the clinic's own id.
+        /// </summary>
+        private async Task<bool> OutboundTripExistsAsync(PortalTripDto trip, bool isEdit)
+        {
+            if (isEdit) return true;
+
+            if (string.IsNullOrWhiteSpace(trip.TripId)) return false;
+
+            var existing = await _tripService.GetIntegrationTripDetailsAsync(
+                null, new List<string> { trip.TripId }, CurrentIntegratorId);
+
+            return existing.Any();
         }
 
         [HttpGet("my-trips")]
