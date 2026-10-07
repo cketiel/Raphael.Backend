@@ -98,8 +98,9 @@ namespace Raphael.Api.Services
                         Address = dto.CustomerAddress ?? "Portal Provided",
                         City = dto.CustomerCity ?? "Unknown",
                         Zip = dto.CustomerZip ?? "00000",
-                        State = "FL", // Default
-                        Gender = dto.CustomerGender ?? "Unknown",
+                        State = "FL", // The business operates in Florida only (decided 2026-10-07).
+                        // Empty when the clinic did not say: "Unknown" was a value nobody chose.
+                        Gender = PortalValue(dto.CustomerGender) ?? string.Empty,
                         DOB = dto.CustomerDOB, 
                         FundingSourceId = fundingSource.Id,
                         SpaceTypeId = spaceType.Id,
@@ -343,7 +344,7 @@ namespace Raphael.Api.Services
                 });
             }
 
-            var affected = await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
             foreach (var (cancelledTrip, previousStatus) in cancelled)
             {
@@ -353,7 +354,9 @@ namespace Raphael.Api.Services
                     previousStatus);
             }
 
-            return affected;
+            // Trips, not rows: SaveChanges also counts the log and history entries written
+            // with each one, which tripled the number the caller reported as cancelled.
+            return cancelled.Count;
         }
 
         public async Task<List<Trip>> GetIntegrationTripDetailsAsync(DateTime? date, List<string>? externalIds, int? integratorId)
