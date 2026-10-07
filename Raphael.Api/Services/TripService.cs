@@ -54,28 +54,30 @@ namespace Raphael.Api.Services
 
             foreach (var dto in dtos)
             {
-                // 1. Resolve SpaceType 
+                // 1. Resolve SpaceType
+                // A name nobody knows is still created, but INACTIVE: it has no rate and no load
+                // times, so it must not be offered to anybody else until the office reviews it.
                 var spaceType = await _context.SpaceTypes.FirstOrDefaultAsync(s => s.Name == dto.SpaceTypeName);
                 if (spaceType == null)
                 {
                     spaceType = new SpaceType
                     {
                         Name = dto.SpaceTypeName,
-                        Description = "Auto-created via Portal",
+                        Description = PortalPendingReview,
                         LoadTime = 0,
                         UnloadTime = 0,
                         CapacityTypeId = 1,
-                        IsActive = true
+                        IsActive = false
                     };
                     _context.SpaceTypes.Add(spaceType);
                     await _context.SaveChangesAsync();
                 }
 
-                // 2. Resolve FundingSource
+                // 2. Resolve FundingSource — same rule: created inactive, pending review.
                 var fundingSource = await _context.FundingSources.FirstOrDefaultAsync(f => f.Name == dto.FundingSourceName);
                 if (fundingSource == null)
                 {
-                    fundingSource = new FundingSource { Name = dto.FundingSourceName ?? "Unknown", IsActive = true };
+                    fundingSource = new FundingSource { Name = dto.FundingSourceName ?? "Unknown", IsActive = false };
                     _context.FundingSources.Add(fundingSource);
                     await _context.SaveChangesAsync();
                 }
@@ -108,10 +110,20 @@ namespace Raphael.Api.Services
                     _context.Customers.Add(customer);
                     await _context.SaveChangesAsync();
                 }
+                else
+                {
+                    // The clinic is the one talking to the patient: a phone or an address it
+                    // corrects here is the one the driver needs. Name and Rider ID are the
+                    // patient's identity and are not changed from a booking.
+                    UpdatePortalCustomerContact(customer, dto);
+                    await _context.SaveChangesAsync();
+                }
 
                 // 4. Procesar el Viaje Principal (Ida)
+                // The ids returned are the trips actually written, so the caller can record each
+                // one in TripHistory. Returning dto.TripId handed back "NEW" for every booking.
                 var mainTripInternalId = await ProcessSingleTripAsync(dto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, false);
-                processedIds.Add(dto.TripId ?? mainTripInternalId.ToString());
+                processedIds.Add(mainTripInternalId.ToString());
 
                 // 5. Si es Round Trip, procesar el Viaje de Regreso
                 if (dto.IsRoundTrip && dto.ReturnTime.HasValue)
@@ -137,12 +149,60 @@ namespace Raphael.Api.Services
                         DropoffComment = dto.RoundTripDropoffComment
                     };
 
-                    await ProcessSingleTripAsync(returnDto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, true);
+                    var returnTripInternalId = await ProcessSingleTripAsync(returnDto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, true);
+                    processedIds.Add(returnTripInternalId.ToString());
                 }
             }
 
             await _context.SaveChangesAsync();
             return processedIds;
+        }
+
+        /// <summary>Marks a catalogue row a booking had to create, for the office to review.</summary>
+        private const string PortalPendingReview = "Auto-created via Portal - inactive, pending review";
+
+        /// <summary>
+        /// The placeholders the portals fill a blank field with. They are not data, and writing
+        /// one over a real value would erase it.
+        /// </summary>
+        private static readonly HashSet<string> PortalPlaceholders =
+            new(StringComparer.OrdinalIgnoreCase) { "N/A", "Unknown", "00000", "Portal Provided" };
+
+        private static string? PortalValue(string? value) =>
+            string.IsNullOrWhiteSpace(value) || PortalPlaceholders.Contains(value.Trim())
+                ? null
+                : value.Trim();
+
+        /// <summary>
+        /// Applies the contact details a booking carries to a patient that already exists.
+        /// A field that comes empty, or with a placeholder, leaves the stored value alone.
+        /// </summary>
+        private static void UpdatePortalCustomerContact(Customer customer, PortalTripDto dto)
+        {
+            var phone = PortalValue(dto.CustomerPhone);
+            if (phone != null) customer.Phone = phone;
+
+            var address = PortalValue(dto.CustomerAddress);
+            if (address != null && !string.Equals(address, customer.Address?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                customer.Address = address;
+
+                // The coordinates belong to the old address. Cleared, they are geocoded again by
+                // the next screen that needs them, as the Desktop does for any patient without them.
+                customer.Latitude = null;
+                customer.Longitude = null;
+            }
+
+            var city = PortalValue(dto.CustomerCity);
+            if (city != null) customer.City = city;
+
+            var zip = PortalValue(dto.CustomerZip);
+            if (zip != null) customer.Zip = zip;
+
+            var gender = PortalValue(dto.CustomerGender);
+            if (gender != null) customer.Gender = gender;
+
+            if (dto.CustomerDOB.HasValue) customer.DOB = dto.CustomerDOB;
         }
 
         // Private helper method to avoid duplicating mapping and attachment logic.
