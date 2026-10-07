@@ -1650,7 +1650,11 @@ namespace Raphael.Api.Services
                 .Where(s => s.Date.HasValue &&
                             s.Date.Value.Date >= startDate.Date &&
                             s.Date.Value.Date <= endDate.Date &&
-                            s.TripId != null);
+                            s.TripId != null &&
+                            // The Trip query filter hides other integrators' trips, but not their
+                            // schedules: those arrive with Trip == null and used to throw further
+                            // down. Only the schedules whose trip the caller can see belong here.
+                            s.Trip != null);
 
             // 2. Apply Multi-ID Filter if the list contains IDs
             if (fundingSourceIds != null && fundingSourceIds.Any())
