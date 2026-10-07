@@ -252,6 +252,14 @@ namespace Raphael.Shared.DTOs.Routing
 
         public string? Zip { get; set; }
 
+        /// <summary>
+        /// The language Maps was loaded in when the place was bought, e.g. <c>"en"</c>. Google
+        /// writes the address in it, so it is part of the cache key: a place stored in Spanish is
+        /// never served to an English client. Optional; without it the place goes to the legacy,
+        /// mixed-language entry.
+        /// </summary>
+        public string? Language { get; set; }
+
         /// <summary>One of <see cref="RoutingContract.Statuses"/>.</summary>
         public string Status { get; set; } = RoutingContract.Statuses.Ok;
 

@@ -119,13 +119,20 @@ namespace Raphael.Api.Controllers
         /// this place up yet. Only the browser key has Places enabled, so the caller fetches it
         /// and posts the result back to <c>POST /api/routing/place</c>. Every dispatcher after
         /// that gets it from here for nothing.
+        ///
+        /// <para>
+        /// Pass <c>language</c> — the one Maps was loaded in — here and in the body of the
+        /// <c>POST</c>. Each language is cached apart, so a place bought by a Spanish session
+        /// never puts "EE. UU." on an English user's trip.
+        /// </para>
         /// </remarks>
         [HttpGet("place/{placeId}")]
         public async Task<ActionResult<PlaceDetailsDto>> GetPlace(
             string placeId,
+            [FromQuery] string? language,
             CancellationToken cancellationToken)
         {
-            return Ok(await _routing.GetPlaceAsync(placeId, cancellationToken));
+            return Ok(await _routing.GetPlaceAsync(placeId, language, cancellationToken));
         }
 
         /// <summary>Remembers a place the client had to buy from Google.</summary>

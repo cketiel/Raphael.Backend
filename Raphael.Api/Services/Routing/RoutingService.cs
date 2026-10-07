@@ -370,6 +370,7 @@ namespace Raphael.Api.Services.Routing
 
         public async Task<PlaceDetailsDto> GetPlaceAsync(
             string placeId,
+            string? language,
             CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(placeId))
@@ -377,7 +378,7 @@ namespace Raphael.Api.Services.Routing
                 return new PlaceDetailsDto { Status = RoutingContract.Statuses.NotFound };
             }
 
-            var key = RouteCacheKey.ForPlace(placeId);
+            var key = RouteCacheKey.ForPlace(placeId, language);
 
             var cutoff = DateTime.UtcNow - await GetRetentionAsync(cancellationToken);
 
@@ -410,6 +411,7 @@ namespace Raphael.Api.Services.Routing
                 City = hit.City,
                 State = hit.State,
                 Zip = hit.Zip,
+                Language = RouteCacheKey.NormalizeLanguage(language),
                 Source = RoutingContract.Sources.Cache,
                 Status = RoutingContract.Statuses.Ok
             };
@@ -423,7 +425,7 @@ namespace Raphael.Api.Services.Routing
 
             await UpsertGeocodeAsync(new GeocodeCacheEntry
             {
-                NormalizedAddress = RouteCacheKey.ForPlace(place.PlaceId),
+                NormalizedAddress = RouteCacheKey.ForPlace(place.PlaceId, place.Language),
                 Latitude = place.Latitude,
                 Longitude = place.Longitude,
                 PlaceId = place.PlaceId,

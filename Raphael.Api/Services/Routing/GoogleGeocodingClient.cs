@@ -37,6 +37,12 @@ namespace Raphael.Api.Services.Routing
     {
         private const string GeocodeEndpoint = "https://maps.googleapis.com/maps/api/geocode/json";
 
+        /// <summary>
+        /// Stated rather than left to Google's default: the address and point entries this client
+        /// fills carry no language in their key, so they must always be written in the same one.
+        /// </summary>
+        private const string ServerLanguage = "en";
+
         private readonly HttpClient _http;
         private readonly ILogger<GoogleGeocodingClient> _logger;
         private readonly string? _apiKey;
@@ -71,7 +77,7 @@ namespace Raphael.Api.Services.Routing
                 return (null, false);
             }
 
-            var url = $"{GeocodeEndpoint}?address={Uri.EscapeDataString(address)}&key={_apiKey}";
+            var url = $"{GeocodeEndpoint}?address={Uri.EscapeDataString(address)}&language={ServerLanguage}&key={_apiKey}";
 
             var payload = await GetAsync(url, cancellationToken);
 
@@ -132,7 +138,7 @@ namespace Raphael.Api.Services.Routing
             var latLng = $"{Raphael.Shared.Routing.RouteCacheKey.Coord(latitude)}," +
                          $"{Raphael.Shared.Routing.RouteCacheKey.Coord(longitude)}";
 
-            var url = $"{GeocodeEndpoint}?latlng={Uri.EscapeDataString(latLng)}&key={_apiKey}";
+            var url = $"{GeocodeEndpoint}?latlng={Uri.EscapeDataString(latLng)}&language={ServerLanguage}&key={_apiKey}";
 
             var payload = await GetAsync(url, cancellationToken);
 

@@ -159,7 +159,34 @@ namespace Raphael.Shared.Routing
         /// Google's terms allow a place id to be stored indefinitely, which makes this the one
         /// key in the table that is unambiguously ours to keep.
         /// </remarks>
-        public static string ForPlace(string placeId) =>
-            "place:" + (placeId ?? string.Empty).Trim();
+        /// <param name="placeId">The Google place id.</param>
+        /// <param name="language">
+        /// The language the client loaded Maps in. Google writes the address in it — a Spanish
+        /// session stores "EE. UU." where an English one stores "USA" — so each language is its
+        /// own entry and nobody is served another language's text. A client that does not say
+        /// gets the legacy key, which mixes languages and which language-aware clients never read.
+        /// </param>
+        public static string ForPlace(string placeId, string? language = null)
+        {
+            var key = "place:" + (placeId ?? string.Empty).Trim();
+            var lang = NormalizeLanguage(language);
+
+            return lang is null ? key : key + "|" + lang;
+        }
+
+        /// <summary>
+        /// The primary subtag of a language tag, lower-cased — <c>"es-419"</c> and <c>"ES"</c>
+        /// are both <c>"es"</c> — or null when there is none worth keying on.
+        /// </summary>
+        public static string? NormalizeLanguage(string? language)
+        {
+            if (string.IsNullOrWhiteSpace(language)) return null;
+
+            var primary = language.Trim().Split('-', '_')[0].ToLowerInvariant();
+
+            return primary.Length is 2 or 3 && primary.All(c => c is >= 'a' and <= 'z')
+                ? primary
+                : null;
+        }
     }
 }

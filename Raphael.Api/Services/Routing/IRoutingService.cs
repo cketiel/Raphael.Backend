@@ -44,8 +44,11 @@ namespace Raphael.Api.Services.Routing
         /// Status <c>NotFound</c> is not a failure here: it means nobody has bought this place
         /// yet, and the caller — which holds the only key with Places enabled — should fetch it
         /// and hand it back through <see cref="StorePlaceAsync"/>.
+        /// The answer is in <paramref name="language"/> or not at all: a place known only in
+        /// another language is <c>NotFound</c>, because serving it would put that language's
+        /// address text on the caller's trip.
         /// </remarks>
-        Task<PlaceDetailsDto> GetPlaceAsync(string placeId, CancellationToken cancellationToken);
+        Task<PlaceDetailsDto> GetPlaceAsync(string placeId, string? language, CancellationToken cancellationToken);
 
         /// <summary>Remembers a place a client had to buy, so nobody buys it twice.</summary>
         Task StorePlaceAsync(PlaceDetailsDto place, CancellationToken cancellationToken);
