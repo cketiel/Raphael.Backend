@@ -1794,7 +1794,11 @@ namespace Raphael.Api.Services
                     DriverNoShowReason = t.DriverNoShowReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
-                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
+                    FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null,
+                    // The Booking Portal edits what it reads here and posts it back whole: a city
+                    // left out of this projection was a city erased on the next save.
+                    PickupCity = t.PickupCity,
+                    DropoffCity = t.DropoffCity
                 })
                 .ToListAsync();
 
