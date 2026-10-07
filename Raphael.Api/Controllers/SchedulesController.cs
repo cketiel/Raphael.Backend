@@ -314,10 +314,32 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpGet("reports/production")]
-        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionReport([FromQuery] DateTime date, [FromQuery] int? fundingSourceId)
+        public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionReport(
+            [FromQuery] DateTime date,
+            [FromQuery] int? fundingSourceId,
+            [FromQuery] bool includeSignatures = false)
         {
             var reportData = await _scheduleService.GetProductionReportDataAsync(date, fundingSourceId);
-            return Ok(reportData);
+            return Ok(WithSignatures(reportData, includeSignatures));
+        }
+
+        /// <summary>
+        /// Drops the patients' signatures from a production report unless the caller asked for them.
+        /// </summary>
+        /// <remarks>
+        /// A signature is PHI, and a report row carries one per trip: a month of rows was a month
+        /// of signatures downloaded by screens that only show a table. Only what prints them — the
+        /// Desktop's trip PDF — asks with <c>includeSignatures=true</c>.
+        /// </remarks>
+        private static IEnumerable<ProductionReportRowDto> WithSignatures(
+            IEnumerable<ProductionReportRowDto> rows,
+            bool includeSignatures)
+        {
+            if (includeSignatures) return rows;
+
+            var list = rows.ToList();
+            foreach (var row in list) row.PickupSignature = null;
+            return list;
         }
 
         [HttpGet("reports/production-range")]
@@ -325,7 +347,8 @@ namespace Raphael.Api.Controllers
             [FromQuery] DateTime startDate,
             [FromQuery] DateTime endDate,
             [FromQuery] string? fundingSourceIds,
-            [FromQuery] string? vehicleRouteIds) // 
+            [FromQuery] string? vehicleRouteIds,
+            [FromQuery] bool includeSignatures = false)
         {
             List<int>? fsIds = null;
             if (!string.IsNullOrEmpty(fundingSourceIds))
@@ -341,14 +364,15 @@ namespace Raphael.Api.Controllers
 
             // Actualizar la llamada al servicio para incluir vrIds
             var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, fsIds, vrIds);
-            return Ok(reportData);
+            return Ok(WithSignatures(reportData, includeSignatures));
         }
 
         [HttpGet("reports/production-range2")]
         public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionRangeReport2(
             [FromQuery] DateTime startDate,
             [FromQuery] DateTime endDate,
-            [FromQuery] string? fundingSourceIds)
+            [FromQuery] string? fundingSourceIds,
+            [FromQuery] bool includeSignatures = false)
         {
             List<int>? ids = null;
             if (!string.IsNullOrEmpty(fundingSourceIds))
@@ -358,7 +382,7 @@ namespace Raphael.Api.Controllers
 
             // Call a new service method or update the existing one to handle ranges
             var reportData = await _scheduleService.GetProductionReportDataByRangeAsync2(startDate, endDate, ids);
-            return Ok(reportData);
+            return Ok(WithSignatures(reportData, includeSignatures));
         }
 
         [HttpGet("reports/aviata")]
