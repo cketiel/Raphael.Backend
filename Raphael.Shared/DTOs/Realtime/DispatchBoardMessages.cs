@@ -81,6 +81,42 @@ namespace Raphael.Shared.DTOs.Realtime
     }
 
     /// <summary>
+    /// Where the vehicle carrying one of a clinic's trips is, sent only while that trip is under
+    /// way (driver on the way, at the door, or carrying the patient).
+    /// </summary>
+    /// <remarks>
+    /// Keyed by trip, not by route: the clinic never learns the route, and outside that window
+    /// the vehicle is on its way to other patients, whose homes its position would give away.
+    /// </remarks>
+    public class TripVehiclePositionMessage
+    {
+        public int TripId { get; set; }
+
+        public double Latitude { get; set; }
+
+        public double Longitude { get; set; }
+
+        public double Speed { get; set; }
+
+        public string? Direction { get; set; }
+
+        public DateTime AtUtc { get; set; }
+    }
+
+    /// <summary>What a clinic gets back when it asks to follow one of its trips.</summary>
+    public class WatchTripResult
+    {
+        /// <summary>
+        /// True while the trip is under way. When false the screen says that the vehicle can only
+        /// be seen during the trip, and no position is sent.
+        /// </summary>
+        public bool InProgress { get; set; }
+
+        /// <summary>The last position reported, so the map does not wait for the next fix. Null when none.</summary>
+        public TripVehiclePositionMessage? Position { get; set; }
+    }
+
+    /// <summary>
     /// A driver's call request changed: it arrived, was reminded, taken, released or closed.
     /// </summary>
     /// <remarks>

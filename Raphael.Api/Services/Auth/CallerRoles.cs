@@ -12,6 +12,9 @@ namespace Raphael.Api.Services.Auth
 
         int? ProviderIdOf(ClaimsPrincipal user);
 
+        /// <summary>The integrator a clinic (Booking Portal) user belongs to, from <c>UserIntegratorId</c>.</summary>
+        int? IntegratorIdOf(ClaimsPrincipal user);
+
         /// <summary>Dispatch office staff: not a driver, patient, integration or integrator-bound user.</summary>
         bool IsOffice(ClaimsPrincipal user);
     }
@@ -34,6 +37,8 @@ namespace Raphael.Api.Services.Auth
         public int? UserIdOf(ClaimsPrincipal user) => IntClaim(user, "UserId");
 
         public int? ProviderIdOf(ClaimsPrincipal user) => IntClaim(user, "UserProviderId");
+
+        public int? IntegratorIdOf(ClaimsPrincipal user) => IntClaim(user, "UserIntegratorId");
 
         public bool IsOffice(ClaimsPrincipal user) =>
             UserIdOf(user).HasValue

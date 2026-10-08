@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs.Realtime;
 
 namespace Raphael.Api.Realtime
@@ -36,13 +38,16 @@ namespace Raphael.Api.Realtime
     public class DispatchBroadcaster : IDispatchBroadcaster
     {
         private readonly IHubContext<DispatchHub, IDispatchClient> _hub;
+        private readonly RaphaelContext _context;
         private readonly ILogger<DispatchBroadcaster> _logger;
 
         public DispatchBroadcaster(
             IHubContext<DispatchHub, IDispatchClient> hub,
+            RaphaelContext context,
             ILogger<DispatchBroadcaster> logger)
         {
             _hub = hub;
+            _context = context;
             _logger = logger;
         }
 
@@ -96,9 +101,53 @@ namespace Raphael.Api.Realtime
         public Task VehiclePositionAsync(VehiclePositionMessage position, DateTime operatingDate) =>
             SafeAsync(
                 nameof(VehiclePositionAsync),
-                () => _hub.Clients
-                    .Group(DispatchGroups.Route(position.VehicleRouteId, operatingDate))
-                    .VehiclePosition(position));
+                async () =>
+                {
+                    await _hub.Clients
+                        .Group(DispatchGroups.Route(position.VehicleRouteId, operatingDate))
+                        .VehiclePosition(position);
+
+                    await TripPositionsAsync(position, operatingDate);
+                });
+
+        /// <summary>
+        /// The same fix, to the clinics whose trip on this route is under way right now.
+        /// </summary>
+        /// <remarks>
+        /// The window is checked on every fix, so a trip stops receiving positions the moment it
+        /// finishes, with nothing to unsubscribe. The filter is ignored on purpose: this runs in the
+        /// driver's request, whose scope would hide the clinics' trips.
+        /// </remarks>
+        private async Task TripPositionsAsync(VehiclePositionMessage position, DateTime operatingDate)
+        {
+            var day = operatingDate.Date;
+            var underWay = TripTracking.UnderWayStatuses.ToList();
+
+            var tripIds = await _context.Trips
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(t => t.VehicleRouteId == position.VehicleRouteId
+                            && t.Date.Date == day
+                            && t.IntegratorId != null
+                            && underWay.Contains(t.Status))
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            foreach (var tripId in tripIds)
+            {
+                await _hub.Clients
+                    .Group(DispatchGroups.Trip(tripId))
+                    .TripVehiclePosition(new TripVehiclePositionMessage
+                    {
+                        TripId = tripId,
+                        Latitude = position.Latitude,
+                        Longitude = position.Longitude,
+                        Speed = position.Speed,
+                        Direction = position.Direction,
+                        AtUtc = position.AtUtc
+                    });
+            }
+        }
 
         public Task CallRequestChangedAsync(CallRequestChangedMessage message, int? providerId) =>
             SafeAsync(

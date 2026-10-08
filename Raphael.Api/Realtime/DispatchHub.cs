@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services;
 using Raphael.Api.Services.Auth;
+using Raphael.Shared.DbContexts;
+using Raphael.Shared.DTOs.Realtime;
 using System.Globalization;
 
 namespace Raphael.Api.Realtime
@@ -23,10 +27,14 @@ namespace Raphael.Api.Realtime
     public class DispatchHub : Hub<IDispatchClient>
     {
         private readonly ICallerRoles _roles;
+        private readonly RaphaelContext _context;
+        private readonly IGpsService _gps;
 
-        public DispatchHub(ICallerRoles roles)
+        public DispatchHub(ICallerRoles roles, RaphaelContext context, IGpsService gps)
         {
             _roles = roles;
+            _context = context;
+            _gps = gps;
         }
 
         /// <summary>
@@ -53,6 +61,10 @@ namespace Raphael.Api.Realtime
         {
             if (vehicleRouteId <= 0 || !TryParseDay(date, out var day)) return;
 
+            // A clinic follows its own trips through WatchTrip, never a whole route: a route
+            // carries other patients, and its vehicle shows where they are picked up.
+            if (IsClinic()) return;
+
             await Groups.AddToGroupAsync(Context.ConnectionId, DispatchGroups.Route(vehicleRouteId, day));
         }
 
@@ -61,6 +73,61 @@ namespace Raphael.Api.Realtime
             if (vehicleRouteId <= 0 || !TryParseDay(date, out var day)) return;
 
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, DispatchGroups.Route(vehicleRouteId, day));
+        }
+
+        /// <summary>
+        /// A clinic starts following one of its own trips: the vehicle's position arrives while the
+        /// trip is under way, and only then.
+        /// </summary>
+        /// <returns>
+        /// Null when the trip is not the caller's, or the caller is not a clinic. Otherwise whether the
+        /// trip is under way, with the last position reported when it is.
+        /// </returns>
+        public async Task<WatchTripResult?> WatchTrip(int tripId)
+        {
+            var integratorId = Context.User is null ? null : _roles.IntegratorIdOf(Context.User);
+            if (tripId <= 0 || integratorId is null) return null;
+
+            // The ownership check is ours, not the query filter's: inside a hub the filter has no
+            // request to read the caller from.
+            var trip = await _context.Trips
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(t => t.Id == tripId && t.IntegratorId == integratorId)
+                .Select(t => new { t.Id, t.Status, t.VehicleRouteId })
+                .FirstOrDefaultAsync();
+
+            if (trip is null) return null;
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, DispatchGroups.Trip(trip.Id));
+
+            if (!TripTracking.IsUnderWay(trip.Status) || trip.VehicleRouteId is null)
+            {
+                return new WatchTripResult { InProgress = false };
+            }
+
+            var latest = await _gps.GetLatestGpsDataAsync(trip.VehicleRouteId.Value);
+
+            return new WatchTripResult
+            {
+                InProgress = true,
+                Position = latest is null ? null : new TripVehiclePositionMessage
+                {
+                    TripId = trip.Id,
+                    Latitude = latest.Latitude,
+                    Longitude = latest.Longitude,
+                    Speed = latest.Speed,
+                    Direction = latest.Direction,
+                    AtUtc = latest.DateTime
+                }
+            };
+        }
+
+        public async Task UnwatchTrip(int tripId)
+        {
+            if (tripId <= 0) return;
+
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, DispatchGroups.Trip(tripId));
         }
 
         /// <summary>
@@ -89,6 +156,9 @@ namespace Raphael.Api.Realtime
         /// <c>ProviderId</c>, which no token carries, so every user landed in the internal scope
         /// and heard every provider.
         /// </remarks>
+        private bool IsClinic() =>
+            Context.User is not null && _roles.IntegratorIdOf(Context.User).HasValue;
+
         private string CallerScope()
         {
             var providerId = Context.User is null ? null : _roles.ProviderIdOf(Context.User);

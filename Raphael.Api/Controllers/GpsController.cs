@@ -76,6 +76,10 @@ namespace Raphael.Api.Controllers
         [HttpGet("latest/{vehicleRouteId}")]
         public async Task<ActionResult<GpsDataDto>> GetLatestGpsData(int vehicleRouteId)
         {
+            // A clinic sees a vehicle only through DispatchHub.WatchTrip, for its own trip and only
+            // while it is under way. A route id would show it a vehicle carrying other patients.
+            if (_currentUser.IntegratorId != null) return NotFound();
+
             try
             {
                 var gpsData = await _gpsService.GetLatestGpsDataAsync(vehicleRouteId);

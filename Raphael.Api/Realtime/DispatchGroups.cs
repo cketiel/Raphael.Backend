@@ -29,6 +29,13 @@ namespace Raphael.Api.Realtime
         public static string Route(int vehicleRouteId, DateTime date) =>
             $"route:{vehicleRouteId}:{Day(date)}";
 
+        /// <summary>
+        /// One clinic trip. Positions reach it only while the trip is under way
+        /// (<see cref="TripTracking.IsUnderWay"/>), decided on every fix, not when joining.
+        /// </summary>
+        public static string Trip(int tripId) =>
+            $"trip:{tripId}";
+
         /// <summary>The drivers' call-back queue. Not per day: a case stays open until someone closes it.</summary>
         public static string CallRequests(string scope) =>
             $"callrequests:{scope}";
