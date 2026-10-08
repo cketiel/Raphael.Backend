@@ -332,9 +332,13 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 // Entity Framework DB
-builder.Services.AddDbContext<RaphaelContext>(options =>
+// Tells a clinic's open trip list when one of its trips changes status, whatever code changed it.
+builder.Services.AddSingleton<Raphael.Api.Realtime.ClinicTripStatusInterceptor>();
+
+builder.Services.AddDbContext<RaphaelContext>((sp, options) =>
 {
     options.UseSqlServer(connectionString);
+    options.AddInterceptors(sp.GetRequiredService<Raphael.Api.Realtime.ClinicTripStatusInterceptor>());
 
     if (logSensitiveData)
     {

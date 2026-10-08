@@ -36,6 +36,10 @@ namespace Raphael.Api.Realtime
         public static string Trip(int tripId) =>
             $"trip:{tripId}";
 
+        /// <summary>Every trip of one clinic (integrator): its trip list hears their status changes.</summary>
+        public static string Clinic(int integratorId) =>
+            $"clinic:{integratorId}";
+
         /// <summary>The drivers' call-back queue. Not per day: a case stays open until someone closes it.</summary>
         public static string CallRequests(string scope) =>
             $"callrequests:{scope}";

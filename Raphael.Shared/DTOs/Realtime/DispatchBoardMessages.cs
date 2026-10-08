@@ -103,6 +103,25 @@ namespace Raphael.Shared.DTOs.Realtime
         public DateTime AtUtc { get; set; }
     }
 
+    /// <summary>
+    /// One of a clinic's trips changed status. The Booking Portal updates that row in place.
+    /// </summary>
+    /// <remarks>
+    /// The portal's own message, not a notification: it carries every status change (Arrived and
+    /// InProgress too), and the integrators that use the API never see it, so their contract is
+    /// untouched. Nothing here is stored.
+    /// </remarks>
+    public class TripStatusChangedMessage
+    {
+        public int TripId { get; set; }
+
+        public string Status { get; set; } = string.Empty;
+
+        public bool IsCancelled { get; set; }
+
+        public DateTime Date { get; set; }
+    }
+
     /// <summary>What a clinic gets back when it asks to follow one of its trips.</summary>
     public class WatchTripResult
     {

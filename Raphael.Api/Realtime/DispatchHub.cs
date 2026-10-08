@@ -123,6 +123,18 @@ namespace Raphael.Api.Realtime
             };
         }
 
+        /// <summary>
+        /// A clinic's trip list starts hearing the status changes of its own trips. The clinic
+        /// comes from the token, so a caller cannot ask for another clinic's.
+        /// </summary>
+        public async Task WatchClinic()
+        {
+            var integratorId = Context.User is null ? null : _roles.IntegratorIdOf(Context.User);
+            if (integratorId is null) return;
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, DispatchGroups.Clinic(integratorId.Value));
+        }
+
         public async Task UnwatchTrip(int tripId)
         {
             if (tripId <= 0) return;

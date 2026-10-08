@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Realtime;
 using Raphael.Api.Services;
+using Raphael.Shared.DbContexts;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
@@ -189,6 +192,56 @@ namespace Raphael.Api.Controllers
             }
 
             return Ok(new { Success = true, CancelledCount = count, Attempted = externalIds.Count });
+        }
+
+        /// <summary>One of the clinic's trips, for its tracking view: places, route ETAs and what already happened.</summary>
+        /// <remarks>The Trip query filter keeps it to the caller's integrator: another clinic's trip is a 404.</remarks>
+        [HttpGet("trips/{id:int}/tracking")]
+        [ProducesResponseType(typeof(TripTrackingDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<TripTrackingDto>> GetTripTracking(int id, [FromServices] RaphaelContext context)
+        {
+            var trip = await context.Trips
+                .AsNoTracking()
+                .Where(t => t.Id == id)
+                .Select(t => new TripTrackingDto
+                {
+                    TripId = t.Id,
+                    Status = t.Status,
+                    IsCancelled = t.IsCancelled,
+                    Date = t.Date,
+                    PickupAddress = t.PickupAddress,
+                    PickupLatitude = t.PickupLatitude,
+                    PickupLongitude = t.PickupLongitude,
+                    DropoffAddress = t.DropoffAddress,
+                    DropoffLatitude = t.DropoffLatitude,
+                    DropoffLongitude = t.DropoffLongitude,
+                    RequestedPickupTime = t.FromTime,
+                    AppointmentTime = t.ToTime
+                })
+                .FirstOrDefaultAsync();
+
+            if (trip == null) return NotFound();
+
+            trip.InProgress = !trip.IsCancelled && TripTracking.IsUnderWay(trip.Status);
+
+            var stops = await context.Schedules
+                .AsNoTracking()
+                .Where(s => s.TripId == id)
+                .Select(s => new { s.EventType, s.ETATime, s.ActualArriveTime, s.ActualPerformTime })
+                .ToListAsync();
+
+            var pickup = stops.FirstOrDefault(s => s.EventType == ScheduleEventType.Pickup);
+            var dropoff = stops.FirstOrDefault(s => s.EventType == ScheduleEventType.Dropoff);
+
+            trip.PickupEta = pickup?.ETATime;
+            trip.PickupArrivedAt = pickup?.ActualArriveTime;
+            trip.PickedUpAt = pickup?.ActualPerformTime;
+            trip.DropoffEta = dropoff?.ETATime;
+            trip.DropoffArrivedAt = dropoff?.ActualArriveTime;
+            trip.DroppedOffAt = dropoff?.ActualPerformTime;
+
+            return Ok(trip);
         }
 
         [HttpGet("my-funding-source")]

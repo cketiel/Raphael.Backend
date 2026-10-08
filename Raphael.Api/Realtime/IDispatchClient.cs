@@ -21,6 +21,8 @@ namespace Raphael.Api.Realtime
 
         Task TripVehiclePosition(TripVehiclePositionMessage message);
 
+        Task TripStatusChanged(TripStatusChangedMessage message);
+
         Task CallRequestChanged(CallRequestChangedMessage message);
     }
 }
