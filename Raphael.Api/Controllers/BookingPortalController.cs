@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Realtime;
 using Raphael.Api.Services;
+using Raphael.Notification.Application.DTOs;
+using Raphael.Notification.Application.Helpers;
+using Raphael.Notification.Application.Queries.GetRecipientNotifications;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
@@ -265,6 +268,33 @@ namespace Raphael.Api.Controllers
             if (fundingSource == null) return NotFound("No funding source linked to this integrator.");
 
             return Ok(fundingSource);
+        }
+
+        /// <summary>
+        /// The clinic's notices: what its integrator is told, the same rows the API Key integration reads.
+        /// </summary>
+        /// <remarks>
+        /// Expired ones are not returned, so the window is the retention policy's for an integration
+        /// (seven days). Read state is not kept here: the recipient is the whole integrator, shared by
+        /// every user of the clinic and by its API Key client, so the portal keeps it per user.
+        /// </remarks>
+        [HttpGet("notifications")]
+        [ProducesResponseType(typeof(IReadOnlyList<NotificationDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetMyNotifications(
+            [FromServices] GetRecipientNotificationsHandler handler,
+            CancellationToken cancellationToken)
+        {
+            // An office session has no integrator: it has its own inbox in the Desktop.
+            if (CurrentIntegratorId is not > 0) return Forbid();
+
+            var result = await handler.Handle(
+                new GetRecipientNotificationsQuery(
+                    UserIdentifierConverter.ToGuid(CurrentIntegratorId.Value, RecipientType.Integration),
+                    RecipientType.Integration),
+                cancellationToken);
+
+            return Ok(result);
         }
     }
 }
