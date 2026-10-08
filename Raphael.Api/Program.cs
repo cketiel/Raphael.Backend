@@ -506,6 +506,8 @@ builder.Services.AddScoped<ICatalogIntegratorService, CatalogIntegratorService>(
 builder.Services.AddScoped<ICatalogProviderService, CatalogProviderService>();
 // One version of an entity's name, address and contact: the catalog's (CATALOG_MODEL.md §4.1).
 builder.Services.AddScoped<Raphael.Api.Services.Catalog.ICatalogAccountSync, Raphael.Api.Services.Catalog.CatalogAccountSync>();
+// The catalog as a clinic sees it in the Booking Portal.
+builder.Services.AddScoped<Raphael.Api.Services.Catalog.IPortalCatalogService, Raphael.Api.Services.Catalog.PortalCatalogService>();
 builder.Services.AddScoped<ICatalogLookupService, CatalogLookupService>();
 
 // Counts what we ask Google and what the cache answers, so the administrator's panel can show

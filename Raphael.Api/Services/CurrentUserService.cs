@@ -15,6 +15,7 @@ namespace Raphael.Api.Services
         public string? UserName => GetClaimValue("Username");
         public int? IntegratorId => GetClaimAsInt("UserIntegratorId");
         public int? ProviderId => GetClaimAsInt("UserProviderId");
+        public int? RoleId => GetClaimAsInt("Role");
  
         public bool IsMilanesInternal => IntegratorId == null && ProviderId == null;
 

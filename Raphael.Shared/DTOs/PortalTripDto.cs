@@ -23,5 +23,14 @@ namespace Raphael.Shared.DTOs
 
         public string? RoundTripPickupComment { get; set; }
         public string? RoundTripDropoffComment { get; set; }
+
+        /// <summary>
+        /// The Provider the clinic gives the trip to; null is the super broker. Applied only when
+        /// <see cref="SetProvider"/> is true: the old Booking Web never sends it, and reading its
+        /// silence as "super broker" would wipe a Provider the office had assigned.
+        /// </summary>
+        public int? ProviderId { get; set; }
+
+        public bool SetProvider { get; set; }
     }
 }

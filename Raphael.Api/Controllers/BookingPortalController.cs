@@ -33,7 +33,7 @@ namespace Raphael.Api.Controllers
         private int? CurrentIntegratorId => _currentUserService.IntegratorId;
 
         [HttpPost("sync-single")]
-        public async Task<IActionResult> SyncSingle([FromForm] PortalTripDto trip)
+        public async Task<IActionResult> SyncSingle([FromForm] PortalTripDto trip, [FromServices] Raphael.Api.Services.Catalog.IPortalCatalogService catalog)
         {
             if (trip == null) return BadRequest("Trip data is required.");
 
@@ -73,6 +73,18 @@ namespace Raphael.Api.Controllers
             if (trip.IsRoundTrip && !trip.ReturnTime.HasValue)
             {
                 return BadRequest("A round trip needs a return time.");
+            }
+
+            // A clinic may give a trip only to a Provider it contracted and that operates in Raphael.
+            // Keeping the one the trip already has is always allowed: the office may have assigned it.
+            // Internal broker users have no contracted list and may give it to any Provider.
+            if (trip.SetProvider && trip.ProviderId is int providerId && CurrentIntegratorId != null)
+            {
+                var keepsCurrent = isEdit && (await _tripService.GetByIdAsync(trip.InternalId!.Value))?.ProviderId == providerId;
+                if (!keepsCurrent && !await catalog.IsAssignableAsync(providerId, HttpContext.RequestAborted))
+                {
+                    return BadRequest("This provider cannot receive trips from this facility. Choose one from your contracted providers.");
+                }
             }
 
             if (trip.IsRoundTrip && await OutboundTripExistsAsync(trip, isEdit))

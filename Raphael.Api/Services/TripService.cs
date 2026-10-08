@@ -147,7 +147,9 @@ namespace Raphael.Api.Services
                         Authorization = dto.Authorization,
                         Attachment = dto.Attachment, // We reuse the same file if it exists.
                         PickupComment = dto.RoundTripPickupComment,
-                        DropoffComment = dto.RoundTripDropoffComment
+                        DropoffComment = dto.RoundTripDropoffComment,
+                        ProviderId = dto.ProviderId,
+                        SetProvider = dto.SetProvider
                     };
 
                     var returnTripInternalId = await ProcessSingleTripAsync(returnDto, customer.Id, spaceType.Id, fundingSource.Id, integratorId, true);
@@ -250,6 +252,13 @@ namespace Raphael.Api.Services
             trip.IsCancelled = false;
             trip.PickupComment = dto.PickupComment;
             trip.DropoffComment = dto.DropoffComment;
+
+            // Only when the portal says so (PortalTripDto.SetProvider); the controller has checked
+            // the clinic may give trips to this Provider.
+            if (dto.SetProvider)
+            {
+                trip.ProviderId = dto.ProviderId;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -1491,6 +1500,7 @@ namespace Raphael.Api.Services
 
             return new TripReadDto
             {
+                ProviderId = t.ProviderId,
                 Id = t.Id,
                 Day = t.Day,
                 Date = t.Date,
@@ -1861,7 +1871,9 @@ namespace Raphael.Api.Services
                     // The Booking Portal edits what it reads here and posts it back whole: a city
                     // left out of this projection was a city erased on the next save.
                     PickupCity = t.PickupCity,
-                    DropoffCity = t.DropoffCity
+                    DropoffCity = t.DropoffCity,
+                    ProviderId = t.ProviderId,
+                    ProviderName = t.Provider != null ? t.Provider.Name : null
                 })
                 .ToListAsync();
 

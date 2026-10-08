@@ -48,6 +48,10 @@ namespace Raphael.Shared.DTOs
         public string? FundingSourceName { get; set; }
         public string? PickupCity { get; set; }
         public string? DropoffCity { get; set; }
+
+        /// <summary>The Provider carrying out the trip; null when it is the super broker's.</summary>
+        public int? ProviderId { get; set; }
+        public string? ProviderName { get; set; }
     }
 
 
