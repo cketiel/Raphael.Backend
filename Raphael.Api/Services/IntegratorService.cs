@@ -1,3 +1,4 @@
+using Raphael.Api.Services.Catalog;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
@@ -10,11 +11,13 @@ namespace Raphael.Api.Services
     {
         private readonly RaphaelContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly ICatalogAccountSync _catalogSync;
 
-        public IntegratorService(RaphaelContext context, ICurrentUserService currentUser)
+        public IntegratorService(RaphaelContext context, ICurrentUserService currentUser, ICatalogAccountSync catalogSync)
         {
             _context = context;
             _currentUser = currentUser;
+            _catalogSync = catalogSync;
         }
 
         public async Task<IEnumerable<IntegratorDto>> GetAllAsync()
@@ -73,25 +76,20 @@ namespace Raphael.Api.Services
         {
             var integrator = new Integrator
             {
-                Name = dto.Name,
                 IsActive = true,
                 Created = DateTime.UtcNow,
                 ApiKey = GenerateKey(), // Automatic generation
                 FundingSourceId = dto.FundingSourceId,
-                Phone = dto.Phone,
-                Website = dto.Website,
-                Email = dto.Email,
-                Address = dto.Address,
-                ContactName = dto.ContactName,
                 Comments = dto.Comments,
-                Latitude = dto.Latitude,
-                Longitude = dto.Longitude,
                 CatalogIntegratorId = dto.CatalogIntegratorId,
 
                 // From the token, never from the request. A client that could name its own
                 // owner could claim another company's entities as its own.
                 OwnerProviderId = _currentUser.ProviderId
             };
+
+            // Name, address and contact: the catalog's when the account comes out of it.
+            await _catalogSync.SaveIntegratorIdentityAsync(integrator, Identity(dto));
 
             _context.Integrators.Add(integrator);
             await _context.SaveChangesAsync();
@@ -105,17 +103,9 @@ namespace Raphael.Api.Services
             var existing = await _context.Integrators.FindAsync(id);
             if (existing == null) return false;
 
-            existing.Name = dto.Name;
             existing.IsActive = dto.IsActive;
             existing.FundingSourceId = dto.FundingSourceId;
-            existing.Phone = dto.Phone;
-            existing.Website = dto.Website;
-            existing.Email = dto.Email;
-            existing.Address = dto.Address;
-            existing.ContactName = dto.ContactName;
             existing.Comments = dto.Comments;
-            existing.Latitude = dto.Latitude;
-            existing.Longitude = dto.Longitude;
 
             // The link to the catalog is set once, when the row is created out of it. An update
             // can fill it in if it was never set, but it cannot move a row to another entity:
@@ -124,6 +114,9 @@ namespace Raphael.Api.Services
             {
                 existing.CatalogIntegratorId = dto.CatalogIntegratorId;
             }
+
+            // Name, address and contact go through the catalog when the account is linked to it.
+            await _catalogSync.SaveIntegratorIdentityAsync(existing, Identity(dto));
 
             if (dto.RegenerateApiKey)
             {
@@ -142,6 +135,9 @@ namespace Raphael.Api.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        private static AccountIdentity Identity(IntegratorDto dto) =>
+            new(dto.Name, dto.Address, dto.Phone, dto.Email, dto.Website, dto.ContactName, dto.Latitude, dto.Longitude);
 
         private string GenerateKey()
         {

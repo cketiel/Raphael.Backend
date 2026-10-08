@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Services.Catalog;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
@@ -13,15 +14,18 @@ namespace Raphael.Api.Services
         private const int ContactProviderId = 1;
         private readonly IWebHostEnvironment _environment;
         private readonly ICurrentUserService _currentUser;
+        private readonly ICatalogAccountSync _catalogSync;
 
         public ProviderService(
             RaphaelContext context,
             IWebHostEnvironment environment,
-            ICurrentUserService currentUser)
+            ICurrentUserService currentUser,
+            ICatalogAccountSync catalogSync)
         {
             _context = context;
             _environment = environment;
             _currentUser = currentUser;
+            _catalogSync = catalogSync;
         }
 
         public async Task<ProviderDto?> GetContactProviderAsync()
@@ -60,13 +64,7 @@ namespace Raphael.Api.Services
                 return false; 
             }
            
-            provider.Name = providerDto.Name;
-            provider.Address = providerDto.Address;
-            provider.Email = providerDto.Email;
-            provider.Phone = providerDto.Phone;
             provider.Logo = providerDto.Logo;
-            provider.Latitude = providerDto.Latitude;
-            provider.Longitude = providerDto.Longitude;
 
             // ⚠️ Only when the caller actually sent them, and this is not a nicety.
             //
@@ -80,9 +78,20 @@ namespace Raphael.Api.Services
             // Expand / contract, GIT_WORKFLOW.md section 4: a backend change may never assume
             // the client already knows about the field. Clearing one of these is an edit made
             // on the screen that owns them.
-            if (providerDto.Website is not null) provider.Website = providerDto.Website;
-            if (providerDto.ContactName is not null) provider.ContactName = providerDto.ContactName;
             if (providerDto.Comments is not null) provider.Comments = providerDto.Comments;
+
+            // Name, address and contact go through the catalog when this account is linked to it,
+            // so the card the driver edits and the catalog never disagree. A field the Driver's
+            // older DTO does not send keeps its value (see above).
+            await _catalogSync.SaveProviderIdentityAsync(provider, new AccountIdentity(
+                providerDto.Name,
+                providerDto.Address,
+                providerDto.Phone,
+                providerDto.Email,
+                providerDto.Website ?? provider.Website,
+                providerDto.ContactName ?? provider.ContactName,
+                providerDto.Latitude,
+                providerDto.Longitude));
 
             await _context.SaveChangesAsync();
             return true;
@@ -120,22 +129,17 @@ namespace Raphael.Api.Services
 
             var provider = new Provider
             {
-                Name = dto.Name,
-                Address = dto.Address,
-                Email = dto.Email,
-                Phone = dto.Phone,
                 Logo = fileName, // Guardamos solo "guid.jpg"
-                Latitude = dto.Latitude,
-                Longitude = dto.Longitude,
                 TimeZoneId = dto.TimeZoneId,
-                Website = dto.Website,
-                ContactName = dto.ContactName,
                 Comments = dto.Comments,
                 CatalogProviderId = dto.CatalogProviderId,
 
                 // From the token, never from the request. See IntegratorService.
                 OwnerProviderId = _currentUser.ProviderId
             };
+
+            // Name, address and contact: the catalog's when the account comes out of it.
+            await _catalogSync.SaveProviderIdentityAsync(provider, Identity(dto));
 
             _context.Providers.Add(provider);
             await _context.SaveChangesAsync();
@@ -149,15 +153,7 @@ namespace Raphael.Api.Services
             var provider = await _context.Providers.FindAsync(id);
             if (provider == null) return false;
 
-            provider.Name = dto.Name;
-            provider.Address = dto.Address;
-            provider.Email = dto.Email;
-            provider.Phone = dto.Phone;
-            provider.Latitude = dto.Latitude;
-            provider.Longitude = dto.Longitude;
             provider.TimeZoneId = dto.TimeZoneId;
-            provider.Website = dto.Website;
-            provider.ContactName = dto.ContactName;
             provider.Comments = dto.Comments;
 
             // Set once, when the row is created out of the catalog. See IntegratorService.
@@ -165,6 +161,9 @@ namespace Raphael.Api.Services
             {
                 provider.CatalogProviderId = dto.CatalogProviderId;
             }
+
+            // Name, address and contact go through the catalog when the account is linked to it.
+            await _catalogSync.SaveProviderIdentityAsync(provider, Identity(dto));
 
             if (dto.LogoFile != null)
             {
@@ -181,6 +180,9 @@ namespace Raphael.Api.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        private static AccountIdentity Identity(ProviderDto dto) =>
+            new(dto.Name, dto.Address, dto.Phone, dto.Email, dto.Website, dto.ContactName, dto.Latitude, dto.Longitude);
 
         private async Task<string> SavePhysicalFile(IFormFile file)
         {          

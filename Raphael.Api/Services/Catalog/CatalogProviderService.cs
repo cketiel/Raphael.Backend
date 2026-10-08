@@ -22,17 +22,20 @@ namespace Raphael.Api.Services.Catalog
         private readonly ICurrentUserService _currentUser;
         private readonly IRoutingService _routing;
         private readonly ILogger<CatalogProviderService> _logger;
+        private readonly ICatalogAccountSync _catalogSync;
 
         public CatalogProviderService(
             RaphaelContext context,
             ICurrentUserService currentUser,
             IRoutingService routing,
-            ILogger<CatalogProviderService> logger)
+            ILogger<CatalogProviderService> logger,
+            ICatalogAccountSync catalogSync)
         {
             _context = context;
             _currentUser = currentUser;
             _routing = routing;
             _logger = logger;
+            _catalogSync = catalogSync;
         }
 
         /// <summary>
@@ -465,6 +468,9 @@ namespace Raphael.Api.Services.Catalog
             row.UpdatedByUserId = _currentUser.UserId;
             row.UpdatedByProviderId = _currentUser.ProviderId;
 
+            // The accounts made out of this entry take the change: one version of the entity.
+            await _catalogSync.SpreadAsync(row, cancellationToken);
+
             await _context.SaveChangesAsync(cancellationToken);
 
             return await GetByIdAsync(id, cancellationToken);
@@ -714,6 +720,12 @@ namespace Raphael.Api.Services.Catalog
                 foreach (var row in rows)
                 {
                     ApplyImportRow(entity!, row, request, key, counties);
+                }
+
+                // An entry updated by the file reaches the accounts made out of it.
+                if (!isNew)
+                {
+                    await _catalogSync.SpreadAsync(entity!, cancellationToken);
                 }
 
                 var line = new CatalogImportRowResultDto

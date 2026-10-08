@@ -504,6 +504,8 @@ builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
 // everything else that touches the context: each one reads the caller's company off the token.
 builder.Services.AddScoped<ICatalogIntegratorService, CatalogIntegratorService>();
 builder.Services.AddScoped<ICatalogProviderService, CatalogProviderService>();
+// One version of an entity's name, address and contact: the catalog's (CATALOG_MODEL.md §4.1).
+builder.Services.AddScoped<Raphael.Api.Services.Catalog.ICatalogAccountSync, Raphael.Api.Services.Catalog.CatalogAccountSync>();
 builder.Services.AddScoped<ICatalogLookupService, CatalogLookupService>();
 
 // Counts what we ask Google and what the cache answers, so the administrator's panel can show
@@ -1025,6 +1027,21 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     {
         var exceptionHandler = context.Features.Get<IExceptionHandlerFeature>();
         var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+
+        // Not a fault: the user tried to give an entity the name and zip of another catalog
+        // entry. Our own sentence, with no data in it, so it is safe to show.
+        if (exceptionHandler?.Error is Raphael.Api.Services.Catalog.CatalogConflictException conflict)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Title = conflict.Message,
+                Status = StatusCodes.Status409Conflict,
+                Instance = context.Request.Path
+            });
+            return;
+        }
 
         logger.LogError(exceptionHandler.Error, "Global exception handler caught error");
 
