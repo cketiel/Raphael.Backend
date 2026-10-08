@@ -48,7 +48,23 @@ public class NotificationHub : Hub<INotificationClient>
         }
 
         //
-        // 3. Internal users: Raphael.Desktop and Raphael.Driver.
+        // 3. Clinic users of the Booking Portal. They live in the Users table like the office,
+        //    but they belong to an integrator: they hear what their integrator hears and nothing
+        //    else. Treating them as internal put them in the office broadcast, which carries
+        //    every clinic's patients.
+        //
+        if (TryGetIntClaim("UserIntegratorId", out var userIntegratorId))
+        {
+            await Groups.AddToGroupAsync(
+                Context.ConnectionId,
+                NotificationGroups.Integrator(userIntegratorId));
+
+            await base.OnConnectedAsync();
+            return;
+        }
+
+        //
+        // 4. Internal users: Raphael.Desktop and Raphael.Driver.
         //    Both live in the Users table, so the role decides which one is connecting.
         //
         if (TryGetIntClaim("UserId", out var userId) ||
