@@ -32,6 +32,8 @@ namespace Raphael.Api.Services
                     APCompany = b.APCompany,
                     UnitAbbreviation = b.Unit.Abbreviation,
                     UnitId = b.UnitId,
+                    OwnerIntegratorId = b.OwnerIntegratorId,
+                    OwnerIntegratorName = b.OwnerIntegrator != null ? b.OwnerIntegrator.Name : null,
                 })
                 .ToListAsync();
         }

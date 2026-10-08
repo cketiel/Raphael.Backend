@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Raphael.Api.Attributes;
 using Raphael.Api.Services;
 using Raphael.Shared.Dtos;
 using Raphael.Shared.DTOs;
@@ -6,6 +7,11 @@ using Raphael.Shared.Entities;
 
 namespace Raphael.Api.Controllers
 {
+    /// <remarks>
+    /// The office's billing setup. A clinic never reaches it (B23): it keeps its own billing items and
+    /// rates through api/BookingPortal/admin, scoped to its integrator (BOOKING_ADMIN.md §4).
+    /// </remarks>
+    [NotForClinicUsers]
     [ApiController]
     [Route("api/[controller]")] 
     public class BillingItemsController : ControllerBase

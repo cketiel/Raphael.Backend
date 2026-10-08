@@ -508,6 +508,8 @@ builder.Services.AddScoped<ICatalogProviderService, CatalogProviderService>();
 builder.Services.AddScoped<Raphael.Api.Services.Catalog.ICatalogAccountSync, Raphael.Api.Services.Catalog.CatalogAccountSync>();
 // The catalog as a clinic sees it in the Booking Portal.
 builder.Services.AddScoped<Raphael.Api.Services.Catalog.IPortalCatalogService, Raphael.Api.Services.Catalog.PortalCatalogService>();
+// The Booking Portal's Admin tab: a clinic's users, record and billing (BOOKING_ADMIN.md).
+builder.Services.AddScoped<Raphael.Api.Services.BookingAdmin.IBookingAdminService, Raphael.Api.Services.BookingAdmin.BookingAdminService>();
 builder.Services.AddScoped<ICatalogLookupService, CatalogLookupService>();
 
 // Counts what we ask Google and what the cache answers, so the administrator's panel can show

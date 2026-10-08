@@ -617,6 +617,13 @@ namespace Raphael.Shared.DbContexts
                 .WithMany()
                 .HasForeignKey(b => b.UnitId);
 
+            // Restrict: an integrator with billing items of its own is not deleted under them.
+            modelBuilder.Entity<BillingItem>()
+                .HasOne(b => b.OwnerIntegrator)
+                .WithMany()
+                .HasForeignKey(b => b.OwnerIntegratorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<FundingSourceBillingItem>()
                 .HasOne(fsbi => fsbi.FundingSource)
                 .WithMany(fs => fs.BillingItems)

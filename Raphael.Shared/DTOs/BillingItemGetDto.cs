@@ -13,5 +13,11 @@
         public string? APCompany { get; set; }
         public string UnitAbbreviation { get; set; }
         public int UnitId { get; set; }
+
+        /// <summary>The clinic that keeps this item in the Booking Portal; null for the office's own.</summary>
+        public int? OwnerIntegratorId { get; set; }
+
+        /// <summary>That clinic's name, so the office can group the items without another call.</summary>
+        public string? OwnerIntegratorName { get; set; }
     }
 }

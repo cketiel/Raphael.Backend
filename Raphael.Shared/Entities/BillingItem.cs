@@ -17,6 +17,17 @@ namespace Raphael.Shared.Entities
         public string? APSubAccount { get; set; }
         public string? APCompany { get; set; }
         public ICollection<FundingSourceBillingItem> FundingSourceBillingItems { get; set; }
+
+        /// <summary>
+        /// The clinic that keeps this item through the Booking Portal; null for the office's own.
+        /// </summary>
+        /// <remarks>
+        /// A clinic never sees the office's list. It defines the items it bills with and rates them
+        /// on its funding source, and the office sees them grouped under that clinic (BOOKING_ADMIN.md §4).
+        /// </remarks>
+        public int? OwnerIntegratorId { get; set; }
+
+        public Integrator? OwnerIntegrator { get; set; }
     }
 }
 
