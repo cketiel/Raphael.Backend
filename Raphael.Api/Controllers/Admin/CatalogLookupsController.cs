@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.Catalog;
 using Raphael.Shared.DTOs.Catalog;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers.Admin
 {
     /// <summary>The fixed lists the catalog screens are built out of.</summary>
@@ -10,6 +11,8 @@ namespace Raphael.Api.Controllers.Admin
     [ApiController]
     [Route("api/admin/catalog")]
     [Authorize(Roles = "1")]
+    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    [NotForClinicUsers]
     public sealed class CatalogLookupsController : ControllerBase
     {
         private readonly ICatalogLookupService _lookups;

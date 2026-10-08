@@ -4,6 +4,7 @@ using Raphael.Api.Services.Catalog;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.DTOs.Catalog;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers.Admin
 {
     /// <summary>
@@ -17,6 +18,8 @@ namespace Raphael.Api.Controllers.Admin
     [ApiController]
     [Route("api/admin/catalog/providers")]
     [Authorize(Roles = "1")]
+    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    [NotForClinicUsers]
     public sealed class CatalogProvidersController : ControllerBase
     {
         private const int MaxImportRows = 200;

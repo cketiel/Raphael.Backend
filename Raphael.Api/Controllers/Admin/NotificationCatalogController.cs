@@ -10,6 +10,7 @@ using Raphael.Shared.Services;
 using NotificationRetentionService = Raphael.Notification.Application.Services.NotificationRetentionService;
 using NotificationArchiveService = Raphael.Notification.Application.Services.NotificationArchiveService;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers.Admin;
 
 
@@ -29,6 +30,8 @@ namespace Raphael.Api.Controllers.Admin;
 [ApiController]
 [Route("api/admin/notification/catalog")]
 [Authorize(Roles = "1")]
+// Office administration: role 1 is also a clinic's admin, who must not reach it.
+[NotForClinicUsers]
 public sealed class NotificationCatalogController : ControllerBase
 {
 

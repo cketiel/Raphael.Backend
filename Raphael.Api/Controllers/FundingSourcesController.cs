@@ -1,3 +1,4 @@
+using Raphael.Api.Attributes;
 
 using Raphael.Shared.Dtos;
 using Raphael.Shared.Entities;
@@ -75,6 +76,7 @@ namespace Raphael.Api.Controllers
 
         [HttpPost]
         [Authorize(Roles = "1")]
+        [NotForClinicUsers]
         public async Task<ActionResult<FundingSource>> Create(FundingSourceDto dto)
         {
             var created = await _service.CreateAsync(dto);
@@ -83,6 +85,7 @@ namespace Raphael.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "1")]
+        [NotForClinicUsers]
         public async Task<ActionResult<FundingSource>> Update(int id, FundingSourceDto dto)
         {
             var updated = await _service.UpdateAsync(id, dto);
@@ -92,6 +95,7 @@ namespace Raphael.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "1")]
+        [NotForClinicUsers]
         public async Task<IActionResult> Delete(int id)
         {
             var success = await _service.DeleteAsync(id);

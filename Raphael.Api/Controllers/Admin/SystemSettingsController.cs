@@ -5,6 +5,7 @@ using Raphael.Shared.DTOs.Routing;
 using Raphael.Shared.Entities.Routing;
 using Raphael.Shared.Interfaces;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers.Admin
 {
     /// <summary>
@@ -19,6 +20,8 @@ namespace Raphael.Api.Controllers.Admin
     [ApiController]
     [Route("api/admin/settings")]
     [Authorize(Roles = "1")]
+    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    [NotForClinicUsers]
     public sealed class SystemSettingsController : ControllerBase
     {
         private readonly ISystemSettingService _settings;

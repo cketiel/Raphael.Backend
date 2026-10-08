@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Raphael.Notification.Application.Services;
 using Raphael.Shared.Interfaces;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers.Admin;
 
 /// <summary>
@@ -22,6 +23,8 @@ namespace Raphael.Api.Controllers.Admin;
 [ApiController]
 [Route("api/admin/notification")]
 [Authorize(Roles = "1")]
+// Office administration: role 1 is also a clinic's admin, who must not reach it.
+[NotForClinicUsers]
 public sealed class NotificationAdminController : ControllerBase
 {
     private readonly NotificationArchiveService _archiveService;

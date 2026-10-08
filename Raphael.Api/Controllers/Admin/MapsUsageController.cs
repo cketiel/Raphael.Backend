@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.Routing;
 using Raphael.Shared.DTOs.Routing;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers.Admin
 {
     /// <summary>
@@ -16,6 +17,8 @@ namespace Raphael.Api.Controllers.Admin
     [ApiController]
     [Route("api/admin/maps-usage")]
     [Authorize(Roles = "1")]
+    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    [NotForClinicUsers]
     public sealed class MapsUsageController : ControllerBase
     {
         /// <summary>

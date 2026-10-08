@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers
 {
     /// <summary>
@@ -24,6 +25,8 @@ namespace Raphael.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "1")]
+    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    [NotForClinicUsers]
     public class IntegratorsController : ControllerBase
     {
         private readonly IIntegratorService _service;

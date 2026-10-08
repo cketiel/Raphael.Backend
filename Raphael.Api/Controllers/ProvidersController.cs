@@ -4,6 +4,7 @@ using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 using System.Threading.Tasks;
 
+using Raphael.Api.Attributes;
 namespace Raphael.Api.Controllers
 {
     /// <summary>
@@ -73,6 +74,7 @@ namespace Raphael.Api.Controllers
 
         [HttpPost]
         [Authorize(Roles = "1")]
+        [NotForClinicUsers]
         public async Task<IActionResult> Create([FromForm] ProviderDto dto) 
         {
             var result = await _providerService.CreateAsync(dto);
@@ -81,6 +83,7 @@ namespace Raphael.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "1")]
+        [NotForClinicUsers]
         public async Task<IActionResult> Update(int id, [FromForm] ProviderDto dto) 
         {
             var success = await _providerService.UpdateAsync(id, dto);
@@ -88,6 +91,7 @@ namespace Raphael.Api.Controllers
         }
         [HttpDelete("{id}")]
         [Authorize(Roles = "1")]
+        [NotForClinicUsers]
         public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
     }
 }
