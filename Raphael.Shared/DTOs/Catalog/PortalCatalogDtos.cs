@@ -120,7 +120,7 @@ namespace Raphael.Shared.DTOs.Catalog
 
         public string? PlanSegment { get; set; }
 
-        /// <summary>The caller may edit its contact details: a clinic admin who contracted it.</summary>
+        /// <summary>The caller may edit its contact details: any clinic admin, contracted or not.</summary>
         public bool CanEdit { get; set; }
 
         /// <summary>The caller may contract it or remove it: a clinic admin.</summary>

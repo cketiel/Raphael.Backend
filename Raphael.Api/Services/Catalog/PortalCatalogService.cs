@@ -229,7 +229,7 @@ namespace Raphael.Api.Services.Catalog
             if (detail is null) return null;
 
             detail.CanContract = IsClinicAdmin;
-            detail.CanEdit = IsClinicAdmin && detail.Contracted;
+            detail.CanEdit = IsClinicAdmin;
             return detail;
         }
 
@@ -278,7 +278,11 @@ namespace Raphael.Api.Services.Catalog
         {
             var clinicId = ClinicId;
             if (!IsClinicAdmin) throw new PortalCatalogDeniedException(notFound: false);
-            if (!await ContractedIds(clinicId).AnyAsync(x => x == id, ct)) throw new PortalCatalogDeniedException(notFound: true);
+            // Any entry the clinic can see, contracted or not (decision C, revised 2026-10-08): the
+            // catalog is shared, so the edit is authored and every app sees it.
+            var contracted = ContractedIds(clinicId);
+            if (!await _context.CatalogProviders.AnyAsync(c => c.Id == id && (c.IsActive || contracted.Contains(c.Id)), ct))
+                throw new PortalCatalogDeniedException(notFound: true);
             if (string.IsNullOrWhiteSpace(request.Name)) throw new PortalCatalogRuleException("The name is required.");
 
             var row = await _context.CatalogProviders.FirstAsync(c => c.Id == id, ct);

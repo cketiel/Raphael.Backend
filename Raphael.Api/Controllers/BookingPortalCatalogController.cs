@@ -7,7 +7,7 @@ namespace Raphael.Api.Controllers
 {
     /// <summary>
     /// The catalog as a clinic sees it in the Booking Portal: search it, read an entry, contract a
-    /// Provider, correct a contracted Provider's contact details, and list the ones a trip can go to.
+    /// Provider, correct any Provider's contact details, and list the ones a trip can go to.
     /// </summary>
     /// <remarks>
     /// Clinic users only: every call needs the caller's integrator, and an office user gets a 404.
