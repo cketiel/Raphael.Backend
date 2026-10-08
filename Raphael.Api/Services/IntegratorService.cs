@@ -89,7 +89,7 @@ namespace Raphael.Api.Services
             };
 
             // Name, address and contact: the catalog's when the account comes out of it.
-            await _catalogSync.SaveIntegratorIdentityAsync(integrator, Identity(dto));
+            await _catalogSync.SaveIntegratorIdentityAsync(integrator, integrator.CatalogIntegratorId, Identity(dto));
 
             _context.Integrators.Add(integrator);
             await _context.SaveChangesAsync();
@@ -103,20 +103,19 @@ namespace Raphael.Api.Services
             var existing = await _context.Integrators.FindAsync(id);
             if (existing == null) return false;
 
-            existing.IsActive = dto.IsActive;
-            existing.FundingSourceId = dto.FundingSourceId;
-            existing.Comments = dto.Comments;
-
             // The link to the catalog is set once, when the row is created out of it. An update
             // can fill it in if it was never set, but it cannot move a row to another entity:
             // that would rewrite where an integrator came from.
-            if (existing.CatalogIntegratorId is null)
-            {
-                existing.CatalogIntegratorId = dto.CatalogIntegratorId;
-            }
+            var catalogId = existing.CatalogIntegratorId ?? dto.CatalogIntegratorId;
 
             // Name, address and contact go through the catalog when the account is linked to it.
-            await _catalogSync.SaveIntegratorIdentityAsync(existing, Identity(dto));
+            // First, before anything else on the account changes (see ICatalogAccountSync).
+            await _catalogSync.SaveIntegratorIdentityAsync(existing, catalogId, Identity(dto));
+
+            existing.CatalogIntegratorId = catalogId;
+            existing.IsActive = dto.IsActive;
+            existing.FundingSourceId = dto.FundingSourceId;
+            existing.Comments = dto.Comments;
 
             if (dto.RegenerateApiKey)
             {

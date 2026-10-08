@@ -64,7 +64,7 @@ namespace Raphael.Api.Services
                 return false; 
             }
            
-            provider.Logo = providerDto.Logo;
+            var logo = providerDto.Logo;
 
             // ⚠️ Only when the caller actually sent them, and this is not a nicety.
             //
@@ -78,12 +78,11 @@ namespace Raphael.Api.Services
             // Expand / contract, GIT_WORKFLOW.md section 4: a backend change may never assume
             // the client already knows about the field. Clearing one of these is an edit made
             // on the screen that owns them.
-            if (providerDto.Comments is not null) provider.Comments = providerDto.Comments;
-
             // Name, address and contact go through the catalog when this account is linked to it,
             // so the card the driver edits and the catalog never disagree. A field the Driver's
-            // older DTO does not send keeps its value (see above).
-            await _catalogSync.SaveProviderIdentityAsync(provider, new AccountIdentity(
+            // older DTO does not send keeps its value (see above). First, before the account's own
+            // fields change (see ICatalogAccountSync).
+            await _catalogSync.SaveProviderIdentityAsync(provider, provider.CatalogProviderId, new AccountIdentity(
                 providerDto.Name,
                 providerDto.Address,
                 providerDto.Phone,
@@ -92,6 +91,9 @@ namespace Raphael.Api.Services
                 providerDto.ContactName ?? provider.ContactName,
                 providerDto.Latitude,
                 providerDto.Longitude));
+
+            provider.Logo = logo;
+            if (providerDto.Comments is not null) provider.Comments = providerDto.Comments;
 
             await _context.SaveChangesAsync();
             return true;
@@ -139,7 +141,7 @@ namespace Raphael.Api.Services
             };
 
             // Name, address and contact: the catalog's when the account comes out of it.
-            await _catalogSync.SaveProviderIdentityAsync(provider, Identity(dto));
+            await _catalogSync.SaveProviderIdentityAsync(provider, provider.CatalogProviderId, Identity(dto));
 
             _context.Providers.Add(provider);
             await _context.SaveChangesAsync();
@@ -153,17 +155,15 @@ namespace Raphael.Api.Services
             var provider = await _context.Providers.FindAsync(id);
             if (provider == null) return false;
 
+            // Name, address and contact go through the catalog when the account is linked to it.
+            // First, before anything else on the account changes (see ICatalogAccountSync).
+            // The link is set once, when the row is created out of the catalog. See IntegratorService.
+            var catalogId = provider.CatalogProviderId ?? dto.CatalogProviderId;
+            await _catalogSync.SaveProviderIdentityAsync(provider, catalogId, Identity(dto));
+
+            provider.CatalogProviderId = catalogId;
             provider.TimeZoneId = dto.TimeZoneId;
             provider.Comments = dto.Comments;
-
-            // Set once, when the row is created out of the catalog. See IntegratorService.
-            if (provider.CatalogProviderId is null)
-            {
-                provider.CatalogProviderId = dto.CatalogProviderId;
-            }
-
-            // Name, address and contact go through the catalog when the account is linked to it.
-            await _catalogSync.SaveProviderIdentityAsync(provider, Identity(dto));
 
             if (dto.LogoFile != null)
             {

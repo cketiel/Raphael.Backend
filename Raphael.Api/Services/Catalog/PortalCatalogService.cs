@@ -282,14 +282,40 @@ namespace Raphael.Api.Services.Catalog
             if (string.IsNullOrWhiteSpace(request.Name)) throw new PortalCatalogRuleException("The name is required.");
 
             var row = await _context.CatalogProviders.FirstAsync(c => c.Id == id, ct);
-            var placeChanged = !Same(row.Address, request.Address) || !Same(row.City, request.City)
-                               || !Same(row.State, request.State) || !Same(row.Zip, request.Zip);
 
-            row.Name = request.Name.Trim();
-            row.Address = Clean(request.Address);
-            row.City = Clean(request.City);
-            row.State = Clean(request.State);
-            row.Zip = Clean(request.Zip);
+            // ⚠️ Everything is worked out before the row is touched. Geocoding writes to its cache
+            // with SaveChanges on this same context, and that save would carry a half-applied row
+            // with it: a rename refused with 409 was stored anyway (found testing, 2026-10-07).
+            var name = request.Name.Trim();
+            var address = Clean(request.Address);
+            var city = Clean(request.City);
+            var state = Clean(request.State);
+            var zip = Clean(request.Zip);
+
+            var matchKey = CatalogText.BuildMatchKey(row.CategoryId, name, zip);
+            if (await _context.CatalogProviders.AnyAsync(c => c.Id != row.Id && c.MatchKey == matchKey, ct))
+            {
+                throw new CatalogConflictException();
+            }
+
+            var placeChanged = !Same(row.Address, address) || !Same(row.City, city)
+                               || !Same(row.State, state) || !Same(row.Zip, zip);
+            GeocodeResultDto? found = null;
+            if (placeChanged)
+            {
+                // A new place needs new coordinates. Resolved through the backend's geocode cache:
+                // paid only for an address nobody has resolved before.
+                var line = RouteCacheKey.ComposeAddress(address, city, state, zip);
+                found = string.IsNullOrWhiteSpace(line)
+                    ? null
+                    : await _routing.GeocodeAsync(new GeocodeRequestDto { Address = line }, ct);
+            }
+
+            row.Name = name;
+            row.Address = address;
+            row.City = city;
+            row.State = state;
+            row.Zip = zip;
             row.Phone = Clean(request.Phone);
             row.Email = Clean(request.Email);
             row.Website = Clean(request.Website);
@@ -297,12 +323,6 @@ namespace Raphael.Api.Services.Catalog
 
             if (placeChanged)
             {
-                // A new place needs new coordinates. Resolved through the backend's geocode cache:
-                // paid only for an address nobody has resolved before.
-                var line = RouteCacheKey.ComposeAddress(row.Address, row.City, row.State, row.Zip);
-                var found = string.IsNullOrWhiteSpace(line)
-                    ? null
-                    : await _routing.GeocodeAsync(new GeocodeRequestDto { Address = line }, ct);
                 row.Latitude = found?.Latitude;
                 row.Longitude = found?.Longitude;
                 row.GeocodeStatus = found?.Latitude != null ? GeocodeStatus.Resolved : GeocodeStatus.NotFound;
@@ -310,13 +330,8 @@ namespace Raphael.Api.Services.Catalog
             }
 
             row.PhoneDigits = CatalogText.DigitsOnly(row.Phone);
-            row.MatchKey = CatalogText.BuildMatchKey(row.CategoryId, row.Name, row.Zip);
+            row.MatchKey = matchKey;
             row.SearchText = CatalogText.BuildSearchText(row.Name, row.City, row.CountyRaw, row.Zip, row.Address, row.ContactName);
-
-            if (await _context.CatalogProviders.AnyAsync(c => c.Id != row.Id && c.MatchKey == row.MatchKey, ct))
-            {
-                throw new CatalogConflictException();
-            }
 
             row.UpdatedAtUtc = DateTime.UtcNow;
             row.UpdatedByUserId = _currentUser.UserId;

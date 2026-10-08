@@ -49,11 +49,17 @@ namespace Raphael.Api.Services.Catalog
     public interface ICatalogAccountSync
     {
         /// <summary>An account was saved: its identity goes to its catalog row, and from there to every account linked to it.</summary>
+        /// <param name="catalogId">
+        /// The catalog row the account is (or is about to be) linked to; null keeps the account's own copy.
+        /// Passed apart, not read from the account, so the caller changes nothing on the account
+        /// until this has returned: resolving an address saves the geocode cache on the same context,
+        /// and that save would carry half-made changes with it if a 409 followed.
+        /// </param>
         /// <exception cref="CatalogConflictException">The new name and zip belong to another catalog entry.</exception>
-        Task SaveProviderIdentityAsync(Provider account, AccountIdentity identity, CancellationToken cancellationToken = default);
+        Task SaveProviderIdentityAsync(Provider account, int? catalogId, AccountIdentity identity, CancellationToken cancellationToken = default);
 
         /// <inheritdoc cref="SaveProviderIdentityAsync"/>
-        Task SaveIntegratorIdentityAsync(Integrator account, AccountIdentity identity, CancellationToken cancellationToken = default);
+        Task SaveIntegratorIdentityAsync(Integrator account, int? catalogId, AccountIdentity identity, CancellationToken cancellationToken = default);
 
         /// <summary>A catalog row changed: every account linked to it takes its identity. Does not save.</summary>
         Task SpreadAsync(CatalogProvider row, CancellationToken cancellationToken = default);
@@ -81,68 +87,80 @@ namespace Raphael.Api.Services.Catalog
             _logger = logger;
         }
 
-        public async Task SaveProviderIdentityAsync(Provider account, AccountIdentity identity, CancellationToken cancellationToken = default)
+        public async Task SaveProviderIdentityAsync(Provider account, int? catalogId, AccountIdentity identity, CancellationToken cancellationToken = default)
         {
-            if (account.CatalogProviderId is null)
+            if (catalogId is null)
             {
                 CopyTo(account, identity);
                 return;
             }
 
-            var row = await _context.CatalogProviders.FirstAsync(c => c.Id == account.CatalogProviderId, cancellationToken);
+            var row = await _context.CatalogProviders.FirstAsync(c => c.Id == catalogId, cancellationToken);
             var place = new Place(row.Address, row.City, row.State, row.Zip, row.Latitude, row.Longitude);
 
-            row.Name = identity.Name.Trim();
+            // ⚠️ Worked out before the row is touched: resolving the address saves the geocode
+            // cache on this same context, and that save would carry a half-applied row with it,
+            // so a rename refused with 409 would be stored anyway (found testing, 2026-10-07).
+            var name = identity.Name.Trim();
+            var moved = await ResolvePlaceAsync(place, identity, cancellationToken);
+            var matchKey = CatalogText.BuildMatchKey(row.CategoryId, name, moved.Zip);
+
+            if (await _context.CatalogProviders.AnyAsync(c => c.Id != row.Id && c.MatchKey == matchKey, cancellationToken))
+            {
+                throw new CatalogConflictException();
+            }
+
+            row.Name = name;
             row.Phone = Clean(identity.Phone);
             row.Email = Clean(identity.Email);
             row.Website = Clean(identity.Website);
             row.ContactName = Clean(identity.ContactName);
-            var moved = await ResolvePlaceAsync(place, identity, cancellationToken);
             (row.Address, row.City, row.State, row.Zip, row.Latitude, row.Longitude) = (moved.Street, moved.City, moved.State, moved.Zip, moved.Latitude, moved.Longitude);
             if (moved.Changed) row.GeocodeStatus = moved.Resolved ? GeocodeStatus.Resolved : GeocodeStatus.NotFound;
 
             row.PhoneDigits = CatalogText.DigitsOnly(row.Phone);
-            row.MatchKey = CatalogText.BuildMatchKey(row.CategoryId, row.Name, row.Zip);
+            row.MatchKey = matchKey;
             row.SearchText = CatalogText.BuildSearchText(row.Name, row.City, row.CountyRaw, row.Zip, row.Address, row.ContactName);
-
-            if (await _context.CatalogProviders.AnyAsync(c => c.Id != row.Id && c.MatchKey == row.MatchKey, cancellationToken))
-            {
-                throw new CatalogConflictException();
-            }
 
             Stamp(row);
             await SpreadAsync(row, cancellationToken);
             CopyFrom(row, account);
         }
 
-        public async Task SaveIntegratorIdentityAsync(Integrator account, AccountIdentity identity, CancellationToken cancellationToken = default)
+        public async Task SaveIntegratorIdentityAsync(Integrator account, int? catalogId, AccountIdentity identity, CancellationToken cancellationToken = default)
         {
-            if (account.CatalogIntegratorId is null)
+            if (catalogId is null)
             {
                 CopyTo(account, identity);
                 return;
             }
 
-            var row = await _context.CatalogIntegrators.FirstAsync(c => c.Id == account.CatalogIntegratorId, cancellationToken);
+            var row = await _context.CatalogIntegrators.FirstAsync(c => c.Id == catalogId, cancellationToken);
             var place = new Place(row.Address, row.City, row.State, row.Zip, row.Latitude, row.Longitude);
 
-            row.Name = identity.Name.Trim();
+            // ⚠️ Worked out before the row is touched: resolving the address saves the geocode
+            // cache on this same context, and that save would carry a half-applied row with it,
+            // so a rename refused with 409 would be stored anyway (found testing, 2026-10-07).
+            var name = identity.Name.Trim();
+            var moved = await ResolvePlaceAsync(place, identity, cancellationToken);
+            var matchKey = CatalogText.BuildMatchKey(row.CategoryId, name, moved.Zip);
+
+            if (await _context.CatalogIntegrators.AnyAsync(c => c.Id != row.Id && c.MatchKey == matchKey, cancellationToken))
+            {
+                throw new CatalogConflictException();
+            }
+
+            row.Name = name;
             row.Phone = Clean(identity.Phone);
             row.Email = Clean(identity.Email);
             row.Website = Clean(identity.Website);
             row.ContactName = Clean(identity.ContactName);
-            var moved = await ResolvePlaceAsync(place, identity, cancellationToken);
             (row.Address, row.City, row.State, row.Zip, row.Latitude, row.Longitude) = (moved.Street, moved.City, moved.State, moved.Zip, moved.Latitude, moved.Longitude);
             if (moved.Changed) row.GeocodeStatus = moved.Resolved ? GeocodeStatus.Resolved : GeocodeStatus.NotFound;
 
             row.PhoneDigits = CatalogText.DigitsOnly(row.Phone);
-            row.MatchKey = CatalogText.BuildMatchKey(row.CategoryId, row.Name, row.Zip);
+            row.MatchKey = matchKey;
             row.SearchText = CatalogText.BuildSearchText(row.Name, row.City, row.CountyRaw, row.Zip, row.Address, row.ContactName);
-
-            if (await _context.CatalogIntegrators.AnyAsync(c => c.Id != row.Id && c.MatchKey == row.MatchKey, cancellationToken))
-            {
-                throw new CatalogConflictException();
-            }
 
             Stamp(row);
             await SpreadAsync(row, cancellationToken);
