@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Raphael.Api.Attributes;
 using Raphael.Api.Services;
 using Raphael.Shared.Entities;
 using Raphael.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using Raphael.Shared.Interfaces;
 
 
 namespace Raphael.Api.Controllers
@@ -13,12 +15,16 @@ namespace Raphael.Api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _service;
+        private readonly ICurrentUserService _currentUser;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, ICurrentUserService currentUser)
         {
             _service = userService;
+            _currentUser = currentUser;
         }
 
+        // Every user, with its password hash: never to a clinic, which holds its token in the browser.
+        [NotForClinicUsers]
         [HttpGet]
         public async Task<ActionResult<List<User>>> GetAll()
         {
@@ -27,6 +33,7 @@ namespace Raphael.Api.Controllers
         }
         //public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
+        [NotForClinicUsers]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -34,6 +41,7 @@ namespace Raphael.Api.Controllers
             return user == null ? NotFound() : Ok(user);
         }
 
+        [NotForClinicUsers]
         [HttpPost("create")]
         public async Task<IActionResult> CreateUser([FromBody] UserCreateDto dto)
         {
@@ -56,6 +64,7 @@ namespace Raphael.Api.Controllers
             }
         }
 
+        [NotForClinicUsers]
         [HttpPut("update")]
         public async Task<IActionResult> UpdateUser([FromBody] UserUpdateDto dto)
         {
@@ -79,6 +88,7 @@ namespace Raphael.Api.Controllers
         }
 
 
+        [NotForClinicUsers]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -89,6 +99,14 @@ namespace Raphael.Api.Controllers
         [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
+            // The user id travels in the body, and a clinic holds its token in the browser: without
+            // this a clinic could change, or keep guessing, another user's password. A clinic user
+            // changes only its own. The office is left as it was (decided 2026-10-07).
+            if (_currentUser.IntegratorId != null && dto.UserId != _currentUser.UserId)
+            {
+                return Forbid();
+            }
+
             try
             {
                 await _service.ChangePasswordAsync(dto);
