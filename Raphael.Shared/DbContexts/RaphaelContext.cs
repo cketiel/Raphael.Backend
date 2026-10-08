@@ -146,6 +146,7 @@ namespace Raphael.Shared.DbContexts
         /// See <see cref="CatalogProvider"/>.
         /// </summary>
         public DbSet<CatalogProvider> CatalogProviders { get; set; }
+        public DbSet<IntegratorProvider> IntegratorProviders { get; set; }
 
         public DbSet<CatalogIntegratorCategory> CatalogIntegratorCategories { get; set; }
 
@@ -867,6 +868,32 @@ namespace Raphael.Shared.DbContexts
             modelBuilder.Entity<Provider>()
                 .HasIndex(p => new { p.CatalogProviderId, p.OwnerProviderId })
                 .HasDatabaseName("IX_Providers_Catalog_Owner");
+
+            // Which catalog Providers each clinic works with (CATALOG_MODEL.md §4.3). Restrict on
+            // both sides: the catalog never loses an entity, and a clinic with relations is not
+            // deleted from under them.
+            modelBuilder.Entity<IntegratorProvider>(entity =>
+            {
+                entity.ToTable("IntegratorProviders");
+                entity.HasKey(x => x.Id);
+
+                entity.HasOne(x => x.Integrator)
+                    .WithMany()
+                    .HasForeignKey(x => x.IntegratorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.CatalogProvider)
+                    .WithMany()
+                    .HasForeignKey(x => x.CatalogProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.IntegratorId, x.CatalogProviderId })
+                    .IsUnique()
+                    .HasDatabaseName("IX_IntegratorProviders_Integrator_Provider");
+
+                entity.HasIndex(x => x.CatalogProviderId)
+                    .HasDatabaseName("IX_IntegratorProviders_CatalogProvider");
+            });
 
             #region Notification Module
 
