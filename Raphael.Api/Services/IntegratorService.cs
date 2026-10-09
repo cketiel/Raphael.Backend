@@ -110,12 +110,25 @@ namespace Raphael.Api.Services
 
             // Name, address and contact go through the catalog when the account is linked to it.
             // First, before anything else on the account changes (see ICatalogAccountSync).
-            await _catalogSync.SaveIntegratorIdentityAsync(existing, catalogId, Identity(dto));
+            //
+            // ⚠️ A field the caller did not send keeps its value. Raphael.Desktop's Integrator model
+            // is a name, a key and a funding source: it knows none of the contact details a clinic
+            // fills in from the Booking Portal, and writing them through would erase them every time
+            // the office regenerates a key. Expand / contract, GIT_WORKFLOW.md §4.
+            await _catalogSync.SaveIntegratorIdentityAsync(existing, catalogId, new AccountIdentity(
+                dto.Name,
+                dto.Address ?? existing.Address,
+                dto.Phone ?? existing.Phone,
+                dto.Email ?? existing.Email,
+                dto.Website ?? existing.Website,
+                dto.ContactName ?? existing.ContactName,
+                dto.Latitude ?? existing.Latitude,
+                dto.Longitude ?? existing.Longitude));
 
             existing.CatalogIntegratorId = catalogId;
             existing.IsActive = dto.IsActive;
             existing.FundingSourceId = dto.FundingSourceId;
-            existing.Comments = dto.Comments;
+            if (dto.Comments is not null) existing.Comments = dto.Comments;
 
             if (dto.RegenerateApiKey)
             {

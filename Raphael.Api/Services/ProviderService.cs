@@ -158,12 +158,21 @@ namespace Raphael.Api.Services
             // Name, address and contact go through the catalog when the account is linked to it.
             // First, before anything else on the account changes (see ICatalogAccountSync).
             // The link is set once, when the row is created out of the catalog. See IntegratorService.
+            //
+            // ⚠️ A field the caller did not send keeps its value. Raphael.Desktop's Provider model
+            // predates Website, ContactName, Comments and TimeZoneId and PUTs this endpoint from the
+            // Admin tab: writing them through would erase them, the time zone included, on every
+            // save. Same rule as UpdateContactProviderAsync (expand / contract, GIT_WORKFLOW.md §4).
             var catalogId = provider.CatalogProviderId ?? dto.CatalogProviderId;
-            await _catalogSync.SaveProviderIdentityAsync(provider, catalogId, Identity(dto));
+            await _catalogSync.SaveProviderIdentityAsync(provider, catalogId, Identity(dto) with
+            {
+                Website = dto.Website ?? provider.Website,
+                ContactName = dto.ContactName ?? provider.ContactName
+            });
 
             provider.CatalogProviderId = catalogId;
-            provider.TimeZoneId = dto.TimeZoneId;
-            provider.Comments = dto.Comments;
+            if (dto.TimeZoneId is not null) provider.TimeZoneId = dto.TimeZoneId;
+            if (dto.Comments is not null) provider.Comments = dto.Comments;
 
             if (dto.LogoFile != null)
             {
