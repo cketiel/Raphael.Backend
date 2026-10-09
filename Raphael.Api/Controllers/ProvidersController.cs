@@ -84,8 +84,15 @@ namespace Raphael.Api.Controllers
         [HttpPut("{id}")]
         [Authorize(Roles = "1")]
         [NotForClinicUsers]
-        public async Task<IActionResult> Update(int id, [FromForm] ProviderDto dto) 
+        public async Task<IActionResult> Update(int id, [FromForm] ProviderDto dto)
         {
+            // Form binding turns an empty field into null, which the service reads as "not sent,
+            // keep it" (AccountIdentity.Sent). A field the form does carry, empty, is a clear.
+            dto.TimeZoneId ??= Carried(nameof(ProviderDto.TimeZoneId));
+            dto.Website ??= Carried(nameof(ProviderDto.Website));
+            dto.ContactName ??= Carried(nameof(ProviderDto.ContactName));
+            dto.Comments ??= Carried(nameof(ProviderDto.Comments));
+
             var success = await _providerService.UpdateAsync(id, dto);
             return success ? Ok() : NotFound();
         }
@@ -93,5 +100,9 @@ namespace Raphael.Api.Controllers
         [Authorize(Roles = "1")]
         [NotForClinicUsers]
         public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
+
+        /// <summary>"" when the form carries the field, null when it does not.</summary>
+        private string? Carried(string field) =>
+            Request.HasFormContentType && Request.Form.ContainsKey(field) ? string.Empty : null;
     }
 }

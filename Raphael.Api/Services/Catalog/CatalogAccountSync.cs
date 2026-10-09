@@ -19,7 +19,20 @@ namespace Raphael.Api.Services.Catalog
         string? Website,
         string? ContactName,
         double? Latitude,
-        double? Longitude);
+        double? Longitude)
+    {
+        /// <summary>
+        /// The value an update leaves in a field: null means the client did not send it and the
+        /// current value stays; empty means it was cleared.
+        /// </summary>
+        /// <remarks>
+        /// Desktop 1.10.0 and older know none of the fields RE-027 added, so on every save they
+        /// arrive as null; erasing them then would be the client's ignorance, not the user's edit.
+        /// Expand / contract, GIT_WORKFLOW.md §4.
+        /// </remarks>
+        public static string? Sent(string? sent, string? current) =>
+            sent is null ? current : string.IsNullOrWhiteSpace(sent) ? null : sent;
+    }
 
     /// <summary>
     /// Another catalog entry already has this group, name and zip: saving would make two entries of one entity.
