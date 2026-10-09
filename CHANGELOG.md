@@ -23,6 +23,58 @@ give:
 
 ---
 
+## [2.0.0] - 2026-10-08
+
+**Migrations:** yes — `20260930233714_AddEntityCatalog`, `20261008032846_AddIntegratorProviders` and
+`20261008065224_BillingItemOwnerIntegrator`. All three only add tables, columns and indexes, so
+redeploying `v1.2.0` leaves them unused rather than broken. They run at start-up: if one fails, the
+API does not start.
+**Clients:** Desktop ≥1.11.0 for the production reports (they now ask for the signatures) and for
+the catalogue; Desktop 1.10.0 still works, without signatures in those reports. Driver ≥1.4.0,
+unchanged. Booking Portal (`raphael-web`) ≥0.1.0. Rider not released.
+
+MAJOR because it migrates the schema (`GIT_WORKFLOW.md` §4).
+
+### Added
+- **Entity catalogue** (RE-027): a directory of the clinics, hospitals and transport companies we
+  could work with, with server-side search, import and export, and the way from it into our own
+  Integrators and Providers. One version of an entity's identity, kept by the catalogue: editing a
+  linked account edits the catalogue, and a rename that would duplicate an entry answers 409.
+- Integrators and Providers carry website, contact person, comments and coordinates.
+- **Booking Portal API** (`api/bookingportal/*`): the clinic's Provider catalogue and its contracted
+  Providers (`IntegratorProviders`), a Provider on each trip, live trip status and a tracking
+  endpoint, the clinic's notifications for the last 7 days, and an Admin API for the clinic's
+  users, organisation, funding source and its own billing items (`BillingItem.OwnerIntegratorId`).
+- Realtime: clinics follow their own trip's vehicle, only while it is under way, and hear their
+  integrator's notifications, never the office's.
+
+### Changed
+- **Production reports leave the patients' signatures out unless `includeSignatures=true`** is
+  asked for.
+- Office administration endpoints (users, roles, settings, maps usage, notification admin and
+  catalogue, billing items, funding source writes, integrators, provider writes) answer 404 to
+  clinic users; writing providers, funding sources and integrators needs role 1.
+- Clinic users see only their own funding source, change only their own password and cannot manage
+  users.
+- 500s to clinics and integrators carry no exception text (`/api/integration/cancel` and
+  `/details` answer `ProblemDetails`).
+- Space types and funding sources created by a portal trip are born inactive, pending review.
+- Places are cached per language.
+
+### Fixed
+- Desktop 1.10.0 saving a provider or an integrator no longer erases the fields it does not know
+  (time zone, website, contact, comments, contact details); a field sent empty is still cleared.
+- A driver saving the contact card no longer erases three fields.
+- Editing a round trip from the portal no longer books a second return, and a round trip needs a
+  return time.
+- The portal updates the patient's contact, and every trip it writes is audited.
+- `my-trips` returns the pickup and dropoff cities; cancelling counts cancelled trips, not saved
+  rows; no invented gender.
+- The production range without a funding source filter no longer fails; an inverted date range
+  answers 400.
+- A repeated entity in an import file merges instead of being rejected, and a refused rename no
+  longer saves half the change.
+
 ## [1.2.0] - 2026-09-25
 
 **Migrations:** yes — `20260923213336_AddDriverCallRequests`. It only creates two tables and
