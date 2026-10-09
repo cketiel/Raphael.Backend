@@ -163,7 +163,12 @@ namespace Raphael.Api.Services.Auth
 
                 // Deactivating an account has to end its sessions, or it only stops the next
                 // sign-in and leaves whoever is already inside there for weeks.
-                if (user is null || !user.IsActive)
+                // The same for a clinic user whose Integrator the office has switched off: the
+                // session ends at the next renewal (checked here, not on every request).
+                var integratorOff = user?.IntegratorId is int integratorId
+                    && !await _context.Integrators.AnyAsync(i => i.Id == integratorId && i.IsActive, cancellationToken);
+
+                if (user is null || !user.IsActive || integratorOff)
                 {
                     await RevokeFamilyAsync(row.FamilyId, "subject-unavailable", now, cancellationToken);
                     return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);

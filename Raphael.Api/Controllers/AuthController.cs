@@ -39,7 +39,16 @@ namespace Raphael.Api.Controllers
             {
                 return StatusCode(
                     StatusCodes.Status403Forbidden,
-                    new { message = "User account is disabled. Contact administrator." });
+                    new { code = "account_disabled", message = "User account is disabled. Contact administrator." });
+            }
+
+            // A clinic user signs in on behalf of its Integrator. When the office switches the
+            // Integrator off, the API key already stops working; its people must stop too.
+            if (user.IntegratorId is int integratorId && !await IntegratorIsActiveAsync(integratorId))
+            {
+                return StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new { code = "integrator_disabled", message = "Your organization's access is disabled. Contact the office." });
             }
 
             // Which application this is decides how long the session lasts, and it is recorded
@@ -140,6 +149,9 @@ namespace Raphael.Api.Controllers
             Request.Headers.TryGetValue(ClientVersionHeaders.App, out var value)
                 ? value.ToString()
                 : null;
+
+        private Task<bool> IntegratorIsActiveAsync(int integratorId) =>
+            _context.Integrators.AnyAsync(i => i.Id == integratorId && i.IsActive);
     }
 
     public class LoginRequest
