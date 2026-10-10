@@ -101,6 +101,35 @@ namespace Raphael.Shared.DTOs.Realtime
         public string? Direction { get; set; }
 
         public DateTime AtUtc { get; set; }
+
+        /// <summary>
+        /// Where the vehicle is heading for this trip: <see cref="TripPhase.Pickup"/> until the
+        /// patient is on board, <see cref="TripPhase.Dropoff"/> after.
+        /// </summary>
+        public string Phase { get; set; } = TripPhase.Pickup;
+
+        /// <summary>
+        /// Miles still to go to the stop of <see cref="Phase"/>, measured at home on every fix,
+        /// never asked of Google (RemainingDistance). Null when it could not be measured.
+        /// </summary>
+        public double? RemainingMiles { get; set; }
+
+        /// <summary>
+        /// The route's current ETAs for the two stops, as the driver's app last left them. They
+        /// travel with every fix so a new ETA reaches the screen with the next position, with no
+        /// event of its own. Wall-clock hours of the trip's day (TIME_POLICY).
+        /// </summary>
+        public TimeSpan? PickupEta { get; set; }
+
+        public TimeSpan? DropoffEta { get; set; }
+    }
+
+    /// <summary>The two legs of a trip a vehicle can be on.</summary>
+    public static class TripPhase
+    {
+        public const string Pickup = "Pickup";
+
+        public const string Dropoff = "Dropoff";
     }
 
     /// <summary>

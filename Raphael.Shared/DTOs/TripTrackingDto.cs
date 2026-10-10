@@ -54,5 +54,18 @@ namespace Raphael.Shared.DTOs
 
         /// <summary>When the patient was left at the destination.</summary>
         public TimeSpan? DroppedOffAt { get; set; }
+
+        /// <summary>The provider carrying the trip. Null means Raphael's own fleet.</summary>
+        public string? ProviderName { get; set; }
+
+        /// <summary>
+        /// The kind of vehicle on the route ("Wheelchair", "Stretcher"), or null before routing.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ This, and the provider, is all a clinic learns of the vehicle. The route's and the
+        /// vehicle's own names carry the driver's full name and fleet codes (seen in DEV on
+        /// 2026-10-10), so they never leave the office. Decision of 2026-10-10.
+        /// </remarks>
+        public string? VehicleType { get; set; }
     }
 }

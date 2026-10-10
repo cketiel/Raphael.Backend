@@ -232,7 +232,11 @@ namespace Raphael.Api.Controllers
                     DropoffLatitude = t.DropoffLatitude,
                     DropoffLongitude = t.DropoffLongitude,
                     RequestedPickupTime = t.FromTime,
-                    AppointmentTime = t.ToTime
+                    AppointmentTime = t.ToTime,
+                    // The provider and the kind of vehicle, never the route's or the vehicle's own
+                    // names: those carry the driver's name and fleet codes (TripTrackingDto.VehicleType).
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    VehicleType = t.Run != null ? t.Run.Vehicle.VehicleType.Name : null
                 })
                 .FirstOrDefaultAsync();
 

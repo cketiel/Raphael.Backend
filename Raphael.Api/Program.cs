@@ -413,6 +413,7 @@ builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 
 // The dispatch board channel. Not a notification: see Raphael.Api/Realtime/DispatchHub.cs
 // and _meta/REALTIME_POLICY.md for why it is a hub of its own.
+builder.Services.AddScoped<ITripProgress, TripProgress>();
 builder.Services.AddScoped<IDispatchBroadcaster, DispatchBroadcaster>();
 
 // Drivers asking the office to call them back. The queue lives in its own tables and travels

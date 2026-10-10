@@ -29,12 +29,14 @@ namespace Raphael.Api.Realtime
         private readonly ICallerRoles _roles;
         private readonly RaphaelContext _context;
         private readonly IGpsService _gps;
+        private readonly ITripProgress _progress;
 
-        public DispatchHub(ICallerRoles roles, RaphaelContext context, IGpsService gps)
+        public DispatchHub(ICallerRoles roles, RaphaelContext context, IGpsService gps, ITripProgress progress)
         {
             _roles = roles;
             _context = context;
             _gps = gps;
+            _progress = progress;
         }
 
         /// <summary>
@@ -108,19 +110,14 @@ namespace Raphael.Api.Realtime
 
             var latest = await _gps.GetLatestGpsDataAsync(trip.VehicleRouteId.Value);
 
-            return new WatchTripResult
-            {
-                InProgress = true,
-                Position = latest is null ? null : new TripVehiclePositionMessage
-                {
-                    TripId = trip.Id,
-                    Latitude = latest.Latitude,
-                    Longitude = latest.Longitude,
-                    Speed = latest.Speed,
-                    Direction = latest.Direction,
-                    AtUtc = latest.DateTime
-                }
-            };
+            // The last fix, with this trip's phase, miles to go and ETAs, as every later fix brings them.
+            var position = latest is null
+                ? null
+                : (await _progress.ForTripsAsync(
+                    new[] { trip.Id }, latest.Latitude, latest.Longitude, latest.Speed, latest.Direction, latest.DateTime))
+                  .FirstOrDefault();
+
+            return new WatchTripResult { InProgress = true, Position = position };
         }
 
         /// <summary>

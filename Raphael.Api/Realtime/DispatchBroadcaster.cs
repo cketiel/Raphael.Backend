@@ -39,15 +39,18 @@ namespace Raphael.Api.Realtime
     {
         private readonly IHubContext<DispatchHub, IDispatchClient> _hub;
         private readonly RaphaelContext _context;
+        private readonly ITripProgress _progress;
         private readonly ILogger<DispatchBroadcaster> _logger;
 
         public DispatchBroadcaster(
             IHubContext<DispatchHub, IDispatchClient> hub,
             RaphaelContext context,
+            ITripProgress progress,
             ILogger<DispatchBroadcaster> logger)
         {
             _hub = hub;
             _context = context;
+            _progress = progress;
             _logger = logger;
         }
 
@@ -133,19 +136,15 @@ namespace Raphael.Api.Realtime
                 .Select(t => t.Id)
                 .ToListAsync();
 
-            foreach (var tripId in tripIds)
+            // Each trip's own phase, miles to go and current ETAs travel with the fix (TripProgress).
+            var messages = await _progress.ForTripsAsync(
+                tripIds, position.Latitude, position.Longitude, position.Speed, position.Direction, position.AtUtc);
+
+            foreach (var message in messages)
             {
                 await _hub.Clients
-                    .Group(DispatchGroups.Trip(tripId))
-                    .TripVehiclePosition(new TripVehiclePositionMessage
-                    {
-                        TripId = tripId,
-                        Latitude = position.Latitude,
-                        Longitude = position.Longitude,
-                        Speed = position.Speed,
-                        Direction = position.Direction,
-                        AtUtc = position.AtUtc
-                    });
+                    .Group(DispatchGroups.Trip(message.TripId))
+                    .TripVehiclePosition(message);
             }
         }
 
