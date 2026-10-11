@@ -23,6 +23,36 @@ give:
 
 ---
 
+## [2.1.0] - 2026-10-11
+
+**Migrations:** none. Redeploying `v2.0.0` is a full rollback.
+**Clients:** Desktop ≥1.12.0 for the Drivers and Vehicles filters of the production report; older
+Desktops work unchanged and never send them. Driver ≥1.4.0, unchanged. Booking Portal
+(`raphael-web`) ≥0.1.0; the live tracking fields are read by the next Booking release. Customer
+Service Bot: unchanged, `reason` is optional for it. Rider not released.
+
+MINOR: new, backward-compatible fields and parameters only (`GIT_WORKFLOW.md` §4).
+
+### Added
+- **Production report filters by driver and vehicle**: `GET api/schedules/reports/production-range`
+  accepts optional `driverIds` and `vehicleIds`, combined with the existing filters. They use the
+  route's current driver and vehicle (known gap, meta `BACKLOG.md` §18).
+- **Customer Service Bot: why there is no ETA.** `GET api/bot/eta` and `api/bot/patient-eta` add
+  `reason` to `ETA_NOT_AVAILABLE` answers: `TRIP_NOT_FOUND`, `TRIP_CANCELED`, `PICKUP_COMPLETED`,
+  `TRIP_IS_WILL_CALL`, `TRIP_NOT_SCHEDULED` or `UNKNOWN`. `success`, `message` and `eta` are
+  unchanged. Contract: meta `BOT_API_SPEC.md` 1.1.0.
+- Realtime: each trip position sent to the Booking Portal carries the phase, the miles to go and
+  the pickup and dropoff ETAs, computed from the cached route polyline, never from Google.
+- Booking tracking: header fields (provider name, vehicle type) and a live `TripTrackingChanged`
+  signal when a trip's ETAs change.
+
+### Security
+- Users of a disabled integrator can no longer sign in (403, code `integrator_disabled`) and lose
+  their session at the next renewal. Both 403s now carry a code; clients that read only the status
+  are unaffected.
+
+---
+
 ## [2.0.0] - 2026-10-08
 
 **Migrations:** yes — `20260930233714_AddEntityCatalog`, `20261008032846_AddIntegratorProviders` and
