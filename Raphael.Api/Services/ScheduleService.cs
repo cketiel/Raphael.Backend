@@ -1638,12 +1638,13 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
-        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? vehicleRouteIds, List<int>? driverIds = null, List<int>? vehicleIds = null)
+        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? vehicleRouteIds, List<int>? driverIds = null, List<int>? vehicleIds = null, List<int>? providerIds = null)
         {
             // 1. Initial Query with all necessary includes
             var baseQuery = _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
                 .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.Provider)
                 .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
@@ -1678,6 +1679,12 @@ namespace Raphael.Api.Services
             if (vehicleIds != null && vehicleIds.Any())
             {
                 baseQuery = baseQuery.Where(s => vehicleIds.Contains(s.VehicleRoute.VehicleId));
+            }
+
+            // 0 stands for Raphael: a trip with no Provider is carried out by Raphael itself.
+            if (providerIds != null && providerIds.Any())
+            {
+                baseQuery = baseQuery.Where(s => providerIds.Contains(s.Trip.ProviderId ?? 0));
             }
 
             // Execute query to bring data into memory
@@ -1730,6 +1737,8 @@ namespace Raphael.Api.Services
                         DropoffPhone = trip.DropoffPhone,
                         Authorization = trip.Authorization,
                         FundingSource = trip.FundingSource?.Name,
+                        ProviderId = trip.ProviderId,
+                        Provider = trip.Provider?.Name,
                         Distance = trip.Distance,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
                         Driver = pickup?.VehicleRoute?.Driver?.FullName,
@@ -1780,6 +1789,7 @@ namespace Raphael.Api.Services
             var baseQuery = _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
                 .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.Provider)
                 .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
@@ -1844,6 +1854,8 @@ namespace Raphael.Api.Services
                         DropoffPhone = trip.DropoffPhone,
                         Authorization = trip.Authorization,
                         FundingSource = trip.FundingSource?.Name,
+                        ProviderId = trip.ProviderId,
+                        Provider = trip.Provider?.Name,
                         Distance = trip.Distance,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
                         Driver = pickup?.VehicleRoute?.Driver?.FullName,
@@ -1892,6 +1904,7 @@ namespace Raphael.Api.Services
             var baseQuery = _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
                 .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.Provider)
                 .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
                 .Include(s => s.VehicleRoute)
                 .Where(s => s.Date.HasValue && s.Date.Value.Date >= startDate.Date && s.Date.Value.Date <= endDate.Date && s.TripId != null);
@@ -1925,6 +1938,8 @@ namespace Raphael.Api.Services
                         DOB = trip.Customer?.DOB,
                         PatientAddress = $"{trip.Customer?.Address}, {trip.Customer?.City}, {trip.Customer?.State} {trip.Customer?.Zip}",
                         FundingSource = trip.FundingSource?.Name,
+                        ProviderId = trip.ProviderId,
+                        Provider = trip.Provider?.Name,
                         PickupAddress = trip.PickupAddress,
                         DropoffAddress = trip.DropoffAddress,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
@@ -2030,6 +2045,7 @@ namespace Raphael.Api.Services
             var baseQuery = _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
                 .Include(s => s.Trip).ThenInclude(t => t.FundingSource)
+                .Include(s => s.Trip).ThenInclude(t => t.Provider)
                 .Include(s => s.Trip).ThenInclude(t => t.SpaceType)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Driver)
                 .Include(s => s.VehicleRoute).ThenInclude(vr => vr.Vehicle)
@@ -2107,6 +2123,8 @@ namespace Raphael.Api.Services
                         DropoffPhone = trip.DropoffPhone,
                         Authorization = trip.Authorization,
                         FundingSource = trip.FundingSource?.Name,
+                        ProviderId = trip.ProviderId,
+                        Provider = trip.Provider?.Name,
                         Distance = trip.Distance,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
                         Driver = pickup?.VehicleRoute?.Driver?.FullName,
@@ -2163,6 +2181,7 @@ namespace Raphael.Api.Services
             // Start with the base query
             var baseQuery = _context.Schedules
                 .Include(s => s.Trip).ThenInclude(t => t.Customer)
+                .Include(s => s.Trip).ThenInclude(t => t.Provider)
                 .Include(s => s.VehicleRoute)
                 .Where(s => s.Date.HasValue && s.Date.Value.Date == date.Date && s.TripId != null);
 
@@ -2197,6 +2216,8 @@ namespace Raphael.Api.Services
                         ReqPickup = pickupSchedule.ScheduledPickupTime,
                         Appointment = dropoffSchedule.ScheduledApptTime,
                         Patient = pickupSchedule.Trip?.Customer?.FullName,
+                        ProviderId = pickupSchedule.Trip?.ProviderId,
+                        Provider = pickupSchedule.Trip?.Provider?.Name,
                         PickupCity = pickupSchedule.Trip?.PickupCity,
                         Run = pickupSchedule.VehicleRoute?.Name,
                         Space = pickupSchedule.SpaceTypeName,

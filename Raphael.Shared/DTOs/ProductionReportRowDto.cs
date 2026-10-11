@@ -33,6 +33,10 @@
         public string? DropoffPhone { get; set; }
         public string? Authorization { get; set; }
         public string? FundingSource { get; set; }
+        /// <summary>The Provider carrying out the trip; null when Raphael does (no subcontract).</summary>
+        public int? ProviderId { get; set; }
+        /// <summary>The Provider's name; null when Raphael carries out the trip.</summary>
+        public string? Provider { get; set; }
         public double? Distance { get; set; }
         public string? Run { get; set; }
         public string? Driver { get; set; }

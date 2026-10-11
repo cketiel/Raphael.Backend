@@ -43,7 +43,7 @@ namespace Raphael.Api.Services
         Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataAsync(DateTime date, int? fundingSourceId);
         Task<IEnumerable<ProductionReportRowDto>> GetAviataReportDataAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds);
         Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync2(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds);
-        Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? vehicleRouteIds, List<int>? driverIds = null, List<int>? vehicleIds = null);
+        Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? vehicleRouteIds, List<int>? driverIds = null, List<int>? vehicleIds = null, List<int>? providerIds = null);
 
         Task<ScheduleDto?> GetByIdAsync(int id);
 

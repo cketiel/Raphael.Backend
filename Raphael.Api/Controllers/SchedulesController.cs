@@ -350,6 +350,7 @@ namespace Raphael.Api.Controllers
             [FromQuery] string? vehicleRouteIds,
             [FromQuery] string? driverIds,
             [FromQuery] string? vehicleIds,
+            [FromQuery] string? providerIds,
             [FromQuery] bool includeSignatures = false)
         {
             List<int>? fsIds = null;
@@ -368,8 +369,11 @@ namespace Raphael.Api.Controllers
                 ? null : driverIds.Split(',').Select(int.Parse).ToList();
             List<int>? vehIds = string.IsNullOrEmpty(vehicleIds)
                 ? null : vehicleIds.Split(',').Select(int.Parse).ToList();
+            // "0" is Raphael: the trips no Provider carries out.
+            List<int>? provIds = string.IsNullOrEmpty(providerIds)
+                ? null : providerIds.Split(',').Select(int.Parse).ToList();
 
-            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, fsIds, vrIds, drvIds, vehIds);
+            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, fsIds, vrIds, drvIds, vehIds, provIds);
             return Ok(WithSignatures(reportData, includeSignatures));
         }
 
