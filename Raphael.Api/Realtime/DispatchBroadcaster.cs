@@ -24,6 +24,12 @@ namespace Raphael.Api.Realtime
         Task VehiclePositionAsync(VehiclePositionMessage position, DateTime operatingDate);
 
         Task CallRequestChangedAsync(CallRequestChangedMessage message, int? providerId);
+
+        /// <summary>
+        /// Tells a clinic following one of its trips that its ETAs or its routing changed
+        /// (<see cref="TripTrackingChangedMessage"/>). A trip that is not a clinic's is ignored.
+        /// </summary>
+        Task TripTrackingChangedAsync(int tripId);
     }
 
     /// <inheritdoc />
@@ -72,6 +78,8 @@ namespace Raphael.Api.Realtime
                     await _hub.Clients
                         .Group(DispatchGroups.Route(vehicleRouteId, date))
                         .RouteChanged(new RouteChangedMessage { VehicleRouteId = vehicleRouteId, Date = date.Date });
+
+                    await TrackingChangedAsync(new[] { tripId });
                 });
 
         public Task TripUnroutedAsync(int tripId, int vehicleRouteId, DateTime date, int? providerId) =>
@@ -92,14 +100,42 @@ namespace Raphael.Api.Realtime
                     await _hub.Clients
                         .Group(DispatchGroups.Route(vehicleRouteId, date))
                         .RouteChanged(new RouteChangedMessage { VehicleRouteId = vehicleRouteId, Date = date.Date });
+
+                    await TrackingChangedAsync(new[] { tripId });
                 });
 
         public Task RouteChangedAsync(int vehicleRouteId, DateTime date) =>
             SafeAsync(
                 nameof(RouteChangedAsync),
-                () => _hub.Clients
-                    .Group(DispatchGroups.Route(vehicleRouteId, date))
-                    .RouteChanged(new RouteChangedMessage { VehicleRouteId = vehicleRouteId, Date = date.Date }));
+                async () =>
+                {
+                    await _hub.Clients
+                        .Group(DispatchGroups.Route(vehicleRouteId, date))
+                        .RouteChanged(new RouteChangedMessage { VehicleRouteId = vehicleRouteId, Date = date.Date });
+
+                    // The route's hours moved: every clinic trip on it that day has new ETAs.
+                    var day = date.Date;
+                    var tripIds = await _context.Trips
+                        .IgnoreQueryFilters()
+                        .AsNoTracking()
+                        .Where(t => t.VehicleRouteId == vehicleRouteId && t.Date.Date == day && t.IntegratorId != null)
+                        .Select(t => t.Id)
+                        .ToListAsync();
+                    await TrackingChangedAsync(tripIds);
+                });
+
+        public Task TripTrackingChangedAsync(int tripId) =>
+            SafeAsync(nameof(TripTrackingChangedAsync), () => TrackingChangedAsync(new[] { tripId }));
+
+        /// <summary>
+        /// The signal to each trip's own group. Only clinics that opened that trip are in it, so a trip
+        /// nobody follows costs one message to an empty group.
+        /// </summary>
+        private async Task TrackingChangedAsync(IEnumerable<int> tripIds)
+        {
+            foreach (var tripId in tripIds)
+                await _hub.Clients.Group(DispatchGroups.Trip(tripId)).TripTrackingChanged(new TripTrackingChangedMessage { TripId = tripId });
+        }
 
         public Task VehiclePositionAsync(VehiclePositionMessage position, DateTime operatingDate) =>
             SafeAsync(

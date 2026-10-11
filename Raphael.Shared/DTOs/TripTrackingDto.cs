@@ -55,6 +55,25 @@ namespace Raphael.Shared.DTOs
         /// <summary>When the patient was left at the destination.</summary>
         public TimeSpan? DroppedOffAt { get; set; }
 
+        /// <summary>The trip's own number (the integrator's id), shown as "Trip #40233". Null when it has none.</summary>
+        public string? ExternalTripId { get; set; }
+
+        /// <summary>The patient, for the page's title. The same name the clinic's trip list shows.</summary>
+        public string? CustomerName { get; set; }
+
+        public string? SpaceTypeName { get; set; }
+
+        /// <summary>Road miles of the trip, as routed.</summary>
+        public double? Distance { get; set; }
+
+        /// <summary>The places' names ("Home", "Sunrise Dialysis Center"), when the trip has them.</summary>
+        public string? PickupPlace { get; set; }
+
+        public string? DropoffPlace { get; set; }
+
+        /// <summary>The phone to call about the pickup: the patient's, as booked.</summary>
+        public string? PickupPhone { get; set; }
+
         /// <summary>The provider carrying the trip. Null means Raphael's own fleet.</summary>
         public string? ProviderName { get; set; }
 

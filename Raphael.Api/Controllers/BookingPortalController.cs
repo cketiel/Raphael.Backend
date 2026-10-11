@@ -209,7 +209,10 @@ namespace Raphael.Api.Controllers
             return Ok(new { Success = true, CancelledCount = count, Attempted = externalIds.Count });
         }
 
-        /// <summary>One of the clinic's trips, for its tracking view: places, route ETAs and what already happened.</summary>
+        /// <summary>
+        /// One of the clinic's trips, for its tracking page: who and where, route ETAs and what already
+        /// happened. Everything the page shows in one small request, never the day's whole list.
+        /// </summary>
         /// <remarks>The Trip query filter keeps it to the caller's integrator: another clinic's trip is a 404.</remarks>
         [HttpGet("trips/{id:int}/tracking")]
         [ProducesResponseType(typeof(TripTrackingDto), StatusCodes.Status200OK)]
@@ -233,6 +236,14 @@ namespace Raphael.Api.Controllers
                     DropoffLongitude = t.DropoffLongitude,
                     RequestedPickupTime = t.FromTime,
                     AppointmentTime = t.ToTime,
+                    // What the page's header shows, so it needs no second request for the trip's row.
+                    ExternalTripId = t.TripId,
+                    CustomerName = t.Customer.FullName,
+                    SpaceTypeName = t.SpaceType.Name,
+                    Distance = t.Distance,
+                    PickupPlace = t.Pickup,
+                    DropoffPlace = t.Dropoff,
+                    PickupPhone = t.PickupPhone,
                     // The provider and the kind of vehicle, never the route's or the vehicle's own
                     // names: those carry the driver's name and fleet codes (TripTrackingDto.VehicleType).
                     ProviderName = t.Provider != null ? t.Provider.Name : null,

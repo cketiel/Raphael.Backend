@@ -23,6 +23,8 @@ namespace Raphael.Api.Realtime
 
         Task TripStatusChanged(TripStatusChangedMessage message);
 
+        Task TripTrackingChanged(TripTrackingChangedMessage message);
+
         Task CallRequestChanged(CallRequestChangedMessage message);
     }
 }

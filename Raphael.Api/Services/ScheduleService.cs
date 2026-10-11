@@ -2377,6 +2377,10 @@ namespace Raphael.Api.Services
             schedule.TravelTime = dto.Travel;
 
             await _context.SaveChangesAsync();
+
+            // The driver's app writes ETAs on reaching a stop (and, soon, on "Start trip"): a clinic
+            // following this trip reads it again now, without polling.
+            if (schedule.TripId is int tripId) await _board.TripTrackingChangedAsync(tripId);
             return true;
         }
 

@@ -124,6 +124,17 @@ namespace Raphael.Shared.DTOs.Realtime
         public TimeSpan? DropoffEta { get; set; }
     }
 
+    /// <summary>
+    /// Something the clinic's tracking page shows for one trip changed without a status change: the
+    /// route's ETAs (the driver's app writes them on reaching a stop), or the trip was routed,
+    /// unrouted or its route re-timed. The page reads that one trip again. Nothing else is sent:
+    /// the signal replaces any polling (decision of 2026-10-10, BACKLOG §17).
+    /// </summary>
+    public class TripTrackingChangedMessage
+    {
+        public int TripId { get; set; }
+    }
+
     /// <summary>The two legs of a trip a vehicle can be on.</summary>
     public static class TripPhase
     {
