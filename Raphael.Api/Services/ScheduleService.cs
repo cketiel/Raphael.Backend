@@ -1638,7 +1638,7 @@ namespace Raphael.Api.Services
             return completedCount + canceledCount;
         }
 
-        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? vehicleRouteIds)
+        public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? vehicleRouteIds, List<int>? driverIds = null, List<int>? vehicleIds = null)
         {
             // 1. Initial Query with all necessary includes
             var baseQuery = _context.Schedules
@@ -1665,6 +1665,19 @@ namespace Raphael.Api.Services
             if (vehicleRouteIds != null && vehicleRouteIds.Any())
             {                
                 baseQuery = baseQuery.Where(s => vehicleRouteIds.Contains(s.VehicleRouteId));
+            }
+
+            // Driver and vehicle are the ones the route has TODAY: Schedule does not record who
+            // drove it, so a route reassigned since moves its past trips to the new driver.
+            // Known gap, tracked in _meta/BACKLOG.md ("Driver and vehicle history per trip").
+            if (driverIds != null && driverIds.Any())
+            {
+                baseQuery = baseQuery.Where(s => driverIds.Contains(s.VehicleRoute.DriverId));
+            }
+
+            if (vehicleIds != null && vehicleIds.Any())
+            {
+                baseQuery = baseQuery.Where(s => vehicleIds.Contains(s.VehicleRoute.VehicleId));
             }
 
             // Execute query to bring data into memory

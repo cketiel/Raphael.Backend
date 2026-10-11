@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Raphael.Api.Services;
@@ -348,6 +348,8 @@ namespace Raphael.Api.Controllers
             [FromQuery] DateTime endDate,
             [FromQuery] string? fundingSourceIds,
             [FromQuery] string? vehicleRouteIds,
+            [FromQuery] string? driverIds,
+            [FromQuery] string? vehicleIds,
             [FromQuery] bool includeSignatures = false)
         {
             List<int>? fsIds = null;
@@ -362,8 +364,12 @@ namespace Raphael.Api.Controllers
                 vrIds = vehicleRouteIds.Split(',').Select(int.Parse).ToList();
             }
 
-            // Actualizar la llamada al servicio para incluir vrIds
-            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, fsIds, vrIds);
+            List<int>? drvIds = string.IsNullOrEmpty(driverIds)
+                ? null : driverIds.Split(',').Select(int.Parse).ToList();
+            List<int>? vehIds = string.IsNullOrEmpty(vehicleIds)
+                ? null : vehicleIds.Split(',').Select(int.Parse).ToList();
+
+            var reportData = await _scheduleService.GetProductionReportDataByRangeAsync(startDate, endDate, fsIds, vrIds, drvIds, vehIds);
             return Ok(WithSignatures(reportData, includeSignatures));
         }
 
