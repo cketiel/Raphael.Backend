@@ -181,8 +181,80 @@ namespace Raphael.Api.Services
             }
 
             return await query.Select(s => s.ETATime).FirstOrDefaultAsync();
-           
+
         }
-      
+
+        public async Task<string> GetEtaUnavailableReasonAsync(string? patientFullName, string? phone, DateTime? date, string? tripNumber)
+        {
+            // Runs only after the ETA lookup above came back empty, and never changes what that
+            // lookup returns: the bot in production keeps reading success/message/eta as before,
+            // and the reason is an extra field it can start reading when it is ready.
+            var trips = _context.Trips.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(tripNumber))
+            {
+                string number = tripNumber.Trim();
+                trips = trips.Where(t => t.TripId == number);
+            }
+            else
+            {
+                // Same match as the profile lookup, but on the trip's own date: a trip that is not
+                // on a route yet has no schedule to carry one.
+                string pName = patientFullName!.ToLower().Trim();
+                trips = trips.Where(t =>
+                    t.Customer.FullName.ToLower().Contains(pName) &&
+                    (t.Customer.Phone.Replace("-", "").Replace(" ", "").Replace("(", "").Replace(")", "") == phone ||
+                     t.Customer.MobilePhone.Replace("-", "").Replace(" ", "").Replace("(", "").Replace(")", "") == phone) &&
+                    t.Date.Date == date!.Value.Date);
+            }
+
+            var candidates = await trips
+                .Select(t => new
+                {
+                    t.FromTime,
+                    t.WillCall,
+                    Canceled = t.IsCancelled || t.Status == TripStatus.Canceled,
+                    PickedUp = t.Status == TripStatus.InProgress || t.Status == TripStatus.Finished ||
+                               t.Status == TripStatus.Billed || t.Status == TripStatus.Payed ||
+                               _context.Schedules.Any(s => s.TripId == t.Id && s.EventType == ScheduleEventType.Pickup && s.Performed),
+                    HasPickup = _context.Schedules.Any(s => s.TripId == t.Id && s.EventType == ScheduleEventType.Pickup)
+                })
+                .ToListAsync();
+
+            if (candidates.Count == 0) return BotEtaReasons.TripNotFound;
+
+            var live = candidates.Where(c => !c.Canceled).ToList();
+            if (live.Count == 0) return BotEtaReasons.TripCanceled;
+
+            // A patient with several trips that day is asking about the one still to come, so a
+            // trip already picked up only explains the missing ETA when every trip is.
+            var pending = live.Where(c => !c.PickedUp).OrderBy(c => c.FromTime).FirstOrDefault();
+            if (pending == null) return BotEtaReasons.PickupCompleted;
+
+            if (pending.WillCall) return BotEtaReasons.TripIsWillCall;
+            if (!pending.HasPickup) return BotEtaReasons.TripNotScheduled;
+
+            // On a route, not picked up, and still no ETA: the route's times have not been
+            // calculated yet, or something nobody has named. Either way the office has to look.
+            return BotEtaReasons.Unknown;
+        }
+
+    }
+
+    /// <summary>
+    /// Why the bot got no ETA. Returned as <c>reason</c> next to <c>ETA_NOT_AVAILABLE</c>.
+    /// </summary>
+    /// <remarks>
+    /// A contract with the Customer Service Bot (see _meta/BOT_API_SPEC.md): a value is never
+    /// renamed or removed, and a new one is announced to the bot team before it ships.
+    /// </remarks>
+    public static class BotEtaReasons
+    {
+        public const string TripNotFound = "TRIP_NOT_FOUND";
+        public const string TripCanceled = "TRIP_CANCELED";
+        public const string PickupCompleted = "PICKUP_COMPLETED";
+        public const string TripIsWillCall = "TRIP_IS_WILL_CALL";
+        public const string TripNotScheduled = "TRIP_NOT_SCHEDULED";
+        public const string Unknown = "UNKNOWN";
     }
 }

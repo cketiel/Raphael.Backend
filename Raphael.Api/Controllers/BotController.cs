@@ -72,12 +72,7 @@ namespace Raphael.Api.Controllers
                 return BadRequest("TripNumber is required.");
 
             var eta = await _botService.GetEtaAsync(tripNumber);
-            return Ok(new
-            {
-                Success = eta.HasValue,
-                Message = eta.HasValue ? "ETA_AVAILABLE" : "ETA_NOT_AVAILABLE",
-                Eta = eta?.ToString(@"hh\:mm") ?? "N/A"
-            });
+            return Ok(await EtaResponseAsync(eta, null, null, null, tripNumber));
         }
 
         /// <summary>
@@ -118,14 +113,37 @@ namespace Raphael.Api.Controllers
             }
 
             var eta = await _botService.GetEtaAsync(patientName, phone, date, tripNumber);
-            bool success = eta.HasValue;
+            return Ok(await EtaResponseAsync(eta, patientName, phone, date, tripNumber));
+        }
 
-            return Ok(new
+        /// <summary>
+        /// The ETA answer both endpoints give. <c>reason</c> exists only when there is no ETA.
+        /// </summary>
+        /// <remarks>
+        /// Additive on purpose: <c>success</c>, <c>message</c> and <c>eta</c> keep their exact
+        /// values, so the bot in production goes on working while its team adopts
+        /// <c>reason</c>. Contract: _meta/BOT_API_SPEC.md.
+        /// </remarks>
+        private async Task<object> EtaResponseAsync(
+            TimeSpan? eta, string? patientName, string? phone, DateTime? date, string? tripNumber)
+        {
+            if (eta.HasValue)
             {
-                Success = success,
-                Message = success ? "ETA_AVAILABLE" : "ETA_NOT_AVAILABLE",
-                Eta = eta?.ToString(@"hh\:mm") ?? "N/A"
-            });
+                return new
+                {
+                    Success = true,
+                    Message = "ETA_AVAILABLE",
+                    Eta = eta.Value.ToString(@"hh\:mm")
+                };
+            }
+
+            return new
+            {
+                Success = false,
+                Message = "ETA_NOT_AVAILABLE",
+                Eta = "N/A",
+                Reason = await _botService.GetEtaUnavailableReasonAsync(patientName, phone, date, tripNumber)
+            };
         }
     }
 
