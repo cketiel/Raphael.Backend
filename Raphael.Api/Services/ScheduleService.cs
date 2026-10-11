@@ -1738,6 +1738,7 @@ namespace Raphael.Api.Services
                         Authorization = trip.Authorization,
                         FundingSource = trip.FundingSource?.Name,
                         ProviderId = trip.ProviderId,
+                        IntegratorId = trip.IntegratorId,
                         Provider = trip.Provider?.Name,
                         Distance = trip.Distance,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
@@ -1780,7 +1781,106 @@ namespace Raphael.Api.Services
                 .ThenBy(row => row.ReqPickup)
                 .ToList();
 
+            // Trips done by a Provider that works outside Raphael have no route and so no
+            // Schedules: they come from the times their Provider reported (PROVIDER_ACCESS_MODEL.md
+            // §3.5). Not when the caller asks by route, driver or vehicle: these trips have none.
+            if ((vehicleRouteIds == null || !vehicleRouteIds.Any())
+                && (driverIds == null || !driverIds.Any())
+                && (vehicleIds == null || !vehicleIds.Any()))
+            {
+                var reported = await ProviderReportedRowsAsync(startDate, endDate, fundingSourceIds, providerIds);
+                if (reported.Count > 0)
+                {
+                    reportData = reportData!
+                        .Concat(reported)
+                        .OrderBy(row => row!.Date)
+                        .ThenBy(row => row!.Run)
+                        .ThenBy(row => row!.ReqPickup)
+                        .ToList();
+                }
+            }
+
             return reportData;
+        }
+
+        /// <summary>
+        /// Report rows for the trips an external Provider completed or marked as a no-show: the same
+        /// columns as a routed trip's, with the times the Provider reported and no route, driver or vehicle.
+        /// </summary>
+        private async Task<List<ProductionReportRowDto>> ProviderReportedRowsAsync(
+            DateTime startDate, DateTime endDate, List<int>? fundingSourceIds, List<int>? providerIds)
+        {
+            var query = _context.Trips
+                .Include(t => t.Customer)
+                .Include(t => t.FundingSource)
+                .Include(t => t.SpaceType)
+                .Include(t => t.Provider)
+                .Where(t => t.Date.Date >= startDate.Date
+                            && t.Date.Date <= endDate.Date
+                            && (t.ProviderOutcome == ProviderOutcome.Completed || t.ProviderOutcome == ProviderOutcome.NoShow)
+                            && !_context.Schedules.Any(s => s.TripId == t.Id));
+
+            if (fundingSourceIds != null && fundingSourceIds.Any())
+                query = query.Where(t => t.FundingSourceId != null && fundingSourceIds.Contains(t.FundingSourceId.Value));
+            if (providerIds != null && providerIds.Any())
+                query = query.Where(t => providerIds.Contains(t.ProviderId ?? 0));
+
+            var trips = await query.ToListAsync();
+            if (trips.Count == 0) return new List<ProductionReportRowDto>();
+
+            var fsIds = trips.Select(t => t.FundingSourceId).Distinct().ToList();
+            var stIds = trips.Select(t => t.SpaceTypeId).Distinct().ToList();
+            var rules = await _context.FundingSourceBillingItems
+                .Include(bi => bi.BillingItem)
+                .Where(bi => fsIds.Contains(bi.FundingSourceId) && stIds.Contains(bi.SpaceTypeId))
+                .ToListAsync();
+
+            return trips.Select(trip => new ProductionReportRowDto
+            {
+                Date = trip.Date,
+                ReqPickup = trip.FromTime,
+                Appointment = trip.ToTime,
+                Patient = trip.Customer?.FullName,
+                PickupAddress = trip.PickupAddress,
+                DropoffAddress = trip.DropoffAddress,
+                Space = trip.SpaceType?.Name,
+                // The same calculator the routed rows and the Home tab use (see above).
+                Charge = (double)TripChargeCalculator.For(rules, trip.FundingSourceId, trip.SpaceTypeId, trip.Distance),
+                Paid = trip.Paid,
+                PickupComment = trip.PickupComment,
+                DropoffComment = trip.DropoffComment,
+                Type = trip.Type,
+                PickupPhone = trip.PickupPhone,
+                DropoffPhone = trip.DropoffPhone,
+                Authorization = trip.Authorization,
+                FundingSource = trip.FundingSource?.Name,
+                ProviderId = trip.ProviderId,
+                IntegratorId = trip.IntegratorId,
+                Provider = trip.Provider?.Name,
+                Distance = trip.Distance,
+                PickupArrive = trip.ProviderPickupArrivedAt,
+                PickupPerform = trip.ProviderPickedUpAt,
+                DropoffArrive = trip.ProviderDropoffArrivedAt,
+                DropoffPerform = trip.ProviderDroppedOffAt,
+                WillCall = trip.WillCall,
+                Canceled = trip.IsCancelled,
+                WillCallTime = trip.WillCall ? trip.FromTime : null,
+                TripId = trip.TripId,
+                PickupCity = trip.PickupCity,
+                PickupState = trip.Customer?.State,
+                PickupZip = trip.Customer?.Zip,
+                DropoffCity = trip.DropoffCity,
+                DropoffState = trip.Customer?.State,
+                DropoffZip = trip.Customer?.Zip,
+                PatientAddress = trip.Customer?.Address,
+                DOB = trip.Customer?.DOB,
+                DriverNoShowReason = trip.DriverNoShowReason,
+                PickupLat = trip.PickupLatitude,
+                PickupLon = trip.PickupLongitude,
+                DropoffLat = trip.DropoffLatitude,
+                DropoffLon = trip.DropoffLongitude,
+                Created = trip.Created,
+            }).ToList();
         }
 
         public async Task<IEnumerable<ProductionReportRowDto>> GetProductionReportDataByRangeAsync2(DateTime startDate, DateTime endDate, List<int>? fundingSourceIds)
@@ -1855,6 +1955,7 @@ namespace Raphael.Api.Services
                         Authorization = trip.Authorization,
                         FundingSource = trip.FundingSource?.Name,
                         ProviderId = trip.ProviderId,
+                        IntegratorId = trip.IntegratorId,
                         Provider = trip.Provider?.Name,
                         Distance = trip.Distance,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
@@ -1939,6 +2040,7 @@ namespace Raphael.Api.Services
                         PatientAddress = $"{trip.Customer?.Address}, {trip.Customer?.City}, {trip.Customer?.State} {trip.Customer?.Zip}",
                         FundingSource = trip.FundingSource?.Name,
                         ProviderId = trip.ProviderId,
+                        IntegratorId = trip.IntegratorId,
                         Provider = trip.Provider?.Name,
                         PickupAddress = trip.PickupAddress,
                         DropoffAddress = trip.DropoffAddress,
@@ -2124,6 +2226,7 @@ namespace Raphael.Api.Services
                         Authorization = trip.Authorization,
                         FundingSource = trip.FundingSource?.Name,
                         ProviderId = trip.ProviderId,
+                        IntegratorId = trip.IntegratorId,
                         Provider = trip.Provider?.Name,
                         Distance = trip.Distance,
                         Run = pickup?.VehicleRoute?.Name ?? dropoff?.VehicleRoute?.Name,
@@ -2217,6 +2320,7 @@ namespace Raphael.Api.Services
                         Appointment = dropoffSchedule.ScheduledApptTime,
                         Patient = pickupSchedule.Trip?.Customer?.FullName,
                         ProviderId = pickupSchedule.Trip?.ProviderId,
+                        IntegratorId = pickupSchedule.Trip?.IntegratorId,
                         Provider = pickupSchedule.Trip?.Provider?.Name,
                         PickupCity = pickupSchedule.Trip?.PickupCity,
                         Run = pickupSchedule.VehicleRoute?.Name,

@@ -3043,8 +3043,33 @@ namespace Raphael.Shared.Migrations
                     b.Property<string>("PickupPhone")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<TimeSpan?>("ProviderDropoffArrivedAt")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("ProviderDroppedOffAt")
+                        .HasColumnType("time");
+
                     b.Property<int?>("ProviderId")
                         .HasColumnType("int");
+
+                    b.Property<int?>("ProviderOutcome")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ProviderOutcomeAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProviderOutcomeByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderOutcomeReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<TimeSpan?>("ProviderPickedUpAt")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("ProviderPickupArrivedAt")
+                        .HasColumnType("time");
 
                     b.Property<int>("SpaceTypeId")
                         .HasColumnType("int");

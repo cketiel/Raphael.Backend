@@ -257,6 +257,15 @@ namespace Raphael.Api.Services
             // the clinic may give trips to this Provider.
             if (dto.SetProvider)
             {
+                // Given to another Provider (or back to Raphael) after a rejection: the new one
+                // starts clean. Kept when the clinic leaves it with the Provider that rejected it.
+                if (trip.ProviderOutcome == ProviderOutcome.Rejected && trip.ProviderId != dto.ProviderId)
+                {
+                    trip.ProviderOutcome = null;
+                    trip.ProviderOutcomeReason = null;
+                    trip.ProviderOutcomeAtUtc = null;
+                    trip.ProviderOutcomeByUserId = null;
+                }
                 trip.ProviderId = dto.ProviderId;
             }
 
@@ -1873,7 +1882,11 @@ namespace Raphael.Api.Services
                     PickupCity = t.PickupCity,
                     DropoffCity = t.DropoffCity,
                     ProviderId = t.ProviderId,
-                    ProviderName = t.Provider != null ? t.Provider.Name : null
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    IntegratorId = t.IntegratorId,
+                    IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
+                    ProviderOutcome = t.ProviderOutcome != null ? t.ProviderOutcome.ToString() : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason
                 })
                 .ToListAsync();
 

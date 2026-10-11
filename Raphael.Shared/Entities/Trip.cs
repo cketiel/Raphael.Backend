@@ -267,5 +267,28 @@ namespace Raphael.Shared.Entities
         [ForeignKey("ProviderId")]
         public virtual Provider? Provider { get; set; }
 
+        // ---- What an external Provider reported (PROVIDER_ACCESS_MODEL.md §3.5). A trip done
+        // outside Raphael has no route and so no Schedules: its real times live here, and the
+        // production report reads them from here. The Mediroute import will fill the same fields.
+
+        /// <summary>Rejected, Completed or NoShow; null while the Provider has said nothing.</summary>
+        public ProviderOutcome? ProviderOutcome { get; set; }
+
+        /// <summary>Why it was rejected, or the no-show's note.</summary>
+        [MaxLength(500)]
+        public string? ProviderOutcomeReason { get; set; }
+
+        public DateTime? ProviderOutcomeAtUtc { get; set; }
+
+        public int? ProviderOutcomeByUserId { get; set; }
+
+        /// <summary>Wall-clock times of the trip's day, as the Provider reported them (TIME_POLICY).</summary>
+        public TimeSpan? ProviderPickupArrivedAt { get; set; }
+
+        public TimeSpan? ProviderPickedUpAt { get; set; }
+
+        public TimeSpan? ProviderDropoffArrivedAt { get; set; }
+
+        public TimeSpan? ProviderDroppedOffAt { get; set; }
     }
 }

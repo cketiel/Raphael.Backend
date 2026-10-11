@@ -252,7 +252,9 @@ namespace Raphael.Api.Controllers
                     // The provider and the kind of vehicle, never the route's or the vehicle's own
                     // names: those carry the driver's name and fleet codes (TripTrackingDto.VehicleType).
                     ProviderName = t.Provider != null ? t.Provider.Name : null,
-                    VehicleType = t.Run != null ? t.Run.Vehicle.VehicleType.Name : null
+                    VehicleType = t.Run != null ? t.Run.Vehicle.VehicleType.Name : null,
+                    ProviderOutcome = t.ProviderOutcome != null ? t.ProviderOutcome.ToString() : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason
                 })
                 .FirstOrDefaultAsync();
 
@@ -275,6 +277,18 @@ namespace Raphael.Api.Controllers
             trip.DropoffEta = dropoff?.ETATime;
             trip.DropoffArrivedAt = dropoff?.ActualArriveTime;
             trip.DroppedOffAt = dropoff?.ActualPerformTime;
+
+            // A trip done outside Raphael has no Schedules: its times are the ones its Provider reported.
+            if (stops.Count == 0)
+            {
+                var reported = await context.Trips.AsNoTracking().Where(t => t.Id == id)
+                    .Select(t => new { t.ProviderPickupArrivedAt, t.ProviderPickedUpAt, t.ProviderDropoffArrivedAt, t.ProviderDroppedOffAt })
+                    .FirstAsync();
+                trip.PickupArrivedAt = reported.ProviderPickupArrivedAt;
+                trip.PickedUpAt = reported.ProviderPickedUpAt;
+                trip.DropoffArrivedAt = reported.ProviderDropoffArrivedAt;
+                trip.DroppedOffAt = reported.ProviderDroppedOffAt;
+            }
 
             return Ok(trip);
         }

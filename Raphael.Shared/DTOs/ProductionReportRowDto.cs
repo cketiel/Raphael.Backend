@@ -37,6 +37,8 @@
         public int? ProviderId { get; set; }
         /// <summary>The Provider's name; null when Raphael carries out the trip.</summary>
         public string? Provider { get; set; }
+        /// <summary>The clinic that booked the trip; null for the office's own. An external Provider filters by it.</summary>
+        public int? IntegratorId { get; set; }
         public double? Distance { get; set; }
         public string? Run { get; set; }
         public string? Driver { get; set; }

@@ -52,6 +52,14 @@ namespace Raphael.Shared.DTOs
         /// <summary>The Provider carrying out the trip; null when it is the super broker's.</summary>
         public int? ProviderId { get; set; }
         public string? ProviderName { get; set; }
+
+        /// <summary>The clinic that booked it: an external Provider's list mixes several.</summary>
+        public int? IntegratorId { get; set; }
+        public string? IntegratorName { get; set; }
+
+        /// <summary>"Rejected", "Completed" or "NoShow" from an external Provider; null otherwise.</summary>
+        public string? ProviderOutcome { get; set; }
+        public string? ProviderOutcomeReason { get; set; }
     }
 
 

@@ -77,7 +77,9 @@ namespace Raphael.Api.Realtime
                 .Where(e => e.Entity.IntegratorId != null
                             && (e.State == EntityState.Added
                                 || (e.State == EntityState.Modified
-                                    && (e.Property(t => t.Status).IsModified || e.Property(t => t.IsCancelled).IsModified))))
+                                    && (e.Property(t => t.Status).IsModified || e.Property(t => t.IsCancelled).IsModified
+                                        // A Provider rejecting a trip changes no status, and the clinic must see it.
+                                        || e.Property(t => t.ProviderOutcome).IsModified))))
                 .Select(e => e.Entity)
                 .ToList();
 
@@ -103,7 +105,9 @@ namespace Raphael.Api.Realtime
                             TripId = trip.Id,
                             Status = trip.Status,
                             IsCancelled = trip.IsCancelled,
-                            Date = trip.Date.Date
+                            Date = trip.Date.Date,
+                            ProviderOutcome = trip.ProviderOutcome?.ToString(),
+                            ProviderOutcomeReason = trip.ProviderOutcomeReason
                         });
                 }
                 catch (Exception ex)

@@ -160,6 +160,11 @@ namespace Raphael.Shared.DTOs.Realtime
         public bool IsCancelled { get; set; }
 
         public DateTime Date { get; set; }
+
+        /// <summary>An external Provider's report ("Rejected"…), which can change with the status unchanged.</summary>
+        public string? ProviderOutcome { get; set; }
+
+        public string? ProviderOutcomeReason { get; set; }
     }
 
     /// <summary>What a clinic gets back when it asks to follow one of its trips.</summary>

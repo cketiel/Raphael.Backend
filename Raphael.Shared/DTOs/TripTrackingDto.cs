@@ -86,5 +86,10 @@ namespace Raphael.Shared.DTOs
         /// 2026-10-10), so they never leave the office. Decision of 2026-10-10.
         /// </remarks>
         public string? VehicleType { get; set; }
+
+        /// <summary>"Rejected", "Completed" or "NoShow" from an external Provider; null otherwise.</summary>
+        public string? ProviderOutcome { get; set; }
+
+        public string? ProviderOutcomeReason { get; set; }
     }
 }
