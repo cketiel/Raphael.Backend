@@ -41,6 +41,7 @@ namespace Raphael.Api.Controllers
             if (trip == null) return BadRequest("Trip data is required.");
 
             // If it is neither an Integrator nor an Internal Administrator, then it is not authorized.
+            // An external Provider's user never books: it only sees the trips given to it.
             if (CurrentIntegratorId == null && !_currentUserService.IsMilanesInternal)
             {
                 return Unauthorized("You do not have permission to perform this operation.");
@@ -160,6 +161,10 @@ namespace Raphael.Api.Controllers
         [HttpPost("cancel-multiple")]
         public async Task<IActionResult> CancelMultiple([FromBody] List<string> externalIds)
         {
+            // An external Provider's user sees trips from every clinic (the Trip filter by provider):
+            // it must never cancel them. Cancelling is the clinic's.
+            if (_currentUserService.IsExternalProvider) return Forbid();
+
             if (externalIds == null || !externalIds.Any()) return BadRequest("No IDs provided.");
 
             // No catch: the global handler logs the exception and answers with a bare
@@ -279,6 +284,8 @@ namespace Raphael.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<FundingSource>> GetMyFundingSource([FromServices] IIntegratorService integratorService)
         {
+            if (_currentUserService.IsExternalProvider) return NotFound("No funding source linked to this integrator.");
+
             var fundingSource = await integratorService.GetFundingSourceByIntegratorIdAsync(CurrentIntegratorId);
             if (fundingSource == null) return NotFound("No funding source linked to this integrator.");
 

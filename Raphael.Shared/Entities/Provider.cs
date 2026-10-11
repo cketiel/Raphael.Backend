@@ -61,6 +61,9 @@ namespace Raphael.Shared.Entities
         /// as <c>User.ProviderId</c>. See <c>Integrator.OwnerProviderId</c>.
         /// </summary>
         public int? OwnerProviderId { get; set; }
+
+        /// <summary>Raphael (Desktop) or External (another system, Booking portal only).</summary>
+        public ProviderWorkMode WorkMode { get; set; } = ProviderWorkMode.Raphael;
     }
 }
 

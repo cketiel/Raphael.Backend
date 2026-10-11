@@ -6,6 +6,7 @@ using Raphael.Notification.Infrastructure.Realtime.Contracts;
 using Raphael.Notification.Infrastructure.Realtime.Models;
 using Raphael.Notification.Infrastructure.Realtime.Services;
 using Raphael.Shared.Definitions.Notifications;
+using Raphael.Shared.Helpers;
 using System.Security.Claims;
 
 namespace Raphael.Notification.Infrastructure.Realtime.Hubs;
@@ -26,6 +27,14 @@ public class NotificationHub : Hub<INotificationClient>
 
     public override async Task OnConnectedAsync()
     {
+        // An account whose password was set by somebody else hears nothing until its owner
+        // changes it (PasswordChangeGate in Raphael.Api).
+        if (Context.User?.FindFirst(PortalClaims.MustChangePassword)?.Value == "true")
+        {
+            Context.Abort();
+            return;
+        }
+
         //
         // 1. Rider (Raphael.Rider). Its token carries CustomerId.
         //
@@ -59,6 +68,17 @@ public class NotificationHub : Hub<INotificationClient>
                 Context.ConnectionId,
                 NotificationGroups.Integrator(userIntegratorId));
 
+            await base.OnConnectedAsync();
+            return;
+        }
+
+        //
+        // 3 bis. Users of a Provider that works outside Raphael (Booking portal only). They have
+        //    no integrator, and without this they fell into the office broadcast below, which
+        //    carries every clinic's patients. Nothing is addressed to them yet: no group.
+        //
+        if (Context.User?.FindFirst(PortalClaims.ProviderMode)?.Value == PortalClaims.External)
+        {
             await base.OnConnectedAsync();
             return;
         }

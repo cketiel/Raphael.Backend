@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Raphael.Api.Settings;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Helpers;
 
 namespace Raphael.Api.Services.Auth
 {
@@ -60,7 +61,7 @@ namespace Raphael.Api.Services.Auth
             var policy = _policies.CurrentValue.For(clientApp);
             var now = DateTime.UtcNow;
 
-            var access = CreateAccessToken(ClaimsForUser(user), policy, now, out var accessExpiry);
+            var access = CreateAccessToken(ClaimsForUser(user, await ProviderModeOfAsync(user, cancellationToken)), policy, now, out var accessExpiry);
 
             var refresh = await CreateRefreshTokenAsync(
                 userId: user.Id,
@@ -174,7 +175,7 @@ namespace Raphael.Api.Services.Auth
                     return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);
                 }
 
-                claims = ClaimsForUser(user);
+                claims = ClaimsForUser(user, await ProviderModeOfAsync(user, cancellationToken));
             }
             else
             {
@@ -351,7 +352,12 @@ namespace Raphael.Api.Services.Auth
         /// over the API reads these by name; dropping or renaming one does not fail a build, it
         /// fails a dispatcher's screen at runtime.
         /// </summary>
-        private static Claim[] ClaimsForUser(User user) => new[]
+        /// <remarks>
+        /// Two more, both read from the database on every issue (sign-in and refresh):
+        /// <see cref="PortalClaims.ProviderMode"/> on a Provider's user, and
+        /// <see cref="PortalClaims.MustChangePassword"/> while its password was set by somebody else.
+        /// </remarks>
+        private static Claim[] ClaimsForUser(User user, ProviderWorkMode? providerMode) => new[]
         {
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.RoleId.ToString()),
@@ -361,8 +367,16 @@ namespace Raphael.Api.Services.Auth
             new Claim("Username", user.Username),
             new Claim("Role", user.RoleId.ToString()),
             new Claim("UserIntegratorId", user.IntegratorId?.ToString() ?? ""),
-            new Claim("UserProviderId", user.ProviderId?.ToString() ?? "")
+            new Claim("UserProviderId", user.ProviderId?.ToString() ?? ""),
+            new Claim(PortalClaims.ProviderMode, providerMode?.ToString() ?? ""),
+            new Claim(PortalClaims.MustChangePassword, user.MustChangePassword ? "true" : "false")
         };
+
+        /// <summary>The work mode of the user's Provider; null for a user of no Provider.</summary>
+        private async Task<ProviderWorkMode?> ProviderModeOfAsync(User user, CancellationToken cancellationToken) =>
+            user.ProviderId is int providerId
+                ? await _context.Providers.Where(p => p.Id == providerId).Select(p => (ProviderWorkMode?)p.WorkMode).FirstOrDefaultAsync(cancellationToken)
+                : null;
 
         /// <summary>
         /// ⚠️ Reproduced exactly as <c>RiderService.GenerateRiderToken</c> built them.

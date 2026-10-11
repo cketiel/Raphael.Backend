@@ -34,6 +34,12 @@ namespace Raphael.Shared.DTOs
 
         public int? ProviderId { get; set; }
 
+        /// <summary>A user of a Provider that works outside Raphael: it only enters the Booking portal.</summary>
+        public bool IsExternalProvider { get; set; }
+
+        /// <summary>The account may do nothing until its owner changes the password.</summary>
+        public bool MustChangePassword { get; set; }
+
         public bool IsSuccess { get; set; }
 
         // ----------------------------------------------------------- added 2026-09-19

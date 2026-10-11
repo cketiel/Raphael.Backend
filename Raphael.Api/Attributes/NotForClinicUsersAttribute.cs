@@ -11,6 +11,11 @@ namespace Raphael.Api.Attributes
     /// A clinic holds its own token in the browser (the realtime hubs need it), so anything the
     /// API allows any session reaches a clinic too, BFF or not. A 404 and not a 403: a clinic has no
     /// business learning the endpoint exists. The office keeps whatever access it had.
+    ///
+    /// <para>
+    /// An external Provider's user (it works outside Raphael and only enters the portal) gets the
+    /// same answer: it is never less closed than a clinic (PROVIDER_ACCESS_MODEL.md §3).
+    /// </para>
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public sealed class NotForClinicUsersAttribute : ActionFilterAttribute
@@ -19,7 +24,7 @@ namespace Raphael.Api.Attributes
         {
             var currentUser = context.HttpContext.RequestServices.GetRequiredService<ICurrentUserService>();
 
-            if (currentUser.IntegratorId != null)
+            if (currentUser.IntegratorId != null || currentUser.IsExternalProvider)
             {
                 context.Result = new NotFoundResult();
             }

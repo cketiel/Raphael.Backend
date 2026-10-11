@@ -717,10 +717,13 @@ namespace Raphael.Shared.DbContexts
                 (_currentUserService.ProviderId != null && t.ProviderId == _currentUserService.ProviderId)
             );
 
+            // A Provider sees the patients of the trips it carries out, and nobody else's. It used to
+            // be "any Provider sees every patient" (SECURITY_FINDINGS.md F16), which turned into a
+            // real leak with the first user of an external Provider.
             modelBuilder.Entity<Customer>().HasQueryFilter(c =>
                _currentUserService.IsMilanesInternal ||
                (_currentUserService.IntegratorId != null && c.IntegratorId == _currentUserService.IntegratorId) ||
-               (_currentUserService.ProviderId != null)
+               (_currentUserService.ProviderId != null && c.Trips.Any(t => t.ProviderId == _currentUserService.ProviderId))
            );
 
 

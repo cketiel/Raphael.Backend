@@ -97,12 +97,15 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpPut("change-password")]
+        [AllowWhilePasswordChangeRequired]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
             // The user id travels in the body, and a clinic holds its token in the browser: without
             // this a clinic could change, or keep guessing, another user's password. A clinic user
-            // changes only its own. The office is left as it was (decided 2026-10-07).
-            if (_currentUser.IntegratorId != null && dto.UserId != _currentUser.UserId)
+            // changes only its own, and so does an external Provider's. The office is left as it
+            // was (decided 2026-10-07).
+            if ((_currentUser.IntegratorId != null || _currentUser.IsExternalProvider || _currentUser.MustChangePassword)
+                && dto.UserId != _currentUser.UserId)
             {
                 return Forbid();
             }

@@ -371,6 +371,8 @@ builder.Services.AddControllers(options =>
                      .RequireAuthenticatedUser()
                      .Build();
     options.Filters.Add(new AuthorizeFilter(policy));
+    // An account whose password was set by somebody else can only change it (PasswordChangeGate.cs).
+    options.Filters.Add<Raphael.Api.Attributes.PasswordChangeGateFilter>();
 })
 .AddJsonOptions(options =>
 {

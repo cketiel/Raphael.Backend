@@ -5,6 +5,7 @@ using Raphael.Api.Services.Auth;
 using Raphael.Api.Versioning;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
 using Raphael.Shared.Helpers;
 
 namespace Raphael.Api.Controllers
@@ -51,6 +52,18 @@ namespace Raphael.Api.Controllers
                     new { code = "integrator_disabled", message = "Your organization's access is disabled. Contact the office." });
             }
 
+            // A Provider that works outside Raphael only sees its trips in the Booking portal. Its
+            // users are created by clinics too, and must never be treated as the office: not in
+            // the Desktop, not in any other app (PROVIDER_ACCESS_MODEL.md §3.4, F15).
+            var isExternalProvider = user.ProviderId is int providerId
+                && await _context.Providers.AnyAsync(p => p.Id == providerId && p.WorkMode == ProviderWorkMode.External);
+            if (isExternalProvider && ClientApp() != PortalClaims.BookingApp)
+            {
+                return StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new { code = "wrong_app", message = "This account only has access to the Booking portal." });
+            }
+
             // Which application this is decides how long the session lasts, and it is recorded
             // on the refresh token here rather than re-read later. See SessionPolicyOptions.
             var issued = await _tokens.IssueForUserAsync(user, ClientApp());
@@ -63,6 +76,8 @@ namespace Raphael.Api.Controllers
                 Role = user.RoleId.ToString(),
                 IntegratorId = user.IntegratorId,
                 ProviderId = user.ProviderId,
+                IsExternalProvider = isExternalProvider,
+                MustChangePassword = user.MustChangePassword,
                 IsSuccess = true,
                 AccessTokenExpiresAtUtc = issued.AccessTokenExpiresAtUtc,
                 RefreshToken = issued.RefreshToken,

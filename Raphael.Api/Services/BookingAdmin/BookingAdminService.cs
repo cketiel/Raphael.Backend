@@ -60,8 +60,6 @@ namespace Raphael.Api.Services.BookingAdmin
 
         private const int AdminRoleId = 1;
 
-        /// <summary>Same rules the portal checks for a user's own password (passwordRules.ts).</summary>
-        private const int PasswordMinLength = 8;
 
         private readonly RaphaelContext _context;
         private readonly ICurrentUserService _currentUser;
@@ -234,10 +232,8 @@ namespace Raphael.Api.Services.BookingAdmin
 
         private static void CheckPassword(string password)
         {
-            if (string.IsNullOrEmpty(password) || password.Length < PasswordMinLength)
-                throw new BookingAdminRuleException($"The password must have at least {PasswordMinLength} characters.");
-            if (!password.Any(char.IsLetter) || !password.Any(char.IsDigit))
-                throw new BookingAdminRuleException("The password must contain letters and digits.");
+            if (Raphael.Api.Services.Auth.PasswordRules.Problem(password) is string problem)
+                throw new BookingAdminRuleException(problem);
         }
 
         /// <summary>Every open session of the user, on every device. Saved with the caller's changes.</summary>

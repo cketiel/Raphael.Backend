@@ -47,10 +47,19 @@ namespace Raphael.Api.Services.Catalog
 
         /// <summary>Whether a trip of this clinic may be given to this Provider account.</summary>
         Task<bool> IsAssignableAsync(int providerId, CancellationToken ct);
+
+        Task<List<PortalProviderUserDto>> GetProviderUsersAsync(int catalogProviderId, CancellationToken ct);
+
+        Task<PortalProviderUserDto> CreateProviderUserAsync(int catalogProviderId, PortalProviderUserCreateDto dto, CancellationToken ct);
+
+        Task<PortalProviderUserDto> SetProviderUserActiveAsync(int catalogProviderId, int userId, bool isActive, CancellationToken ct);
     }
 
     public sealed class PortalCatalogService : IPortalCatalogService
     {
+        /// <summary>The only role a clinic gives an external Provider's user: User (decided 2026-10-11).</summary>
+        private const int ProviderUserRoleId = 3;
+
         private const int MaxPageSize = 100;
         private const int MaxCityFacets = 50;
 
@@ -230,6 +239,16 @@ namespace Raphael.Api.Services.Catalog
 
             detail.CanContract = IsClinicAdmin;
             detail.CanEdit = IsClinicAdmin;
+
+            var account = await AccountOf(id)
+                .Select(p => new { p.Id, p.WorkMode, ActiveUsers = _context.Users.Count(u => u.ProviderId == p.Id && u.IsActive) })
+                .FirstOrDefaultAsync(ct);
+            detail.AccountId = account?.Id;
+            detail.WorkMode = account?.WorkMode.ToString();
+            detail.ActiveUserCount = account?.ActiveUsers ?? 0;
+            detail.Assignable = detail.Contracted && detail.IsActive && detail.ActiveUserCount > 0;
+            // A Provider that works in Raphael has its users managed by the office.
+            detail.CanManageUsers = IsClinicAdmin && detail.Contracted && account?.WorkMode != ProviderWorkMode.Raphael;
             return detail;
         }
 
@@ -245,8 +264,14 @@ namespace Raphael.Api.Services.Catalog
 
             if (!row.IsActive) throw new PortalCatalogRuleException("This provider is no longer active in the catalog and cannot be contracted.");
 
+            // The Provider joins the official list as it is contracted, so it can have users and
+            // trips (PROVIDER_ACCESS_MODEL.md §3.3). Also on a second request: a contract made before
+            // this rule gets its account the same way.
+            await EnsureAccountAsync(catalogProviderId, ct);
+
             if (await _context.IntegratorProviders.AnyAsync(r => r.IntegratorId == clinicId && r.CatalogProviderId == catalogProviderId, ct))
             {
+                await _context.SaveChangesAsync(ct);
                 return; // Already contracted: asking twice is not an error.
             }
 
@@ -360,14 +385,160 @@ namespace Raphael.Api.Services.Catalog
         public Task<bool> IsAssignableAsync(int providerId, CancellationToken ct) =>
             AssignableQuery(ClinicId).AnyAsync(p => p.Id == providerId, ct);
 
-        /// <summary>Accounts whose catalog entry this clinic contracted and which is still active.</summary>
+        /// <summary>
+        /// Accounts whose catalog entry this clinic contracted, still active, and with at least one
+        /// active user: a trip given to an account nobody can see leaves the patient without a ride
+        /// (PROVIDER_ACCESS_MODEL.md §3.3).
+        /// </summary>
         private IQueryable<Provider> AssignableQuery(int clinicId)
         {
             var contracted = ContractedIds(clinicId);
             return _context.Providers.AsNoTracking()
                 .Where(p => p.CatalogProviderId != null
                             && contracted.Contains(p.CatalogProviderId.Value)
-                            && p.CatalogProvider!.IsActive);
+                            && p.CatalogProvider!.IsActive
+                            && _context.Users.Any(u => u.ProviderId == p.Id && u.IsActive));
+        }
+
+        /// <summary>The account made out of a catalog entry. One per real company: the oldest if the Desktop made more.</summary>
+        private IQueryable<Provider> AccountOf(int catalogProviderId) =>
+            _context.Providers.Where(p => p.CatalogProviderId == catalogProviderId).OrderBy(p => p.Id);
+
+        /// <summary>
+        /// The account of a catalog entry, created when it has none: an external Provider (it works
+        /// in another system until it moves to the Desktop), with no users and no owner company.
+        /// Added to the context, saved with the caller's changes.
+        /// </summary>
+        private async Task<Provider> EnsureAccountAsync(int catalogProviderId, CancellationToken ct)
+        {
+            var account = await AccountOf(catalogProviderId).FirstOrDefaultAsync(ct);
+            if (account is not null) return account;
+
+            var row = await _context.CatalogProviders.AsNoTracking().FirstAsync(c => c.Id == catalogProviderId, ct);
+            account = new Provider
+            {
+                // Name, address and contact as the catalog has them: the catalog is the identity
+                // (CATALOG_MODEL.md §4.1), and any later change spreads from there.
+                Name = row.Name,
+                Address = row.Address,
+                Email = row.Email,
+                Phone = row.Phone,
+                Website = row.Website,
+                ContactName = row.ContactName,
+                Latitude = row.Latitude,
+                Longitude = row.Longitude,
+                CatalogProviderId = row.Id,
+                WorkMode = ProviderWorkMode.External,
+                // The broker's list, as when the office adds it from the Desktop.
+                OwnerProviderId = null
+            };
+            _context.Providers.Add(account);
+            return account;
+        }
+
+        // ------------------------------------------------------------------ an external Provider's users
+
+        /// <summary>
+        /// The account of a Provider this clinic contracted, for its admin to manage the users of.
+        /// A Provider that works in Raphael has its users managed by the office.
+        /// </summary>
+        private async Task<Provider?> ManagedAccountAsync(int catalogProviderId, bool create, CancellationToken ct)
+        {
+            var clinicId = ClinicId;
+            if (!IsClinicAdmin) throw new PortalCatalogDeniedException(notFound: false);
+
+            if (!await ContractedIds(clinicId).AnyAsync(id => id == catalogProviderId, ct))
+                throw new PortalCatalogDeniedException(notFound: true);
+
+            var account = create ? await EnsureAccountAsync(catalogProviderId, ct) : await AccountOf(catalogProviderId).FirstOrDefaultAsync(ct);
+            if (account?.WorkMode == ProviderWorkMode.Raphael)
+                throw new PortalCatalogRuleException("This Provider works in Raphael: its users are managed by the office.");
+            return account;
+        }
+
+        private static System.Linq.Expressions.Expression<Func<User, PortalProviderUserDto>> ToProviderUserDto() => u => new PortalProviderUserDto
+        {
+            Id = u.Id,
+            FullName = u.FullName,
+            Username = u.Username,
+            Email = u.Email,
+            PhoneNumber = u.PhoneNumber,
+            IsActive = u.IsActive,
+            MustChangePassword = u.MustChangePassword
+        };
+
+        public async Task<List<PortalProviderUserDto>> GetProviderUsersAsync(int catalogProviderId, CancellationToken ct)
+        {
+            var account = await ManagedAccountAsync(catalogProviderId, create: false, ct);
+            if (account is null) return new List<PortalProviderUserDto>();
+
+            return await _context.Users.AsNoTracking()
+                .Where(u => u.ProviderId == account.Id)
+                .OrderBy(u => u.FullName)
+                .Select(ToProviderUserDto())
+                .ToListAsync(ct);
+        }
+
+        /// <remarks>
+        /// The user sees the trips every clinic gives this Provider, not only this clinic's (decided
+        /// 2026-10-11). That is why it is born unable to do anything but change its password: the
+        /// clinic that typed the first one must not keep a way in (PasswordChangeGate).
+        /// </remarks>
+        public async Task<PortalProviderUserDto> CreateProviderUserAsync(int catalogProviderId, PortalProviderUserCreateDto dto, CancellationToken ct)
+        {
+            var name = dto.FullName?.Trim() ?? "";
+            var login = dto.Username?.Trim() ?? "";
+            if (name.Length == 0) throw new PortalCatalogRuleException("The full name is required.");
+            if (login.Length == 0) throw new PortalCatalogRuleException("The username is required.");
+            if (Raphael.Api.Services.Auth.PasswordRules.Problem(dto.Password) is string problem) throw new PortalCatalogRuleException(problem);
+
+            // Usernames are unique across the whole system: sign-in knows no company.
+            if (await _context.Users.AnyAsync(u => u.Username == login, ct))
+                throw new PortalCatalogRuleException("That username is already taken.");
+
+            var account = (await ManagedAccountAsync(catalogProviderId, create: true, ct))!;
+
+            var user = new User
+            {
+                FullName = name,
+                Username = login,
+                PasswordHash = PasswordHasher.Hash(dto.Password),
+                Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim(),
+                PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? null : dto.PhoneNumber.Trim(),
+                RoleId = ProviderUserRoleId,
+                IsActive = true,
+                MustChangePassword = true,
+                Provider = account,
+                IntegratorId = null
+            };
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync(ct);
+
+            return await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(ToProviderUserDto()).FirstAsync(ct);
+        }
+
+        /// <remarks>Switching a user off ends every open session of it.</remarks>
+        public async Task<PortalProviderUserDto> SetProviderUserActiveAsync(int catalogProviderId, int userId, bool isActive, CancellationToken ct)
+        {
+            var account = await ManagedAccountAsync(catalogProviderId, create: false, ct)
+                ?? throw new PortalCatalogDeniedException(notFound: true);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.ProviderId == account.Id, ct)
+                ?? throw new PortalCatalogDeniedException(notFound: true);
+
+            user.IsActive = isActive;
+            if (!isActive)
+            {
+                var now = DateTime.UtcNow;
+                foreach (var token in await _context.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAtUtc == null).ToListAsync(ct))
+                {
+                    token.RevokedAtUtc = now;
+                    token.RevokedReason = "disabled-by-clinic";
+                }
+            }
+            await _context.SaveChangesAsync(ct);
+
+            return await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(ToProviderUserDto()).FirstAsync(ct);
         }
 
         private static bool Same(string? a, string? b) =>

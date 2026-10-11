@@ -1,4 +1,5 @@
-﻿using Raphael.Shared.Interfaces;
+﻿using Raphael.Shared.Helpers;
+using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Services
 {
@@ -18,6 +19,8 @@ namespace Raphael.Api.Services
         public int? RoleId => GetClaimAsInt("Role");
  
         public bool IsMilanesInternal => IntegratorId == null && ProviderId == null;
+        public bool IsExternalProvider => GetClaimValue(PortalClaims.ProviderMode) == PortalClaims.External;
+        public bool MustChangePassword => GetClaimValue(PortalClaims.MustChangePassword) == "true";
 
         private int? GetClaimAsInt(string type)
         {

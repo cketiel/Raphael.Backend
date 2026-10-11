@@ -154,6 +154,21 @@ namespace Raphael.Api.Services
 
             // Change password
             user.PasswordHash = PasswordHasher.Hash(dto.NewPassword);
+
+            // A password somebody else set (a clinic creating an external Provider's user) is now
+            // the owner's alone. Every open session ends, the one whoever set it may have opened
+            // too: the owner signs in again with the new one.
+            if (user.MustChangePassword)
+            {
+                user.MustChangePassword = false;
+                var now = DateTime.UtcNow;
+                foreach (var token in await _context.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAtUtc == null).ToListAsync())
+                {
+                    token.RevokedAtUtc = now;
+                    token.RevokedReason = "password-changed-by-owner";
+                }
+            }
+
             await _context.SaveChangesAsync();
         }
 

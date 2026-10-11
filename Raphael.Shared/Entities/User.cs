@@ -30,6 +30,12 @@ namespace Raphael.Shared.Entities
         public string? Address { get; set; }
         public string? DriverLicense { get; set; }
         public bool IsActive { get; set; }
+
+        /// <summary>
+        /// The password was set by somebody else (a clinic creating an external Provider's user):
+        /// until its owner changes it, the account can do nothing but change it.
+        /// </summary>
+        public bool MustChangePassword { get; set; }
         [Required]
         public int RoleId { get; set; }
         public Role Role { get; set; }

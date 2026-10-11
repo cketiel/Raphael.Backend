@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services;
 using Raphael.Api.Services.Auth;
 using Raphael.Shared.DbContexts;
+using Raphael.Shared.Helpers;
 using Raphael.Shared.DTOs.Realtime;
 using System.Globalization;
 
@@ -40,6 +41,21 @@ namespace Raphael.Api.Realtime
         }
 
         /// <summary>
+        /// An account whose password was set by somebody else hears nothing until its owner changes
+        /// it (PasswordChangeGate).
+        /// </summary>
+        public override async Task OnConnectedAsync()
+        {
+            if (Context.User?.FindFirst(PortalClaims.MustChangePassword)?.Value == "true")
+            {
+                Context.Abort();
+                return;
+            }
+
+            await base.OnConnectedAsync();
+        }
+
+        /// <summary>
         /// Starts listening to a day's backlog: trips routed and unrouted by anyone else.
         /// </summary>
         public async Task WatchBoard(string date)
@@ -64,8 +80,9 @@ namespace Raphael.Api.Realtime
             if (vehicleRouteId <= 0 || !TryParseDay(date, out var day)) return;
 
             // A clinic follows its own trips through WatchTrip, never a whole route: a route
-            // carries other patients, and its vehicle shows where they are picked up.
-            if (IsClinic()) return;
+            // carries other patients, and its vehicle shows where they are picked up. Nor does an
+            // external Provider's user, which is never less closed than a clinic.
+            if (IsPortalUser()) return;
 
             await Groups.AddToGroupAsync(Context.ConnectionId, DispatchGroups.Route(vehicleRouteId, day));
         }
@@ -165,8 +182,10 @@ namespace Raphael.Api.Realtime
         /// <c>ProviderId</c>, which no token carries, so every user landed in the internal scope
         /// and heard every provider.
         /// </remarks>
-        private bool IsClinic() =>
-            Context.User is not null && _roles.IntegratorIdOf(Context.User).HasValue;
+        private bool IsPortalUser() =>
+            Context.User is not null
+            && (_roles.IntegratorIdOf(Context.User).HasValue
+                || Context.User.FindFirst(PortalClaims.ProviderMode)?.Value == PortalClaims.External);
 
         private string CallerScope()
         {

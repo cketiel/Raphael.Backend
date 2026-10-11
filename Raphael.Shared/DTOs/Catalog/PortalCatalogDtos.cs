@@ -125,6 +125,21 @@ namespace Raphael.Shared.DTOs.Catalog
 
         /// <summary>The caller may contract it or remove it: a clinic admin.</summary>
         public bool CanContract { get; set; }
+
+        /// <summary>The Provider's account in Raphael, when it has one: what <c>Trip.ProviderId</c> stores.</summary>
+        public int? AccountId { get; set; }
+
+        /// <summary>"Raphael" (works in the Desktop) or "External" (another system); null without an account.</summary>
+        public string? WorkMode { get; set; }
+
+        /// <summary>Active users of the account. Without one, no trip can be given to the Provider.</summary>
+        public int ActiveUserCount { get; set; }
+
+        /// <summary>Contracted by the caller's clinic, with an account and at least one active user.</summary>
+        public bool Assignable { get; set; }
+
+        /// <summary>The caller may create and switch off this Provider's users: a clinic admin, on a contracted Provider that does not work in Raphael.</summary>
+        public bool CanManageUsers { get; set; }
     }
 
     /// <summary>The contact details a clinic admin may change on a Provider it contracted.</summary>
@@ -149,12 +164,41 @@ namespace Raphael.Shared.DTOs.Catalog
         public string? ContactName { get; set; }
     }
 
-    /// <summary>A Provider a trip can be given to: contracted, active and with an account.</summary>
+    /// <summary>A Provider a trip can be given to: contracted, active, with an account and at least one active user.</summary>
     public class AssignableProviderDto
     {
         /// <summary>The account id: what <c>Trip.ProviderId</c> stores.</summary>
         public int ProviderId { get; set; }
 
         public string Name { get; set; } = string.Empty;
+    }
+
+    /// <summary>A user of an external Provider, as the clinic that contracted it sees it.</summary>
+    public class PortalProviderUserDto
+    {
+        public int Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
+        public bool IsActive { get; set; }
+
+        /// <summary>Still on the password the clinic gave it: it can do nothing until its owner changes it.</summary>
+        public bool MustChangePassword { get; set; }
+    }
+
+    /// <summary>A new user for an external Provider. Always role User; it changes the password at its first sign-in.</summary>
+    public class PortalProviderUserCreateDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
+    }
+
+    public class PortalProviderUserActiveDto
+    {
+        public bool IsActive { get; set; }
     }
 }

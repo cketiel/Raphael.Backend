@@ -67,6 +67,29 @@ namespace Raphael.Api.Controllers
         public Task<ActionResult<PortalCatalogProviderDetailDto>> EditProvider(int id, [FromBody] PortalCatalogProviderEditDto request, CancellationToken ct) =>
             Run(async () => await _catalog.EditProviderAsync(id, request, ct));
 
+        /// <summary>The users of a contracted external Provider. Clinic admin only.</summary>
+        [HttpGet("providers/{id:int}/users")]
+        [ProducesResponseType(typeof(List<PortalProviderUserDto>), StatusCodes.Status200OK)]
+        public Task<ActionResult<List<PortalProviderUserDto>>> GetProviderUsers(int id, CancellationToken ct) =>
+            Run(async () => await _catalog.GetProviderUsersAsync(id, ct));
+
+        /// <summary>
+        /// A new user, role User, for a contracted external Provider. It sees that Provider's trips
+        /// from every clinic, once it has changed the password at its first sign-in.
+        /// </summary>
+        [HttpPost("providers/{id:int}/users")]
+        [ProducesResponseType(typeof(PortalProviderUserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public Task<ActionResult<PortalProviderUserDto>> CreateProviderUser(int id, [FromBody] PortalProviderUserCreateDto dto, CancellationToken ct) =>
+            Run(async () => await _catalog.CreateProviderUserAsync(id, dto, ct));
+
+        /// <remarks>Switching a user off ends every open session of it.</remarks>
+        [HttpPut("providers/{id:int}/users/{userId:int}/active")]
+        [ProducesResponseType(typeof(PortalProviderUserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public Task<ActionResult<PortalProviderUserDto>> SetProviderUserActive(int id, int userId, [FromBody] PortalProviderUserActiveDto dto, CancellationToken ct) =>
+            Run(async () => await _catalog.SetProviderUserActiveAsync(id, userId, dto.IsActive, ct));
+
         /// <summary>Turns the service's refusals into 403, 404 and 400; anything else reaches the global handler.</summary>
         private async Task<ActionResult<T>> Run<T>(Func<Task<T>> work, bool noContent = false)
         {

@@ -39,6 +39,8 @@ namespace Raphael.Shared.Factories
         public int? ProviderId => null;
         public int? RoleId => null;
         public bool IsMilanesInternal => true; // Para migraciones, actuar como admin global
+        public bool IsExternalProvider => false;
+        public bool MustChangePassword => false;
     }
 }
 

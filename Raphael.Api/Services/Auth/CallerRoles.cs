@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Raphael.Notification.Infrastructure.Realtime;
 using System.Security.Claims;
+using Raphael.Shared.Helpers;
 
 namespace Raphael.Api.Services.Auth
 {
@@ -45,6 +46,8 @@ namespace Raphael.Api.Services.Auth
             && !HasValue(user, "CustomerId")
             && !HasValue(user, "IntegratorId")
             && !HasValue(user, "UserIntegratorId")
+            // An external Provider's user only enters the portal: never the office.
+            && user.FindFirst(PortalClaims.ProviderMode)?.Value != PortalClaims.External
             && _options.DriverRoleIds.Length > 0
             && !HasDriverRole(user);
 
