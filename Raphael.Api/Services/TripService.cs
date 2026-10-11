@@ -225,7 +225,9 @@ namespace Raphael.Api.Services
                 {
                     IntegratorId = integratorId,
                     Created = DateTime.UtcNow,
-                    Status = TripStatus.Accepted
+                    // Given, not yet committed to: its Provider (or Raphael) accepts it, and until then
+                    // the clinic may give it to another (PROVIDER_ACCESS_MODEL.md §3.7, decided 2026-10-11).
+                    Status = TripStatus.Assigned
                 };
                 _context.Trips.Add(trip);
             }
@@ -258,9 +260,11 @@ namespace Raphael.Api.Services
             if (dto.SetProvider)
             {
                 // Given to another Provider (or back to Raphael) after a rejection: the new one
-                // starts clean. Kept when the clinic leaves it with the Provider that rejected it.
-                if (trip.ProviderOutcome == ProviderOutcome.Rejected && trip.ProviderId != dto.ProviderId)
+                // starts clean, and the trip is Assigned again (the controller has checked the clinic
+                // did change the Provider of a rejected trip).
+                if (trip.Status == TripStatus.Rejected && trip.ProviderId != dto.ProviderId)
                 {
+                    trip.Status = TripStatus.Assigned;
                     trip.ProviderOutcome = null;
                     trip.ProviderOutcomeReason = null;
                     trip.ProviderOutcomeAtUtc = null;
@@ -1886,7 +1890,8 @@ namespace Raphael.Api.Services
                     IntegratorId = t.IntegratorId,
                     IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
                     ProviderOutcome = t.ProviderOutcome != null ? t.ProviderOutcome.ToString() : null,
-                    ProviderOutcomeReason = t.ProviderOutcomeReason
+                    ProviderOutcomeReason = t.ProviderOutcomeReason,
+                    ProviderIsExternal = t.Provider != null && t.Provider.WorkMode == ProviderWorkMode.External
                 })
                 .ToListAsync();
 

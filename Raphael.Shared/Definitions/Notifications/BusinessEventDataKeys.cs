@@ -46,6 +46,12 @@ public static class BusinessEventDataKeys
     /// <summary>Reason given for the cancellation, when there is one.</summary>
     public const string CancellationReason = "CancellationReason";
 
+    /// <summary>Why the Provider rejected the trip (TRIP_REJECTED).</summary>
+    public const string RejectionReason = "RejectionReason";
+
+    /// <summary>The name of the Provider that rejected the trip (TRIP_REJECTED).</summary>
+    public const string ProviderName = "ProviderName";
+
     /// <summary>Internal user who performed the action, so the office can hide its own notice.</summary>
     public const string PerformedByUserId = "PerformedByUserId";
 

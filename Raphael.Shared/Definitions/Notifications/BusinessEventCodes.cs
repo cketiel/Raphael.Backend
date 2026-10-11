@@ -23,6 +23,9 @@ public static class BusinessEventCodes
     /// </summary>
     public const string TripCancelled = "TRIP_CANCELLED";
 
+    /// <summary>The Provider a trip was given to rejected it: the clinic must give it to someone else.</summary>
+    public const string TripRejected = "TRIP_REJECTED";
+
     /// <summary>
     /// A cancelled trip was put back in service.
     /// </summary>

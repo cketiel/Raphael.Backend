@@ -75,6 +75,24 @@ namespace Raphael.Api.Services.Notifications
                 cancellationToken: cancellationToken);
         }
 
+        public async Task TripRejectedAsync(Trip trip, string providerName, string reason, CancellationToken cancellationToken = default)
+        {
+            if (trip is null) return;
+
+            var data = BuildTripData(trip);
+            data[BusinessEventDataKeys.ProviderName] = providerName;
+            data[BusinessEventDataKeys.RejectionReason] = reason;
+
+            await PublishAsync(
+                BusinessEventCodes.TripRejected,
+                trip,
+                data,
+                _currentUserService.UserId.HasValue
+                    ? UserIdentifierConverter.ToGuid(_currentUserService.UserId.Value, RecipientType.DesktopUser)
+                    : null,
+                cancellationToken);
+        }
+
         public async Task TripReactivatedAsync(
             Trip trip,
             CancellationToken cancellationToken = default)

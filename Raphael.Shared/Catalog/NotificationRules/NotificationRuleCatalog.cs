@@ -176,6 +176,38 @@ public static class NotificationRuleCatalog
 
         #endregion
 
+        #region TRIP_REJECTED
+
+        new()
+        {
+            RuleCode = "RULE_TRIP_REJECTED_INTEGRATION",
+            RuleName = "Trip Rejected - Integration",
+            Description = "Tells the clinic that booked the trip that its Provider will not do it: it must give it to another one or to Raphael.",
+            BusinessEventCode = "TRIP_REJECTED",
+            Type = NotificationType.Alert,
+            Priority = NotificationPriority.Critical,
+            Severity = NotificationSeverity.Warning,
+            Recipients = [RecipientType.Integration],
+            Channels = [DeliveryChannel.InApp],
+            Actions = ["VIEW_TRIP"]
+        },
+
+        new()
+        {
+            RuleCode = "RULE_TRIP_REJECTED_DESKTOP",
+            RuleName = "Trip Rejected - Desktop",
+            Description = "Tells the dispatch office that a Provider rejected a trip, so nobody will do it until the clinic reassigns it.",
+            BusinessEventCode = "TRIP_REJECTED",
+            Type = NotificationType.Alert,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Warning,
+            Recipients = [RecipientType.DesktopUser],
+            Channels = [DeliveryChannel.InApp],
+            Actions = ["OPEN_TRIP"]
+        },
+
+        #endregion
+
         #region DRIVER_ROUTE_UPDATED
 
         new()

@@ -37,7 +37,19 @@ namespace Raphael.Shared.Entities
         public static string Assigned = "Assigned";
 
         /// <summary>The Supplier accepts the trip. The Broker is notified. (Member may be notified.)</summary>
+        /// <remarks>
+        /// Since 2026-10-11 (PROVIDER_ACCESS_MODEL.md §3.7) it is also the Provider's commitment: a clinic
+        /// may change the Provider of an <see cref="Assigned"/> trip, never of an Accepted one. Raphael's own
+        /// trips are accepted by being booked (Desktop) or routed.
+        /// </remarks>
         public static string Accepted = "Accepted";
+
+        /// <summary>
+        /// The Provider the trip was given to will not do it, and said why. The clinic must give it to
+        /// another Provider or to Raphael, which puts it back to <see cref="Assigned"/>. Until then nobody
+        /// will carry it out: it is first in the clinic's "Needs attention".
+        /// </summary>
+        public static string Rejected = "Rejected";
 
         /// <summary>The Router schedules the trip, designates a Driver and a Vehicle to carry out the trip. The Driver is notified.</summary>
         public static string Scheduled = "Scheduled";

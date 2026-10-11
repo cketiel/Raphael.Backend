@@ -32,6 +32,12 @@ namespace Raphael.Api.Controllers
         public Task<ActionResult<List<ProviderClinicDto>>> GetClinics(CancellationToken ct) =>
             Run(() => _portal.GetClinicsAsync(ct));
 
+        /// <summary>Accepts these Assigned trips of the caller's Provider. Answers how many were accepted.</summary>
+        [HttpPost("trips/accept")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        public Task<ActionResult<int>> Accept([FromBody] List<int> tripIds, CancellationToken ct) =>
+            Run(() => _portal.AcceptAsync(tripIds ?? new List<int>(), ct));
+
         [HttpPost("trips/{id:int}/reject")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

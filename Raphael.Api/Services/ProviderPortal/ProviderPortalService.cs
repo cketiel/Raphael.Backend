@@ -34,6 +34,8 @@ namespace Raphael.Api.Services.ProviderPortal
     {
         Task<List<ProviderClinicDto>> GetClinicsAsync(CancellationToken ct);
 
+        Task<int> AcceptAsync(IReadOnlyCollection<int> tripIds, CancellationToken ct);
+
         Task RejectAsync(int tripId, ProviderTripRejectDto dto, CancellationToken ct);
 
         Task CompleteAsync(int tripId, ProviderTripCompleteDto dto, CancellationToken ct);
@@ -52,15 +54,17 @@ namespace Raphael.Api.Services.ProviderPortal
         private const int MaxPageSize = 100;
         private const int MaxReasonLength = 500;
 
-        /// <summary>A trip that has started, or is over, can no longer be turned down.</summary>
-        private static readonly string[] NotRejectable =
-        {
-            TripStatus.Started, TripStatus.Arrived, TripStatus.InProgress,
-            TripStatus.Finished, TripStatus.Billed, TripStatus.Payed, TripStatus.Canceled
-        };
+        /// <summary>
+        /// What a Provider may still turn down: a trip given to it, or one it accepted and cannot do
+        /// after all. Saying so is better than not showing up (PROVIDER_ACCESS_MODEL.md §3.7).
+        /// </summary>
+        private static readonly string[] Rejectable = { TripStatus.Assigned, TripStatus.Accepted };
 
-        /// <summary>A trip already done, billed or cancelled has no result left to report.</summary>
-        private static readonly string[] Closed = { TripStatus.Finished, TripStatus.Billed, TripStatus.Payed, TripStatus.Canceled };
+        /// <summary>
+        /// What a Provider may complete or mark as a no-show: a trip it accepted. One it has not
+        /// accepted is not yet its own to do (decided 2026-10-11).
+        /// </summary>
+        private static readonly string[] Reportable = { TripStatus.Accepted, TripStatus.Waiting, TripStatus.Late };
 
         private readonly RaphaelContext _context;
         private readonly ICurrentUserService _currentUser;
@@ -68,6 +72,7 @@ namespace Raphael.Api.Services.ProviderPortal
         private readonly ICatalogAccountSync _sync;
         private readonly IRoutingService _routing;
         private readonly IOperationClock _clock;
+        private readonly Raphael.Api.Services.Notifications.ITripNotificationPublisher _notifications;
 
         public ProviderPortalService(
             RaphaelContext context,
@@ -75,8 +80,10 @@ namespace Raphael.Api.Services.ProviderPortal
             ITripService trips,
             ICatalogAccountSync sync,
             IRoutingService routing,
-            IOperationClock clock)
+            IOperationClock clock,
+            Raphael.Api.Services.Notifications.ITripNotificationPublisher notifications)
         {
+            _notifications = notifications;
             _context = context;
             _currentUser = currentUser;
             _trips = trips;
@@ -147,23 +154,50 @@ namespace Raphael.Api.Services.ProviderPortal
                 ChangeDate = DateTime.UtcNow
             });
 
+        /// <summary>
+        /// The Provider commits to these trips of its own: from Assigned to Accepted. From then on the
+        /// clinic can no longer give them to another Provider, and the Provider may export them.
+        /// Trips that are not Assigned are skipped; the count says how many were accepted.
+        /// </summary>
+        public async Task<int> AcceptAsync(IReadOnlyCollection<int> tripIds, CancellationToken ct)
+        {
+            var providerId = ProviderId;
+            if (tripIds.Count == 0) return 0;
+            if (tripIds.Count > 500) throw new ProviderPortalRuleException("Accept at most 500 trips at a time.");
+
+            var trips = await _context.Trips
+                .Where(t => tripIds.Contains(t.Id) && t.ProviderId == providerId && !t.IsCancelled && t.Status == TripStatus.Assigned)
+                .ToListAsync(ct);
+            foreach (var trip in trips)
+            {
+                trip.Status = TripStatus.Accepted;
+                History(trip, "Status", TripStatus.Assigned, TripStatus.Accepted);
+            }
+            await _context.SaveChangesAsync(ct);
+            return trips.Count;
+        }
+
         /// <remarks>
-        /// The trip keeps the Provider, marked, and its status does not move: the clinic decides
-        /// whether to give it to another Provider or leave it to Raphael (decided 2026-10-11).
+        /// The trip keeps the Provider and becomes Rejected: the clinic must give it to another
+        /// Provider or to Raphael, which puts it back to Assigned. The clinic and the office are told
+        /// (TRIP_REJECTED).
         /// </remarks>
         public async Task RejectAsync(int tripId, ProviderTripRejectDto dto, CancellationToken ct)
         {
             var reason = Reason(dto.Reason);
             var trip = await MyTripAsync(tripId, ct);
 
-            if (trip.IsCancelled || NotRejectable.Contains(trip.Status))
-                throw new ProviderPortalRuleException("This trip has already started or is over: it can no longer be rejected.");
-            if (trip.ProviderOutcome is not null)
-                throw new ProviderPortalRuleException("A result has already been reported for this trip.");
+            if (trip.IsCancelled || !Rejectable.Contains(trip.Status))
+                throw new ProviderPortalRuleException("This trip has already been routed, started or closed: it can no longer be rejected.");
 
+            var prior = trip.Status;
+            trip.Status = TripStatus.Rejected;
             Stamp(trip, ProviderOutcome.Rejected, reason);
-            History(trip, "ProviderOutcome", null, $"Rejected: {reason}");
+            History(trip, "Status", prior, $"{TripStatus.Rejected}: {reason}");
             await _context.SaveChangesAsync(ct);
+
+            var providerName = await _context.Providers.Where(p => p.Id == trip.ProviderId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "Its provider";
+            await _notifications.TripRejectedAsync(trip, providerName, reason, ct);
         }
 
         /// <remarks>
@@ -214,15 +248,15 @@ namespace Raphael.Api.Services.ProviderPortal
             await _context.SaveChangesAsync(ct);
         }
 
-        /// <summary>A trip of the caller's that can still be completed or marked no-show: not closed, not rejected, not in the future.</summary>
+        /// <summary>A trip of the caller's that can be completed or marked no-show: accepted, still open, not in the future.</summary>
         private async Task<Trip> ReportableTripAsync(int tripId, CancellationToken ct)
         {
             var trip = await MyTripAsync(tripId, ct);
 
-            if (trip.IsCancelled || Closed.Contains(trip.Status))
-                throw new ProviderPortalRuleException("This trip is already finished or cancelled.");
-            if (trip.ProviderOutcome is not null)
-                throw new ProviderPortalRuleException("A result has already been reported for this trip.");
+            if (trip.IsCancelled || !Reportable.Contains(trip.Status))
+                throw new ProviderPortalRuleException(trip.Status == TripStatus.Assigned
+                    ? "Accept this trip before reporting its result."
+                    : "This trip is already finished, cancelled or rejected.");
             // The business's own day (TIME_POLICY): a trip of tomorrow has not happened yet.
             if (trip.Date.Date > _clock.NowFor(trip.ProviderId).Date)
                 throw new ProviderPortalRuleException("A trip of a day still to come cannot be reported yet.");

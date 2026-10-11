@@ -180,6 +180,16 @@ public static class NotificationContentBuilder
                 return ("Trip Cancelled",
                     $"{Capitalize(tripLabel)}{whenForRider} was cancelled{DescribeActorSuffix(cancelledBy)}.");
 
+            case BusinessEventCodes.TripRejected:
+
+                var rejectedBy = GetString(context, BusinessEventDataKeys.ProviderName) ?? "Its provider";
+                var why = GetString(context, BusinessEventDataKeys.RejectionReason);
+
+                return ("Trip Rejected",
+                    $"{Capitalize(tripLabel)}{whenForRider} was rejected by {rejectedBy}"
+                    + (why is null ? "." : $": {why}.")
+                    + " Give it to another provider or to Raphael.");
+
             case BusinessEventCodes.DriverRouteUpdated:
 
                 // A signal, not a notice. The flag is what keeps it out of the inbox and off

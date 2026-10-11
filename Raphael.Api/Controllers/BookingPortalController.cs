@@ -36,7 +36,7 @@ namespace Raphael.Api.Controllers
         private int? CurrentIntegratorId => _currentUserService.IntegratorId;
 
         [HttpPost("sync-single")]
-        public async Task<IActionResult> SyncSingle([FromForm] PortalTripDto trip, [FromServices] Raphael.Api.Services.Catalog.IPortalCatalogService catalog)
+        public async Task<IActionResult> SyncSingle([FromForm] PortalTripDto trip, [FromServices] Raphael.Api.Services.Catalog.IPortalCatalogService catalog, [FromServices] RaphaelContext context)
         {
             if (trip == null) return BadRequest("Trip data is required.");
 
@@ -56,17 +56,43 @@ namespace Raphael.Api.Controllers
             // --- RESTRICCIÓN DE SEGURIDAD PARA EDICIÓN ---
             if (isEdit)
             {                  
-                var existingTrip = await _tripService.GetByIdAsync(trip.InternalId.Value);
+                var existingTrip = await context.Trips.AsNoTracking()
+                    .Where(t => t.Id == trip.InternalId.Value)
+                    .Select(t => new
+                    {
+                        t.Status,
+                        t.ProviderId,
+                        External = t.Provider != null && t.Provider.WorkMode == ProviderWorkMode.External
+                    })
+                    .FirstOrDefaultAsync();
 
                 if (existingTrip == null) return NotFound("Trip not found.");
 
-                // Solo permitir editar si el estado es Accepted o Assigned                   
+                // Who may change what (PROVIDER_ACCESS_MODEL.md §3.7, decided 2026-10-11):
+                // - Assigned: anything, the Provider too.
+                // - Rejected: the Provider must change (to another one or to Raphael).
+                // - Accepted: committed. An external Provider has already exported it to its own system,
+                //   so only cancelling is left; otherwise anything but the Provider.
+                // - Scheduled and later: nothing, as before.
                 var status = existingTrip.Status?.Trim();
-                if (status != "Accepted" && status != "Assigned")
+                var changesProvider = trip.SetProvider && trip.ProviderId != existingTrip.ProviderId;
+                if (status == TripStatus.Rejected)
                 {
-                    return BadRequest($"Restricted: Trips in '{status}' status cannot be edited via portal. Only Accepted or Assigned.");
+                    if (!changesProvider)
+                        return BadRequest("This trip was rejected by its provider. Give it to another provider or to Raphael.");
                 }
-                oldStatus = status;
+                else if (status == TripStatus.Accepted)
+                {
+                    if (existingTrip.External)
+                        return BadRequest("The provider has accepted this trip and works it in its own system: it can only be cancelled.");
+                    if (changesProvider)
+                        return BadRequest("This trip has been accepted: its provider can no longer be changed.");
+                }
+                else if (status != TripStatus.Assigned)
+                {
+                    return BadRequest($"Restricted: Trips in '{status}' status cannot be edited via portal. Only Assigned, Accepted or Rejected.");
+                }
+                oldStatus = status ?? "N/A";
             }
 
             // The return leg is created, never updated: nothing links it to its outbound trip,
@@ -175,7 +201,7 @@ namespace Raphael.Api.Controllers
             var tripDetails = await _tripService.GetIntegrationTripDetailsAsync(null, externalIds, CurrentIntegratorId);
 
             // Estados permitidos para cancelar
-            var allowedStatuses = new List<string> { "Accepted", "Assigned", "Scheduled" };
+            var allowedStatuses = new List<string> { "Accepted", "Assigned", "Scheduled", "Rejected" };
 
             // Filtramos solo los IDs que cumplen la condición de estado
             var validIdsToCancel = tripDetails

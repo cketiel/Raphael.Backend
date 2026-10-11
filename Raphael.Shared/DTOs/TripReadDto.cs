@@ -60,6 +60,9 @@ namespace Raphael.Shared.DTOs
         /// <summary>"Rejected", "Completed" or "NoShow" from an external Provider; null otherwise.</summary>
         public string? ProviderOutcome { get; set; }
         public string? ProviderOutcomeReason { get; set; }
+
+        /// <summary>Its Provider works outside Raphael: once it accepts, the clinic can only cancel.</summary>
+        public bool ProviderIsExternal { get; set; }
     }
 
 

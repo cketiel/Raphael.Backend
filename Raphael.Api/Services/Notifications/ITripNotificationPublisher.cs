@@ -65,6 +65,9 @@ namespace Raphael.Api.Services.Notifications
         /// driver is pushed: only a trip already under way needs the driver to stop.
         /// </param>
         /// <param name="reason">Reason given, when there is one.</param>
+        /// <summary>The Provider a trip was given to rejected it (TRIP_REJECTED): the clinic and the office are told.</summary>
+        Task TripRejectedAsync(Trip trip, string providerName, string reason, CancellationToken cancellationToken = default);
+
         Task TripCancelledAsync(
             Trip trip,
             string cancelledBy,

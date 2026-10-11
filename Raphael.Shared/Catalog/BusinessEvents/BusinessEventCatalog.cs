@@ -157,6 +157,22 @@ public static class BusinessEventCatalog
             GroupName = "Administration",
             GroupDescription = "Administrative trip events.",
 
+            EventCode = "TRIP_REJECTED",
+            EventName = "Trip Rejected",
+            EventDescription = "The Provider a trip was given to rejected it.",
+            Source = "ProviderPortalService"
+        },
+
+        new()
+        {
+            CategoryCode = "SCHEDULING",
+            CategoryName = "Scheduling",
+            CategoryDescription = "Events related to trip scheduling and lifecycle.",
+
+            GroupCode = "ADMINISTRATION",
+            GroupName = "Administration",
+            GroupDescription = "Administrative trip events.",
+
             EventCode = "TRIP_REACTIVATED",
             EventName = "Trip Reactivated",
             EventDescription = "A cancelled trip was put back in service.",
