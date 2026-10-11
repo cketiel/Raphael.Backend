@@ -184,6 +184,8 @@ public static class NotificationContentBuilder
 
                 var rejectedBy = GetString(context, BusinessEventDataKeys.ProviderName) ?? "Its provider";
                 var why = GetString(context, BusinessEventDataKeys.RejectionReason);
+                parameters[NotificationMetadataKeys.ProviderName] = rejectedBy;
+                if (why is not null) parameters[NotificationMetadataKeys.RejectionReason] = why;
 
                 return ("Trip Rejected",
                     $"{Capitalize(tripLabel)}{whenForRider} was rejected by {rejectedBy}"

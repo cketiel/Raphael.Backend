@@ -39,6 +39,12 @@ public static class NotificationMetadataKeys
     /// <summary>Kind of actor that cancelled. See <see cref="CancelledByTypes"/>.</summary>
     public const string CancelledBy = "CancelledBy";
 
+    /// <summary>The Provider that rejected the trip (TRIP_REJECTED): the portal writes the notice in the reader's language.</summary>
+    public const string ProviderName = "ProviderName";
+
+    /// <summary>Why the Provider rejected the trip (TRIP_REJECTED).</summary>
+    public const string RejectionReason = "RejectionReason";
+
     /// <summary>
     /// Internal user who performed the action, when there is one.
     /// </summary>
