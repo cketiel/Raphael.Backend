@@ -1427,6 +1427,11 @@ namespace Raphael.Api.Services
                     WillCall = t.WillCall,
                     Status = t.Status,
                     DriverNoShowReason = t.DriverNoShowReason,
+                    // Who carries it out and what it reported: the Desktop decides from these who may accept or reject it.
+                    ProviderId = t.ProviderId,
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
                     FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
@@ -1493,6 +1498,11 @@ namespace Raphael.Api.Services
                     WillCall = t.WillCall,
                     Status = t.Status,
                     DriverNoShowReason = t.DriverNoShowReason,
+                    // Who carries it out and what it reported: the Desktop decides from these who may accept or reject it.
+                    ProviderId = t.ProviderId,
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
                     FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
@@ -1810,6 +1820,11 @@ namespace Raphael.Api.Services
                     WillCall = t.WillCall,
                     Status = t.Status,
                     DriverNoShowReason = t.DriverNoShowReason,
+                    // Who carries it out and what it reported: the Desktop decides from these who may accept or reject it.
+                    ProviderId = t.ProviderId,
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
                     FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null,
@@ -1959,6 +1974,11 @@ namespace Raphael.Api.Services
                     WillCall = t.WillCall,
                     Status = t.Status,
                     DriverNoShowReason = t.DriverNoShowReason,
+                    // Who carries it out and what it reported: the Desktop decides from these who may accept or reject it.
+                    ProviderId = t.ProviderId,
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
                     FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null
@@ -2035,6 +2055,11 @@ namespace Raphael.Api.Services
                     WillCall = t.WillCall,
                     Status = t.Status,
                     DriverNoShowReason = t.DriverNoShowReason,
+                    // Who carries it out and what it reported: the Desktop decides from these who may accept or reject it.
+                    ProviderId = t.ProviderId,
+                    ProviderName = t.Provider != null ? t.Provider.Name : null,
+                    IntegratorName = t.Integrator != null ? t.Integrator.Name : null,
+                    ProviderOutcomeReason = t.ProviderOutcomeReason,
                     Created = t.Created,
                     FundingSourceId = t.FundingSourceId,
                     FundingSourceName = t.FundingSource != null ? t.FundingSource.Name : null

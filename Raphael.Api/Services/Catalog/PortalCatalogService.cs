@@ -409,32 +409,8 @@ namespace Raphael.Api.Services.Catalog
         /// in another system until it moves to the Desktop), with no users and no owner company.
         /// Added to the context, saved with the caller's changes.
         /// </summary>
-        private async Task<Provider> EnsureAccountAsync(int catalogProviderId, CancellationToken ct)
-        {
-            var account = await AccountOf(catalogProviderId).FirstOrDefaultAsync(ct);
-            if (account is not null) return account;
-
-            var row = await _context.CatalogProviders.AsNoTracking().FirstAsync(c => c.Id == catalogProviderId, ct);
-            account = new Provider
-            {
-                // Name, address and contact as the catalog has them: the catalog is the identity
-                // (CATALOG_MODEL.md §4.1), and any later change spreads from there.
-                Name = row.Name,
-                Address = row.Address,
-                Email = row.Email,
-                Phone = row.Phone,
-                Website = row.Website,
-                ContactName = row.ContactName,
-                Latitude = row.Latitude,
-                Longitude = row.Longitude,
-                CatalogProviderId = row.Id,
-                WorkMode = ProviderWorkMode.External,
-                // The broker's list, as when the office adds it from the Desktop.
-                OwnerProviderId = null
-            };
-            _context.Providers.Add(account);
-            return account;
-        }
+        private Task<Provider> EnsureAccountAsync(int catalogProviderId, CancellationToken ct) =>
+            _sync.EnsureProviderAccountAsync(catalogProviderId, ct);
 
         // ------------------------------------------------------------------ an external Provider's users
 

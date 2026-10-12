@@ -72,6 +72,15 @@ namespace Raphael.Api.Controllers
 
         [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _providerService.GetAllAsync());
 
+        /// <summary>The clinics that contracted this Provider (PROVIDER_ACCESS_MODEL.md §3.6). Office admins only.</summary>
+        [HttpGet("{id:int}/clinics")]
+        [Authorize(Roles = "1")]
+        [NotForClinicUsers]
+        [ProducesResponseType(typeof(List<Raphael.Shared.DTOs.Catalog.ProviderClinicRowDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetClinics(int id, [FromServices] Raphael.Api.Services.Catalog.IOfficeRelationsService relations, CancellationToken ct) =>
+            Ok(await relations.GetProviderClinicsAsync(id, ct));
+
+
         [HttpPost]
         [Authorize(Roles = "1")]
         [NotForClinicUsers]

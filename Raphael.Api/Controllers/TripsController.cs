@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Raphael.Api.Attributes;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
@@ -385,6 +386,41 @@ namespace Raphael.Api.Controllers
             {
                 // Log the exception 
                 return StatusCode(500, "An error occurred while processing the request");
+            }
+        }
+
+        /// <summary>
+        /// The Desktop's Accept (PROVIDER_ACCESS_MODEL.md §3.7): an internal Provider's user commits to
+        /// trips of its own, an office admin to Raphael's own. Only Assigned ones move; answers how many.
+        /// </summary>
+        [HttpPost("accept")]
+        [NotForClinicUsers]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        public Task<IActionResult> AcceptTrips([FromBody] List<int> tripIds, [FromServices] Raphael.Api.Services.Trips.ITripCommitmentService commitment, CancellationToken ct) =>
+            Commit(async () => Ok(await commitment.AcceptAsync(tripIds ?? new List<int>(), ct)));
+
+        /// <summary>The Desktop's Reject: Assigned or Accepted → Rejected, with the reason; the clinic and the office are told.</summary>
+        [HttpPost("{id:int}/reject")]
+        [NotForClinicUsers]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public Task<IActionResult> RejectTrip(int id, [FromBody] Raphael.Shared.DTOs.ProviderPortal.ProviderTripRejectDto dto, [FromServices] Raphael.Api.Services.Trips.ITripCommitmentService commitment, CancellationToken ct) =>
+            Commit(async () => { await commitment.RejectAsync(id, dto?.Reason ?? "", ct); return NoContent(); });
+
+        private async Task<IActionResult> Commit(Func<Task<IActionResult>> work)
+        {
+            try
+            {
+                return await work();
+            }
+            catch (Raphael.Api.Services.Trips.TripCommitmentDeniedException)
+            {
+                return NotFound();
+            }
+            catch (Raphael.Api.Services.Trips.TripCommitmentRuleException rule)
+            {
+                return BadRequest(rule.Message);
             }
         }
 

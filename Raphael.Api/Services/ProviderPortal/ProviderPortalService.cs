@@ -55,12 +55,6 @@ namespace Raphael.Api.Services.ProviderPortal
         private const int MaxReasonLength = 500;
 
         /// <summary>
-        /// What a Provider may still turn down: a trip given to it, or one it accepted and cannot do
-        /// after all. Saying so is better than not showing up (PROVIDER_ACCESS_MODEL.md §3.7).
-        /// </summary>
-        private static readonly string[] Rejectable = { TripStatus.Assigned, TripStatus.Accepted };
-
-        /// <summary>
         /// What a Provider may complete or mark as a no-show: a trip it accepted. One it has not
         /// accepted is not yet its own to do (decided 2026-10-11).
         /// </summary>
@@ -72,7 +66,7 @@ namespace Raphael.Api.Services.ProviderPortal
         private readonly ICatalogAccountSync _sync;
         private readonly IRoutingService _routing;
         private readonly IOperationClock _clock;
-        private readonly Raphael.Api.Services.Notifications.ITripNotificationPublisher _notifications;
+        private readonly Raphael.Api.Services.Trips.ITripCommitmentService _commitment;
 
         public ProviderPortalService(
             RaphaelContext context,
@@ -81,9 +75,9 @@ namespace Raphael.Api.Services.ProviderPortal
             ICatalogAccountSync sync,
             IRoutingService routing,
             IOperationClock clock,
-            Raphael.Api.Services.Notifications.ITripNotificationPublisher notifications)
+            Raphael.Api.Services.Trips.ITripCommitmentService commitment)
         {
-            _notifications = notifications;
+            _commitment = commitment;
             _context = context;
             _currentUser = currentUser;
             _trips = trips;
@@ -154,50 +148,35 @@ namespace Raphael.Api.Services.ProviderPortal
                 ChangeDate = DateTime.UtcNow
             });
 
-        /// <summary>
-        /// The Provider commits to these trips of its own: from Assigned to Accepted. From then on the
-        /// clinic can no longer give them to another Provider, and the Provider may export them.
-        /// Trips that are not Assigned are skipped; the count says how many were accepted.
-        /// </summary>
+        /// <summary>The Provider commits to these trips of its own (TripCommitmentService).</summary>
         public async Task<int> AcceptAsync(IReadOnlyCollection<int> tripIds, CancellationToken ct)
         {
-            var providerId = ProviderId;
-            if (tripIds.Count == 0) return 0;
-            if (tripIds.Count > 500) throw new ProviderPortalRuleException("Accept at most 500 trips at a time.");
-
-            var trips = await _context.Trips
-                .Where(t => tripIds.Contains(t.Id) && t.ProviderId == providerId && !t.IsCancelled && t.Status == TripStatus.Assigned)
-                .ToListAsync(ct);
-            foreach (var trip in trips)
-            {
-                trip.Status = TripStatus.Accepted;
-                History(trip, "Status", TripStatus.Assigned, TripStatus.Accepted);
-            }
-            await _context.SaveChangesAsync(ct);
-            return trips.Count;
+            _ = ProviderId;
+            return await Commit(() => _commitment.AcceptAsync(tripIds, ct));
         }
 
-        /// <remarks>
-        /// The trip keeps the Provider and becomes Rejected: the clinic must give it to another
-        /// Provider or to Raphael, which puts it back to Assigned. The clinic and the office are told
-        /// (TRIP_REJECTED).
-        /// </remarks>
+        /// <summary>The Provider turns down a trip of its own (TripCommitmentService): Rejected, and TRIP_REJECTED.</summary>
         public async Task RejectAsync(int tripId, ProviderTripRejectDto dto, CancellationToken ct)
         {
-            var reason = Reason(dto.Reason);
-            var trip = await MyTripAsync(tripId, ct);
+            _ = ProviderId;
+            await Commit(async () => { await _commitment.RejectAsync(tripId, dto.Reason, ct); return 0; });
+        }
 
-            if (trip.IsCancelled || !Rejectable.Contains(trip.Status))
-                throw new ProviderPortalRuleException("This trip has already been routed, started or closed: it can no longer be rejected.");
-
-            var prior = trip.Status;
-            trip.Status = TripStatus.Rejected;
-            Stamp(trip, ProviderOutcome.Rejected, reason);
-            History(trip, "Status", prior, $"{TripStatus.Rejected}: {reason}");
-            await _context.SaveChangesAsync(ct);
-
-            var providerName = await _context.Providers.Where(p => p.Id == trip.ProviderId).Select(p => p.Name).FirstOrDefaultAsync(ct) ?? "Its provider";
-            await _notifications.TripRejectedAsync(trip, providerName, reason, ct);
+        /// <summary>The shared service's refusals, in this portal's terms.</summary>
+        private static async Task<T> Commit<T>(Func<Task<T>> work)
+        {
+            try
+            {
+                return await work();
+            }
+            catch (Raphael.Api.Services.Trips.TripCommitmentDeniedException)
+            {
+                throw new ProviderPortalDeniedException();
+            }
+            catch (Raphael.Api.Services.Trips.TripCommitmentRuleException rule)
+            {
+                throw new ProviderPortalRuleException(rule.Message);
+            }
         }
 
         /// <remarks>

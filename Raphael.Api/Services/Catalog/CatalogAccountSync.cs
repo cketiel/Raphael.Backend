@@ -79,6 +79,13 @@ namespace Raphael.Api.Services.Catalog
 
         /// <inheritdoc cref="SpreadAsync(CatalogProvider, CancellationToken)"/>
         Task SpreadAsync(CatalogIntegrator row, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// The account of a catalog Provider, created when it has none: External, no users, the
+        /// broker's list. One per real company: the oldest if the Desktop made more. Added to the
+        /// context, saved with the caller's changes (PROVIDER_ACCESS_MODEL.md §3.3).
+        /// </summary>
+        Task<Provider> EnsureProviderAccountAsync(int catalogProviderId, CancellationToken cancellationToken = default);
     }
 
     public sealed class CatalogAccountSync : ICatalogAccountSync
@@ -184,6 +191,32 @@ namespace Raphael.Api.Services.Catalog
         {
             var accounts = await _context.Providers.Where(p => p.CatalogProviderId == row.Id).ToListAsync(cancellationToken);
             foreach (var account in accounts) CopyFrom(row, account);
+        }
+
+        public async Task<Provider> EnsureProviderAccountAsync(int catalogProviderId, CancellationToken cancellationToken = default)
+        {
+            var account = await _context.Providers.Where(p => p.CatalogProviderId == catalogProviderId).OrderBy(p => p.Id).FirstOrDefaultAsync(cancellationToken);
+            if (account is not null) return account;
+
+            var row = await _context.CatalogProviders.AsNoTracking().FirstAsync(c => c.Id == catalogProviderId, cancellationToken);
+            account = new Provider
+            {
+                // Name, address and contact as the catalog has them: the catalog is the identity
+                // (CATALOG_MODEL.md §4.1), and any later change spreads from there.
+                Name = row.Name,
+                Address = row.Address,
+                Email = row.Email,
+                Phone = row.Phone,
+                Website = row.Website,
+                ContactName = row.ContactName,
+                Latitude = row.Latitude,
+                Longitude = row.Longitude,
+                CatalogProviderId = row.Id,
+                WorkMode = ProviderWorkMode.External,
+                OwnerProviderId = null
+            };
+            _context.Providers.Add(account);
+            return account;
         }
 
         public async Task SpreadAsync(CatalogIntegrator row, CancellationToken cancellationToken = default)

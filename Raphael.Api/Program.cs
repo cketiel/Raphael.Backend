@@ -512,6 +512,8 @@ builder.Services.AddScoped<Raphael.Api.Services.Catalog.ICatalogAccountSync, Rap
 // The catalog as a clinic sees it in the Booking Portal.
 builder.Services.AddScoped<Raphael.Api.Services.Catalog.IPortalCatalogService, Raphael.Api.Services.Catalog.PortalCatalogService>();
 builder.Services.AddScoped<Raphael.Api.Services.ProviderPortal.IProviderPortalService, Raphael.Api.Services.ProviderPortal.ProviderPortalService>();
+builder.Services.AddScoped<Raphael.Api.Services.Trips.ITripCommitmentService, Raphael.Api.Services.Trips.TripCommitmentService>();
+builder.Services.AddScoped<Raphael.Api.Services.Catalog.IOfficeRelationsService, Raphael.Api.Services.Catalog.OfficeRelationsService>();
 // The Booking Portal's Admin tab: a clinic's users, record and billing (BOOKING_ADMIN.md).
 builder.Services.AddScoped<Raphael.Api.Services.BookingAdmin.IBookingAdminService, Raphael.Api.Services.BookingAdmin.BookingAdminService>();
 builder.Services.AddScoped<ICatalogLookupService, CatalogLookupService>();
