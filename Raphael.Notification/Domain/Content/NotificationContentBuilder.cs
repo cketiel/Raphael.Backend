@@ -190,7 +190,8 @@ public static class NotificationContentBuilder
                 return ("Trip Rejected",
                     $"{Capitalize(tripLabel)}{whenForRider} was rejected by {rejectedBy}"
                     + (why is null ? "." : $": {why}.")
-                    + " Give it to another provider or to Raphael.");
+                    // Raphael turning a trip down leaves only the Providers.
+                    + (rejectedBy == "Raphael" ? " Give it to a provider." : " Give it to another provider or to Raphael."));
 
             case BusinessEventCodes.DriverRouteUpdated:
 
