@@ -285,7 +285,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(Raphael.Api.Services.Auth.AuthPolicies.Add);
 
 //
 // Whether this API may write the database's own parameter values into its logs.

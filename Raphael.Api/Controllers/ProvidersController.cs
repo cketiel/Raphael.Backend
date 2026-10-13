@@ -76,7 +76,7 @@ namespace Raphael.Api.Controllers
 
         /// <summary>The clinics that contracted this Provider (PROVIDER_ACCESS_MODEL.md §3.6). Office admins only.</summary>
         [HttpGet("{id:int}/clinics")]
-        [Authorize(Roles = "1")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [NotForClinicUsers]
         [ProducesResponseType(typeof(List<Raphael.Shared.DTOs.Catalog.ProviderClinicRowDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetClinics(int id, [FromServices] Raphael.Api.Services.Catalog.IOfficeRelationsService relations, CancellationToken ct) =>
@@ -84,7 +84,7 @@ namespace Raphael.Api.Controllers
 
 
         [HttpPost]
-        [Authorize(Roles = "1")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [NotForClinicUsers]
         public async Task<IActionResult> Create([FromForm] ProviderDto dto) 
         {
@@ -93,7 +93,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "1")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [NotForClinicUsers]
         public async Task<IActionResult> Update(int id, [FromForm] ProviderDto dto)
         {
@@ -108,7 +108,7 @@ namespace Raphael.Api.Controllers
             return success ? Ok() : NotFound();
         }
         [HttpDelete("{id}")]
-        [Authorize(Roles = "1")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [NotForClinicUsers]
         public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
 

@@ -4,13 +4,14 @@ using Raphael.Api.Services.Catalog;
 using Raphael.Shared.DTOs.Catalog;
 
 using Raphael.Api.Attributes;
+using Raphael.Api.Services.Auth;
 namespace Raphael.Api.Controllers.Admin
 {
     /// <summary>The fixed lists the catalog screens are built out of.</summary>
     /// <remarks>⚠️ Administrators only, like the rest of the catalog.</remarks>
     [ApiController]
     [Route("api/admin/catalog")]
-    [Authorize(Roles = "1")]
+    [Authorize(Policy = AuthPolicies.PlatformAdmin)]
     // Office administration: role 1 is also a clinic's admin, who must not reach it.
     [NotForClinicUsers]
     public sealed class CatalogLookupsController : ControllerBase

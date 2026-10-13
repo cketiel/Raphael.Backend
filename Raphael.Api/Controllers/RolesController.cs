@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Raphael.Shared.Entities;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
+using Raphael.Api.Services.Auth;
 
 namespace Raphael.Api.Controllers
 {
@@ -10,11 +11,8 @@ namespace Raphael.Api.Controllers
     [Route("api/[controller]")]
     public class RolesController : ControllerBase
     {
-        /// <summary>
-        /// RoleId of an administrator. Reading roles stays open (the user forms list them);
-        /// creating, renaming or deleting one is admin-only (B20).
-        /// </summary>
-        private const string AdminRoleId = "1";
+        // Reading roles stays open (the user forms list them). Creating, renaming or deleting one
+        // is the platform's: roles belong to the product, not to each client company (B20, RE-048 step 2).
 
         private readonly IRoleService _roleService;
 
@@ -38,7 +36,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = AdminRoleId)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         public async Task<ActionResult<RoleDto>> Create(RoleDto roleDto)
         {
             var newRole = await _roleService.CreateAsync(roleDto);
@@ -46,7 +44,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = AdminRoleId)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         public async Task<IActionResult> Update(int id, RoleDto roleDto)
         {
             //if (id != roleDto.Id) return BadRequest();
@@ -56,7 +54,7 @@ namespace Raphael.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = AdminRoleId)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         public async Task<IActionResult> Delete(int id)
         {
             var deleted = await _roleService.DeleteAsync(id);

@@ -4,6 +4,7 @@ using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 
 using Raphael.Api.Attributes;
+using Raphael.Api.Services.Auth;
 namespace Raphael.Api.Controllers
 {
     /// <summary>
@@ -24,7 +25,7 @@ namespace Raphael.Api.Controllers
     /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "1")]
+    [Authorize(Policy = AuthPolicies.PlatformAdmin)]
     // Office administration: role 1 is also a clinic's admin, who must not reach it.
     [NotForClinicUsers]
     public class IntegratorsController : ControllerBase

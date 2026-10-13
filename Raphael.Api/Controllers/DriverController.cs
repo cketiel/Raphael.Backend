@@ -34,12 +34,6 @@ namespace Raphael.Api.Controllers
     [AllowApps(ClientApps.Driver)]
     public class DriverController : ControllerBase
     {
-        /// <summary>
-        /// RoleId of an administrator. The token carries role identifiers, not names, so
-        /// [Authorize(Roles = "Admin")] would match nobody.
-        /// </summary>
-        private const string AdminRoleId = "1";
-
         private readonly IDriverService _driverService;
         private readonly RaphaelContext _context;
         private readonly IFirebaseMessagingService _firebaseMessagingService;
@@ -371,7 +365,7 @@ namespace Raphael.Api.Controllers
         /// never reached <c>/hubs/notifications</c>, and no amount of resending will help.
         /// </para>
         /// </remarks>
-        [Authorize(Roles = AdminRoleId)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("test/inapp/{driverUserId:int}")]
         public async Task<IActionResult> TestInAppNotification(
@@ -483,7 +477,7 @@ namespace Raphael.Api.Controllers
         /// as the delivery. Close the app before calling it: a push that arrives with the app
         /// in the foreground proves less than one that wakes it.
         /// </remarks>
-        [Authorize(Roles = AdminRoleId)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("test/push/{driverUserId:int}")]
         public async Task<IActionResult> TestPushNotification(

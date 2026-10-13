@@ -4,6 +4,7 @@ using Raphael.Notification.Application.Services;
 using Raphael.Shared.Interfaces;
 
 using Raphael.Api.Attributes;
+using Raphael.Api.Services.Auth;
 namespace Raphael.Api.Controllers.Admin;
 
 /// <summary>
@@ -22,7 +23,7 @@ namespace Raphael.Api.Controllers.Admin;
 /// </remarks>
 [ApiController]
 [Route("api/admin/notification")]
-[Authorize(Roles = "1")]
+[Authorize(Policy = AuthPolicies.PlatformAdmin)]
 // Office administration: role 1 is also a clinic's admin, who must not reach it.
 [NotForClinicUsers]
 public sealed class NotificationAdminController : ControllerBase

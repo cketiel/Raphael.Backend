@@ -5,6 +5,7 @@ using Raphael.Shared.DTOs;
 using Raphael.Shared.DTOs.Catalog;
 
 using Raphael.Api.Attributes;
+using Raphael.Api.Services.Auth;
 namespace Raphael.Api.Controllers.Admin
 {
     /// <summary>
@@ -17,7 +18,7 @@ namespace Raphael.Api.Controllers.Admin
     /// </remarks>
     [ApiController]
     [Route("api/admin/catalog/providers")]
-    [Authorize(Roles = "1")]
+    [Authorize(Policy = AuthPolicies.PlatformAdmin)]
     // Office administration: role 1 is also a clinic's admin, who must not reach it.
     [NotForClinicUsers]
     public sealed class CatalogProvidersController : ControllerBase
