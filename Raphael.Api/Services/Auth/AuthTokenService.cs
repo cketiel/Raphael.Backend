@@ -37,17 +37,20 @@ namespace Raphael.Api.Services.Auth
         private readonly RaphaelContext _context;
         private readonly IOptionsMonitor<JwtSettings> _jwt;
         private readonly IOptionsMonitor<SessionPolicyOptions> _policies;
+        private readonly IOptionsMonitor<AppAccessOptions> _appAccess;
         private readonly ILogger<AuthTokenService> _logger;
 
         public AuthTokenService(
             RaphaelContext context,
             IOptionsMonitor<JwtSettings> jwt,
             IOptionsMonitor<SessionPolicyOptions> policies,
+            IOptionsMonitor<AppAccessOptions> appAccess,
             ILogger<AuthTokenService> logger)
         {
             _context = context;
             _jwt = jwt;
             _policies = policies;
+            _appAccess = appAccess;
             _logger = logger;
         }
 
@@ -61,7 +64,7 @@ namespace Raphael.Api.Services.Auth
             var policy = _policies.CurrentValue.For(clientApp);
             var now = DateTime.UtcNow;
 
-            var access = CreateAccessToken(ClaimsForUser(user, await ProviderModeOfAsync(user, cancellationToken)), policy, now, out var accessExpiry);
+            var access = CreateAccessToken(ClaimsForUser(user, await ProviderModeOfAsync(user, cancellationToken), clientApp), policy, now, out var accessExpiry);
 
             var refresh = await CreateRefreshTokenAsync(
                 userId: user.Id,
@@ -175,7 +178,19 @@ namespace Raphael.Api.Services.Auth
                     return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);
                 }
 
-                claims = ClaimsForUser(user, await ProviderModeOfAsync(user, cancellationToken));
+                var providerMode = await ProviderModeOfAsync(user, cancellationToken);
+
+                // RE-048: a session opened for an application the user no longer belongs to (or
+                // never did, while the check was only auditing) ends at its next renewal.
+                if (_appAccess.CurrentValue.Mode == AppAccessMode.Enforce
+                    && !ClientApps.AllowedFor(user, providerMode).Contains(ClientApps.Normalize(row.ClientApp)))
+                {
+                    await RevokeFamilyAsync(row.FamilyId, "wrong-app", now, cancellationToken);
+                    return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);
+                }
+
+                // The application comes from the row, like the policy: decided at sign-in.
+                claims = ClaimsForUser(user, providerMode, row.ClientApp);
             }
             else
             {
@@ -356,8 +371,9 @@ namespace Raphael.Api.Services.Auth
         /// Two more, both read from the database on every issue (sign-in and refresh):
         /// <see cref="PortalClaims.ProviderMode"/> on a Provider's user, and
         /// <see cref="PortalClaims.MustChangePassword"/> while its password was set by somebody else.
+        /// And <see cref="ClientApps.Claim"/>, the application the session was opened for (RE-048).
         /// </remarks>
-        private static Claim[] ClaimsForUser(User user, ProviderWorkMode? providerMode) => new[]
+        private static Claim[] ClaimsForUser(User user, ProviderWorkMode? providerMode, string? clientApp) => new[]
         {
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.RoleId.ToString()),
@@ -369,7 +385,8 @@ namespace Raphael.Api.Services.Auth
             new Claim("UserIntegratorId", user.IntegratorId?.ToString() ?? ""),
             new Claim("UserProviderId", user.ProviderId?.ToString() ?? ""),
             new Claim(PortalClaims.ProviderMode, providerMode?.ToString() ?? ""),
-            new Claim(PortalClaims.MustChangePassword, user.MustChangePassword ? "true" : "false")
+            new Claim(PortalClaims.MustChangePassword, user.MustChangePassword ? "true" : "false"),
+            new Claim(ClientApps.Claim, ClientApps.Normalize(clientApp))
         };
 
         /// <summary>The work mode of the user's Provider; null for a user of no Provider.</summary>
@@ -393,7 +410,9 @@ namespace Raphael.Api.Services.Auth
             new Claim(JwtRegisteredClaimNames.UniqueName, customer.FullName),
             new Claim("CustomerId", customer.Id.ToString()),
             new Claim("CustomerName", customer.FullName),
-            new Claim(ClaimTypes.Role, "Rider")
+            new Claim(ClaimTypes.Role, "Rider"),
+            // Always Rider, whatever the header said: a patient's token never passes for the Desktop's.
+            new Claim(ClientApps.Claim, ClientApps.Rider)
         };
     }
 }

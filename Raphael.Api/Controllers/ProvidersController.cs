@@ -1,3 +1,4 @@
+using Raphael.Api.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
@@ -39,6 +40,7 @@ namespace Raphael.Api.Controllers
         }
 
         // GET: api/providers/contact
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("contact")]
         public async Task<ActionResult<ProviderDto>> GetContactProvider()
         {

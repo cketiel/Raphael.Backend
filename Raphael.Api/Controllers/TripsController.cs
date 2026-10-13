@@ -1,4 +1,5 @@
 ﻿
+using Raphael.Api.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -440,6 +441,7 @@ namespace Raphael.Api.Controllers
         }
 
         // POST: api/Trips/{id}/cancel-by-driver
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("{id}/cancel-by-driver")]
         public async Task<IActionResult> CancelByDriver(int id, [FromBody] DriverCancelTripDto dto)
         {

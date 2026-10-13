@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.BookingAdmin;
@@ -17,6 +19,7 @@ namespace Raphael.Api.Controllers
     [ApiController]
     [Route("api/BookingPortal/admin")]
     [Authorize(Roles = "1")]
+    [AllowApps(ClientApps.Booking)]
     public class BookingPortalAdminController : ControllerBase
     {
         private readonly IBookingAdminService _admin;

@@ -1,3 +1,4 @@
+using Raphael.Api.Services.Auth;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Attributes;
 using Raphael.Api.Services;
@@ -108,6 +109,7 @@ namespace Raphael.Api.Controllers
             return deleted ? Ok() : NotFound();
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Booking)]
         [HttpPut("change-password")]
         [AllowWhilePasswordChangeRequired]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)

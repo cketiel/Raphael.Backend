@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
+using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Realtime;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
@@ -31,6 +33,7 @@ namespace Raphael.Api.Controllers
         }
 
         // POST: api/Gps
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost]
         public async Task<IActionResult> PostGpsData([FromBody] GpsDataDto gpsDataDto)
         {

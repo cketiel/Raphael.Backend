@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Realtime;
@@ -17,6 +19,7 @@ namespace Raphael.Api.Controllers
     [Authorize(Roles = "6,1,3")] // Booking
     [ApiController]
     [Route("api/[controller]")]
+    [AllowApps(ClientApps.Booking)]
     public class BookingPortalController : ControllerBase
     {
         private readonly ITripService _tripService;

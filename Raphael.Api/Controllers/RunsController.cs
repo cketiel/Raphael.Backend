@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Raphael.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
@@ -98,6 +100,7 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("driver/{driverId}")]
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(VehicleRoute))]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

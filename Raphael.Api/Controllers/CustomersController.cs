@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Raphael.Api.Services;
 using Raphael.Shared.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -41,6 +43,7 @@ namespace Raphael.Api.Controllers
         /// <response code="200">Successfully retrieved customer list</response>
         /// <response code="401">Unauthorized access</response>
         /// <response code="500">Internal server error</response>
+        [AllowApps(ClientApps.Desktop, ClientApps.Booking)]
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<CustomerResponseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.Catalog;
@@ -17,6 +19,7 @@ namespace Raphael.Api.Controllers
     [ApiController]
     [Route("api/BookingPortal/catalog")]
     [Authorize(Roles = "6,1,3")]
+    [AllowApps(ClientApps.Booking)]
     public class BookingPortalCatalogController : ControllerBase
     {
         private readonly IPortalCatalogService _catalog;

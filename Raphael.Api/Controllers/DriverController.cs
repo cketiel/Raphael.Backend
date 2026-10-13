@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Raphael.Api.Services;
@@ -29,6 +31,7 @@ namespace Raphael.Api.Controllers
     [Authorize] // Requires the driver's JWT
     [ApiController]
     [Route("api/[controller]")]
+    [AllowApps(ClientApps.Driver)]
     public class DriverController : ControllerBase
     {
         /// <summary>
@@ -89,6 +92,7 @@ namespace Raphael.Api.Controllers
 
         #region Push token
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("test-driver-push")]
         public async Task<IActionResult> TestDriverPush([FromQuery] string message)
         {
@@ -368,6 +372,7 @@ namespace Raphael.Api.Controllers
         /// </para>
         /// </remarks>
         [Authorize(Roles = AdminRoleId)]
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("test/inapp/{driverUserId:int}")]
         public async Task<IActionResult> TestInAppNotification(
             int driverUserId,
@@ -479,6 +484,7 @@ namespace Raphael.Api.Controllers
         /// in the foreground proves less than one that wakes it.
         /// </remarks>
         [Authorize(Roles = AdminRoleId)]
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("test/push/{driverUserId:int}")]
         public async Task<IActionResult> TestPushNotification(
             int driverUserId,

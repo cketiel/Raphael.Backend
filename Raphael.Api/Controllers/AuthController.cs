@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Raphael.Api.Services.Auth;
+using Raphael.Api.Settings;
 using Raphael.Api.Versioning;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs;
@@ -16,11 +18,19 @@ namespace Raphael.Api.Controllers
     {
         private readonly RaphaelContext _context;
         private readonly IAuthTokenService _tokens;
+        private readonly IOptionsMonitor<AppAccessOptions> _appAccess;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(RaphaelContext context, IAuthTokenService tokens)
+        public AuthController(
+            RaphaelContext context,
+            IAuthTokenService tokens,
+            IOptionsMonitor<AppAccessOptions> appAccess,
+            ILogger<AuthController> logger)
         {
             _context = context;
             _tokens = tokens;
+            _appAccess = appAccess;
+            _logger = logger;
         }
 
         [AllowAnonymous]
@@ -62,6 +72,32 @@ namespace Raphael.Api.Controllers
                 return StatusCode(
                     StatusCodes.Status403Forbidden,
                     new { code = "wrong_app", message = "This account only has access to the Booking portal." });
+            }
+
+            // RE-048: every user signs in only to its own application (ClientApps.AllowedFor).
+            // The rule above is the first case of this one and stays on whatever the mode.
+            var mode = _appAccess.CurrentValue.Mode;
+            if (mode != AppAccessMode.Off)
+            {
+                var app = ClientApps.Normalize(ClientApp());
+                var allowed = ClientApps.AllowedFor(user, isExternalProvider ? ProviderWorkMode.External : null);
+                if (!allowed.Contains(app))
+                {
+                    // Role and application only: no name, no username.
+                    _logger.LogWarning(
+                        "App access {Outcome}: sign-in of a role {Role} user from {App}, which only admits {Allowed}.",
+                        mode == AppAccessMode.Enforce ? "refused" : "would refuse",
+                        user.RoleId,
+                        app,
+                        string.Join(",", allowed));
+
+                    if (mode == AppAccessMode.Enforce)
+                    {
+                        return StatusCode(
+                            StatusCodes.Status403Forbidden,
+                            new { code = "wrong_app", message = "This account cannot sign in to this application." });
+                    }
+                }
             }
 
             // Which application this is decides how long the session lasts, and it is recorded

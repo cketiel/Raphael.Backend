@@ -373,6 +373,9 @@ builder.Services.AddControllers(options =>
     options.Filters.Add(new AuthorizeFilter(policy));
     // An account whose password was set by somebody else can only change it (PasswordChangeGate.cs).
     options.Filters.Add<Raphael.Api.Attributes.PasswordChangeGateFilter>();
+    // Each token only on the endpoints of its own application; Desktop unless [AllowApps] says
+    // otherwise. Off, Audit or Enforce by AppAccess:Mode (RE-048, AppAccessOptions.cs).
+    options.Filters.Add<Raphael.Api.Attributes.AppAccessFilter>();
 })
 .AddJsonOptions(options =>
 {
@@ -670,6 +673,13 @@ builder.Services.AddSingleton<ITelemetryInitializer, ClientVersionTelemetryIniti
 //
 builder.Services.Configure<ClientCompatibilityOptions>(
     builder.Configuration.GetSection(ClientCompatibilityOptions.SectionName));
+
+//
+// Which application each user may use and each endpoint admits (RE-048). Ships Off; see
+// AppAccessOptions for the order it is switched on in and why Enforce has to wait.
+//
+builder.Services.Configure<AppAccessOptions>(
+    builder.Configuration.GetSection(AppAccessOptions.SectionName));
 
 //
 // How long a session lasts, per client application.

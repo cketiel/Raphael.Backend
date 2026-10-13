@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Raphael.Shared.Entities;
 using Raphael.Shared.Dtos;
 using Raphael.Api.Services;
@@ -18,6 +20,7 @@ namespace Raphael.Api.Controllers
             _service = service;
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Booking)]
         [HttpGet]
         public async Task<ActionResult<List<SpaceType>>> GetAll()
         {

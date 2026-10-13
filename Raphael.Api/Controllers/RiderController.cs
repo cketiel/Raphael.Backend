@@ -1,4 +1,6 @@
-﻿using Azure.Core;
+﻿using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
+using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -24,6 +26,7 @@ namespace Raphael.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [AllowApps(ClientApps.Rider)]
     public class RiderController : ControllerBase
     {
         private readonly IRiderService _riderService;

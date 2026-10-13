@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.Routing;
@@ -24,6 +26,7 @@ namespace Raphael.Api.Controllers
     [ApiController]
     [Route("api/routing")]
     [Authorize]
+    [AllowApps(ClientApps.Desktop, ClientApps.Driver, ClientApps.Booking)]
     public class RoutingController : ControllerBase
     {
         private const int MaxLegsPerRequest = 100;

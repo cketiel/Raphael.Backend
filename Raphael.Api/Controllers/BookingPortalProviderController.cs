@@ -1,3 +1,5 @@
+using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services.ProviderPortal;
@@ -17,6 +19,7 @@ namespace Raphael.Api.Controllers
     [ApiController]
     [Route("api/BookingPortal/provider")]
     [Authorize]
+    [AllowApps(ClientApps.Booking)]
     public class BookingPortalProviderController : ControllerBase
     {
         private readonly IProviderPortalService _portal;

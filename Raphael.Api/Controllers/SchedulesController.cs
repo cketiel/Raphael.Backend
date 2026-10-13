@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Raphael.Api.Services;
@@ -60,6 +62,7 @@ namespace Raphael.Api.Controllers
             });
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("by-run-login")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetSchedulesByRunLogin([FromQuery] string runLogin, [FromQuery] DateTime date)
         {
@@ -67,6 +70,7 @@ namespace Raphael.Api.Controllers
             return Ok(schedules);
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("driver/pending")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetPendingSchedulesForDriver([FromQuery] string runLogin, [FromQuery] DateTime date)
         {
@@ -150,6 +154,7 @@ namespace Raphael.Api.Controllers
             }
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] ScheduleDto dto)
         {
@@ -193,6 +198,7 @@ namespace Raphael.Api.Controllers
             return Ok(new { changed });
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPut("{id}/perform")] // La ruta ser�: api/Schedules/5/perform
         public async Task<IActionResult> PerformUpdate(int id, [FromBody] ScheduleDto dto)
         {
@@ -211,6 +217,7 @@ namespace Raphael.Api.Controllers
             return NoContent();
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPost("{id}/signature")]
         public async Task<IActionResult> UploadSignature(int id, [FromBody] SignatureUploadDto dto)
         {
@@ -237,6 +244,7 @@ namespace Raphael.Api.Controllers
             }
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("{id}/signature")]
         public async Task<IActionResult> GetSignature(int id)
         {
@@ -273,6 +281,7 @@ namespace Raphael.Api.Controllers
         /// </para>
         /// </remarks>
         [Authorize]
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("driver/next-day")]
         public async Task<ActionResult<IEnumerable<ScheduleDto>>> GetNextDaySchedulesForDriver([FromQuery] string runLogin)
         {
@@ -280,6 +289,7 @@ namespace Raphael.Api.Controllers
             return Ok(schedules);
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("history/{runLogin}/{date}")]
         public async Task<ActionResult<IEnumerable<ScheduleHistoryDto>>> GetHistory(string runLogin, DateTime date)
         {
@@ -287,6 +297,7 @@ namespace Raphael.Api.Controllers
             return Ok(history);
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpGet("history/count/{runLogin}/{date}")]
         public async Task<ActionResult<int>> GetHistoryCount(string runLogin, DateTime date)
         {
@@ -294,6 +305,7 @@ namespace Raphael.Api.Controllers
             return Ok(count);
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPut("trip/{tripId}/contact-phone")]
         public async Task<IActionResult> UpdateContactPhoneNumber(int tripId, [FromBody] UpdatePhoneDto dto)
         {
@@ -342,6 +354,7 @@ namespace Raphael.Api.Controllers
             return list;
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Booking)]
         [HttpGet("reports/production-range")]
         public async Task<ActionResult<IEnumerable<ProductionReportRowDto>>> GetProductionRangeReport(
             [FromQuery] DateTime startDate,
@@ -475,6 +488,7 @@ namespace Raphael.Api.Controllers
             return Ok(etas);        
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [HttpPatch("{id}/update-eta")] // We use HttpPatch for partial updates
         public async Task<IActionResult> UpdateETA(int id, [FromBody] UpdateScheduleEtaDto dto)
         {

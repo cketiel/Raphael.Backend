@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Raphael.Api.Services.Auth;
+using Raphael.Api.Attributes;
+using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
@@ -16,6 +18,7 @@ namespace Raphael.Api.Controllers
             _service = service;
         }
 
+        [AllowApps(ClientApps.Desktop, ClientApps.Booking)]
         [HttpGet]
         public async Task<ActionResult<List<Unit>>> GetAll()
         {
