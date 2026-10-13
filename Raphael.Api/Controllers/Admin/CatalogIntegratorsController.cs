@@ -121,7 +121,7 @@ namespace Raphael.Api.Controllers.Admin
         /// per-row verdict either way, and failing the whole batch over one bad row would mean
         /// re-sending ninety-nine good ones.
         /// </remarks>
-[Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost("import")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status207MultiStatus)]
@@ -142,7 +142,7 @@ namespace Raphael.Api.Controllers.Admin
         }
 
         /// <summary>Resolves coordinates for the rows asked for, in one deduplicated batch.</summary>
-[Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost("geocode")]
         public async Task<ActionResult<CatalogGeocodeResultDto>> Geocode(
             [FromBody] CatalogGeocodeRequestDto request,
@@ -165,7 +165,8 @@ namespace Raphael.Api.Controllers.Admin
         /// POST to <c>api/integrators</c>, which is where the API key is generated and where the
         /// owning company is taken from the token.
         /// </remarks>
-[Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        // Any admin: it writes nothing, and the account is created by POST api/integrators with
+        // the owner taken from the token ("add to my company" for a client company too).
         [HttpGet("{id:int}/company-draft")]
         public async Task<ActionResult<IntegratorDto>> CompanyDraft(
             int id,

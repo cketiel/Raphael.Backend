@@ -34,7 +34,7 @@ namespace Raphael.Api.Controllers.Admin
         }
 
         /// <summary>The groups of the provider catalog, each with how many rows it holds.</summary>
-[Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpGet("provider-categories")]
         public async Task<ActionResult<IReadOnlyList<CatalogCategoryDto>>> ProviderCategories(
             CancellationToken cancellationToken)

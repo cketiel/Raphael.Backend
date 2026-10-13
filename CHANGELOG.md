@@ -52,7 +52,8 @@ switches ship off.
   stamping on save, and `PUT api/Providers/{id}/tenant` for the platform. With no tenant in the
   database, turning it on changes nothing for anyone. `GET api/Providers` adds `isTenant` and
   `workMode`. A tenant's users get their own company's contact card (`api/Providers/contact`) and
-  their admin can list the company's own clinics (`GET api/Integrators`, filtered). A tenant's admin
+  their admin manages the company's own clinics (`api/Integrators`: list, create, edit and delete
+  only its own; the owner comes from the token). A tenant's admin
   searches the Integrators catalog and edits contact data only (name, address, phones, e-mail,
   website, contact person); creating, importing, geocoding and the Providers catalog stay with the
   platform.

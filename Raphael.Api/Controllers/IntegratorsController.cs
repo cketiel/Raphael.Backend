@@ -25,9 +25,10 @@ namespace Raphael.Api.Controllers
     /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
-    // Any admin may list (a client company's admin sees only its own clinics: the tenant query
-    // filter, RE-049; its Users and Funding Sources screens read this list). Everything else is
-    // the platform's. Role 1 is also a clinic's admin, who must not reach it.
+    // Any admin manages its own clinics ("my integrators"): a client company's admin lists,
+    // creates, edits and deletes only the ones it owns, because the tenant query filter hides the
+    // rest and the owner is taken from the token (RE-049). Who works with whom (relations, catalog
+    // link) is the platform's. Role 1 is also a clinic's admin, who must not reach it.
     [Authorize(Roles = "1")]
     [NotForClinicUsers]
     public class IntegratorsController : ControllerBase
@@ -41,13 +42,10 @@ namespace Raphael.Api.Controllers
 
         [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
-        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost] public async Task<IActionResult> Create(IntegratorDto dto) => Ok(await _service.CreateAsync(dto));
 
-        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPut("{id}")] public async Task<IActionResult> Update(int id, IntegratorDto dto) => Ok(await _service.UpdateAsync(id, dto));
 
-        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpDelete("{id}")] public async Task<IActionResult> Delete(int id) => Ok(await _service.DeleteAsync(id));
 
         // ---- Who works with whom (PROVIDER_ACCESS_MODEL.md §3.6): the office sees and corrects a
