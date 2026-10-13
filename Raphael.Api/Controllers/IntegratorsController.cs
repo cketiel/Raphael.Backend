@@ -25,8 +25,10 @@ namespace Raphael.Api.Controllers
     /// </remarks>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Policy = AuthPolicies.PlatformAdmin)]
-    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    // Any admin may list (a client company's admin sees only its own clinics: the tenant query
+    // filter, RE-049; its Users and Funding Sources screens read this list). Everything else is
+    // the platform's. Role 1 is also a clinic's admin, who must not reach it.
+    [Authorize(Roles = "1")]
     [NotForClinicUsers]
     public class IntegratorsController : ControllerBase
     {
@@ -39,32 +41,39 @@ namespace Raphael.Api.Controllers
 
         [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost] public async Task<IActionResult> Create(IntegratorDto dto) => Ok(await _service.CreateAsync(dto));
 
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPut("{id}")] public async Task<IActionResult> Update(int id, IntegratorDto dto) => Ok(await _service.UpdateAsync(id, dto));
 
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpDelete("{id}")] public async Task<IActionResult> Delete(int id) => Ok(await _service.DeleteAsync(id));
 
         // ---- Who works with whom (PROVIDER_ACCESS_MODEL.md §3.6): the office sees and corrects a
         // clinic's contracted Providers and its row in the catalog. Office admins only (class attributes).
 
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpGet("{id:int}/relations")]
         [ProducesResponseType(typeof(Raphael.Shared.DTOs.Catalog.IntegratorRelationsDto), StatusCodes.Status200OK)]
         public Task<IActionResult> GetRelations(int id, [FromServices] Raphael.Api.Services.Catalog.IOfficeRelationsService relations, CancellationToken ct) =>
             Relations(async () => await relations.GetIntegratorRelationsAsync(id, ct), Ok);
 
         /// <summary>Contracts a catalog Provider for this clinic, and gives it its account, as Booking does.</summary>
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost("{id:int}/providers/{catalogProviderId:int}")]
         [ProducesResponseType(typeof(Raphael.Shared.DTOs.Catalog.IntegratorRelationsDto), StatusCodes.Status200OK)]
         public Task<IActionResult> AddProvider(int id, int catalogProviderId, [FromServices] Raphael.Api.Services.Catalog.IOfficeRelationsService relations, CancellationToken ct) =>
             Relations(async () => await relations.AddProviderAsync(id, catalogProviderId, ct), Ok);
 
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpDelete("{id:int}/providers/{catalogProviderId:int}")]
         [ProducesResponseType(typeof(Raphael.Shared.DTOs.Catalog.IntegratorRelationsDto), StatusCodes.Status200OK)]
         public Task<IActionResult> RemoveProvider(int id, int catalogProviderId, [FromServices] Raphael.Api.Services.Catalog.IOfficeRelationsService relations, CancellationToken ct) =>
             Relations(async () => await relations.RemoveProviderAsync(id, catalogProviderId, ct), Ok);
 
         /// <summary>Links the clinic to its row in the Integrator catalog (null unlinks): what an external Provider's "my clinics" is built on.</summary>
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPut("{id:int}/catalog-link")]
         [ProducesResponseType(typeof(Raphael.Shared.DTOs.Catalog.IntegratorRelationsDto), StatusCodes.Status200OK)]
         public Task<IActionResult> LinkCatalog(int id, [FromBody] Raphael.Shared.DTOs.Catalog.IntegratorCatalogLinkDto dto, [FromServices] Raphael.Api.Services.Catalog.IOfficeRelationsService relations, CancellationToken ct) =>

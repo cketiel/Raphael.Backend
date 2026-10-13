@@ -50,7 +50,9 @@ switches ship off.
 - **Multi-tenant foundation (RE-049)**, behind `Tenancy:Enforce` (off): `Providers.IsTenant`,
   `OwnerProviderId` on the fleet, payers, billing items and catalogs, query filters, ownership
   stamping on save, and `PUT api/Providers/{id}/tenant` for the platform. With no tenant in the
-  database, turning it on changes nothing for anyone.
+  database, turning it on changes nothing for anyone. `GET api/Providers` adds `isTenant` and
+  `workMode`. A tenant's users get their own company's contact card (`api/Providers/contact`) and
+  their admin can list the company's own clinics (`GET api/Integrators`, filtered).
 - **Per-application access (RE-048)**, behind `AppAccess:Mode` (`Off`): each user signs in only
   to its own application and each endpoint admits only the applications that use it. `Audit` logs
   what `Enforce` would refuse, without personal data.

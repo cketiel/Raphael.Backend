@@ -28,10 +28,25 @@ namespace Raphael.Api.Services
             _catalogSync = catalogSync;
         }
 
+        /// <summary>
+        /// The company whose contact card this caller sees: Raphael's own (row 1) for everybody, and
+        /// for a tenant's users, their own company (RE-049). A tenant's drivers call their dispatch,
+        /// not Raphael's.
+        /// </summary>
+        /// <remarks>
+        /// Read past the query filters on purpose: the tenant filter hides row 1 from a tenant's
+        /// users, and the code below would then try to create it again with a key that exists.
+        /// </remarks>
+        private int ContactIdForCaller =>
+            _currentUser.TenancyEnforced && _currentUser.TenantId is int tenant ? tenant : ContactProviderId;
+
         public async Task<ProviderDto?> GetContactProviderAsync()
         {
-            var provider = await _context.Providers.FindAsync(ContactProviderId);
-          
+            var contactId = ContactIdForCaller;
+            var provider = await _context.Providers.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == contactId);
+
+            // Only Raphael's own card is created on first use, as before; a tenant always exists.
+            if (provider == null && contactId != ContactProviderId) return null;
             if (provider == null)
             {
                 provider = new Provider { Id = ContactProviderId, Name = "Default Provider Name" };
@@ -57,7 +72,8 @@ namespace Raphael.Api.Services
 
         public async Task<bool> UpdateContactProviderAsync(ProviderDto providerDto)
         {
-            var provider = await _context.Providers.FindAsync(ContactProviderId);
+            var contactId = ContactIdForCaller;
+            var provider = await _context.Providers.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == contactId);
 
             if (provider == null)
             {
@@ -117,7 +133,9 @@ namespace Raphael.Api.Services
                     ContactName = p.ContactName,
                     Comments = p.Comments,
                     CatalogProviderId = p.CatalogProviderId,
-                    OwnerProviderId = p.OwnerProviderId
+                    OwnerProviderId = p.OwnerProviderId,
+                    IsTenant = p.IsTenant,
+                    WorkMode = p.WorkMode
                 }).ToListAsync();
         }
 

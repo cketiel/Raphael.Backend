@@ -1,3 +1,4 @@
+using Raphael.Shared.Entities;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 
@@ -56,5 +57,14 @@ namespace Raphael.Shared.DTOs
         public int? OwnerProviderId { get; set; }
 
         public string? OwnerProviderName { get; set; }
+
+        /// <summary>
+        /// A client company of the platform (RE-049). Read-only here: it changes only through
+        /// <c>PUT api/Providers/{id}/tenant</c>, never by saving the form.
+        /// </summary>
+        public bool IsTenant { get; set; }
+
+        /// <summary>Raphael (works in the Desktop) or External (Booking portal only). Read-only here.</summary>
+        public ProviderWorkMode WorkMode { get; set; }
     }
 }
