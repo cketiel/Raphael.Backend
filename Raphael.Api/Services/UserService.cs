@@ -147,6 +147,26 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        public async Task<bool> ResetPasswordAsync(int userId, string newPassword)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            user.PasswordHash = PasswordHasher.Hash(newPassword);
+
+            // Whoever was signed in as this user, the user or someone holding its session, is
+            // signed out: the next sign-in needs the new password.
+            var now = DateTime.UtcNow;
+            foreach (var token in await _context.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAtUtc == null).ToListAsync())
+            {
+                token.RevokedAtUtc = now;
+                token.RevokedReason = "password-reset-by-admin";
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task ChangePasswordAsync(ChangePasswordDto dto)
         {
             var user = await _context.Users.FindAsync(dto.UserId);

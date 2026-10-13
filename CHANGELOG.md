@@ -66,6 +66,10 @@ switches ship off.
   policy: an admin with no Provider and no Integrator. Same people as before today.
 - An account whose password was set by someone else can only change it; changing it ends every
   session. A Provider's user sees only the patients of its own trips.
+- **Admin password reset**: `PUT api/Users/{id}/reset-password` sets someone else's password without
+  the current one: Raphael's admin for anybody, a tenant's admin only for its own company's people.
+  It ends that user's sessions and is logged with both ids. Changing your own password still needs
+  the current one.
 
 ---
 

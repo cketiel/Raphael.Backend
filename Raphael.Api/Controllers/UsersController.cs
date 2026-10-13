@@ -143,6 +143,34 @@ namespace Raphael.Api.Controllers
             return deleted ? Ok() : NotFound();
         }
 
+        /// <summary>
+        /// An administrator sets a new password for someone else without knowing the old one:
+        /// Raphael's admin for anybody, a tenant's admin only for its own company's people
+        /// (decided 2026-10-13). Changing your own still needs the current one (change-password).
+        /// </summary>
+        /// <remarks>
+        /// Ends every session of that user, and is logged with both ids and no name: who reset
+        /// whose password, and when, is a question an audit asks.
+        /// </remarks>
+        [NotForClinicUsers]
+        [Authorize(Roles = AdminRoleId)]
+        [HttpPut("{id:int}/reset-password")]
+        public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordDto dto, [FromServices] ILogger<UsersController> logger)
+        {
+            if (id == _currentUser.UserId)
+                return BadRequest(new { code = "own_password", message = "Change your own password with your current one." });
+            if (string.IsNullOrWhiteSpace(dto?.NewPassword) || dto.NewPassword.Length < 8)
+                return BadRequest(new { code = "weak_password", message = "The new password needs at least 8 characters." });
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return BadRequest(new { code = "mismatch", message = "New password and confirmation do not match." });
+            if (!await InCallersTenantAsync(id)) return NotFound();
+
+            if (!await _service.ResetPasswordAsync(id, dto.NewPassword)) return NotFound();
+
+            logger.LogWarning("Password reset: user {TargetUserId} by admin {AdminUserId}.", id, _currentUser.UserId);
+            return Ok(new { message = "Password reset. The user's sessions have ended." });
+        }
+
         [AllowApps(ClientApps.Desktop, ClientApps.Booking)]
         [HttpPut("change-password")]
         [AllowWhilePasswordChangeRequired]

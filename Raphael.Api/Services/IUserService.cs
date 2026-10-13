@@ -11,6 +11,8 @@ namespace Raphael.Api.Services
         Task<User> UpdateAsync(UserUpdateDto dto);
         Task<bool> DeleteAsync(int id);
         Task ChangePasswordAsync(ChangePasswordDto dto);
+        /// <summary>An administrator sets someone else's password and ends that user's sessions.</summary>
+        Task<bool> ResetPasswordAsync(int userId, string newPassword);
         /// <summary>The Provider a user belongs to, and whether the user exists at all (RE-049).</summary>
         Task<(bool Exists, int? ProviderId)> ProviderOfAsync(int userId);
 
