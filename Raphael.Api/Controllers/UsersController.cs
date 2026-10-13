@@ -158,11 +158,11 @@ namespace Raphael.Api.Controllers
         public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordDto dto, [FromServices] ILogger<UsersController> logger)
         {
             if (id == _currentUser.UserId)
-                return BadRequest(new { code = "own_password", message = "Change your own password with your current one." });
+                return Problem(title: "Change your own password with your current one.", statusCode: StatusCodes.Status400BadRequest);
             if (string.IsNullOrWhiteSpace(dto?.NewPassword) || dto.NewPassword.Length < 8)
-                return BadRequest(new { code = "weak_password", message = "The new password needs at least 8 characters." });
+                return Problem(title: "The new password needs at least 8 characters.", statusCode: StatusCodes.Status400BadRequest);
             if (dto.NewPassword != dto.ConfirmPassword)
-                return BadRequest(new { code = "mismatch", message = "New password and confirmation do not match." });
+                return Problem(title: "New password and confirmation do not match.", statusCode: StatusCodes.Status400BadRequest);
             if (!await InCallersTenantAsync(id)) return NotFound();
 
             if (!await _service.ResetPasswordAsync(id, dto.NewPassword)) return NotFound();

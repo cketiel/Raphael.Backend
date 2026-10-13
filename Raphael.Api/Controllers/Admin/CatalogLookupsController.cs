@@ -11,7 +11,9 @@ namespace Raphael.Api.Controllers.Admin
     /// <remarks>⚠️ Administrators only, like the rest of the catalog.</remarks>
     [ApiController]
     [Route("api/admin/catalog")]
-    [Authorize(Policy = AuthPolicies.PlatformAdmin)]
+    // Any admin: a client company's admin uses the Integrators catalog (D3). The Providers
+    // categories stay the platform's.
+    [Authorize(Roles = "1")]
     // Office administration: role 1 is also a clinic's admin, who must not reach it.
     [NotForClinicUsers]
     public sealed class CatalogLookupsController : ControllerBase
@@ -32,6 +34,7 @@ namespace Raphael.Api.Controllers.Admin
         }
 
         /// <summary>The groups of the provider catalog, each with how many rows it holds.</summary>
+[Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpGet("provider-categories")]
         public async Task<ActionResult<IReadOnlyList<CatalogCategoryDto>>> ProviderCategories(
             CancellationToken cancellationToken)

@@ -25,8 +25,11 @@ namespace Raphael.Api.Controllers.Admin
     /// </remarks>
     [ApiController]
     [Route("api/admin/catalog/integrators")]
-    [Authorize(Policy = AuthPolicies.PlatformAdmin)]
-    // Office administration: role 1 is also a clinic's admin, who must not reach it.
+    // Any admin reads and searches it, and a client company's admin edits contact data only
+    // (decision D3, the same rule C as clinics and external Providers). Creating, importing,
+    // geocoding and turning a row into an account are the platform's. Role 1 is also a clinic's
+    // admin, who must not reach it.
+    [Authorize(Roles = "1")]
     [NotForClinicUsers]
     public sealed class CatalogIntegratorsController : ControllerBase
     {
@@ -44,11 +47,16 @@ namespace Raphael.Api.Controllers.Admin
         private const int MaxGeocodeIds = 100;
 
         private readonly ICatalogIntegratorService _catalog;
+        private readonly Raphael.Shared.Interfaces.ICurrentUserService _currentUser;
 
-        public CatalogIntegratorsController(ICatalogIntegratorService catalog)
+        public CatalogIntegratorsController(ICatalogIntegratorService catalog, Raphael.Shared.Interfaces.ICurrentUserService currentUser)
         {
             _catalog = catalog;
+            _currentUser = currentUser;
         }
+
+        /// <summary>Raphael's own office: an admin of no Provider and no Integrator.</summary>
+        private bool IsPlatform => _currentUser.ProviderId == null && _currentUser.IntegratorId == null;
 
         /// <summary>Searches the catalog and returns one page of it.</summary>
         /// <remarks>
@@ -75,6 +83,7 @@ namespace Raphael.Api.Controllers.Admin
         }
 
         /// <summary>Adds an entity somebody found outside the imported files.</summary>
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost]
         public async Task<ActionResult<CatalogIntegratorDto>> Create(
             [FromBody] CatalogIntegratorSaveDto request,
@@ -91,6 +100,14 @@ namespace Raphael.Api.Controllers.Admin
             [FromBody] CatalogIntegratorSaveDto request,
             CancellationToken cancellationToken)
         {
+            // A client company's admin changes contact data only; everything else keeps its value.
+            if (!IsPlatform)
+            {
+                var current = await _catalog.GetByIdAsync(id, cancellationToken);
+                if (current is null) return NotFound();
+                request = ContactOnly(current, request);
+            }
+
             var updated = await _catalog.UpdateAsync(id, request, cancellationToken);
 
             return updated is null ? NotFound() : Ok(updated);
@@ -104,6 +121,7 @@ namespace Raphael.Api.Controllers.Admin
         /// per-row verdict either way, and failing the whole batch over one bad row would mean
         /// re-sending ninety-nine good ones.
         /// </remarks>
+[Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost("import")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status207MultiStatus)]
@@ -124,6 +142,7 @@ namespace Raphael.Api.Controllers.Admin
         }
 
         /// <summary>Resolves coordinates for the rows asked for, in one deduplicated batch.</summary>
+[Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpPost("geocode")]
         public async Task<ActionResult<CatalogGeocodeResultDto>> Geocode(
             [FromBody] CatalogGeocodeRequestDto request,
@@ -146,6 +165,7 @@ namespace Raphael.Api.Controllers.Admin
         /// POST to <c>api/integrators</c>, which is where the API key is generated and where the
         /// owning company is taken from the token.
         /// </remarks>
+[Authorize(Policy = AuthPolicies.PlatformAdmin)]
         [HttpGet("{id:int}/company-draft")]
         public async Task<ActionResult<IntegratorDto>> CompanyDraft(
             int id,
@@ -154,6 +174,32 @@ namespace Raphael.Api.Controllers.Admin
             var draft = await _catalog.BuildCompanyDraftAsync(id, cancellationToken);
 
             return draft is null ? NotFound() : Ok(draft);
+        }
+
+        /// <summary>
+        /// The stored row with only the contact fields taken from the request: name, address,
+        /// city, state, zip, phone, e-mail, website and contact person (rule C).
+        /// </summary>
+        private static CatalogIntegratorSaveDto ContactOnly(CatalogIntegratorDto current, CatalogIntegratorSaveDto request)
+        {
+            var merged = new CatalogIntegratorSaveDto();
+            foreach (var target in typeof(CatalogIntegratorSaveDto).GetProperties().Where(p => p.CanWrite))
+            {
+                var source = typeof(CatalogIntegratorDto).GetProperty(target.Name);
+                if (source != null && target.PropertyType.IsAssignableFrom(source.PropertyType))
+                    target.SetValue(merged, source.GetValue(current));
+            }
+
+            merged.Name = request.Name;
+            merged.Address = request.Address;
+            merged.City = request.City;
+            merged.State = request.State;
+            merged.Zip = request.Zip;
+            merged.Phone = request.Phone;
+            merged.Email = request.Email;
+            merged.Website = request.Website;
+            merged.ContactName = request.ContactName;
+            return merged;
         }
     }
 }
