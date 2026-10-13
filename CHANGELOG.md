@@ -23,6 +23,50 @@ give:
 
 ---
 
+## [2.2.0] - 2026-10-13
+
+**Migrations:** three, all additive (new nullable columns, new indexes and foreign keys, two `bit`
+columns defaulting to false); no row is rewritten. `AddProviderWorkModeAndMustChangePassword`,
+`AddTripProviderOutcome`, `AddTenancy`. `v2.1.0` was run against the migrated schema with the same
+results, so redeploying it remains a working rollback; the columns simply stay.
+**Clients:** Driver ≥1.4.0, unchanged: Driver 1.6.0's calls answer byte for byte as on 2.1.0 apart
+from two new fields it ignores (`isExternalProvider`, `mustChangePassword`). Desktop ≥1.12.0,
+unchanged; Desktop accept/reject arrives with its next release. Booking Portal: the external
+provider portal needs the matching `raphael-web` release. Rider not released.
+
+MINOR: new, backward-compatible endpoints, fields and switches (`GIT_WORKFLOW.md` §4). Both new
+switches ship off.
+
+### Added
+- **External providers** (Provider work mode `External`): contracting a catalog Provider in
+  Booking creates its account; clinic admins manage its users; its users work in the Booking
+  portal only, with guided reject, complete and no-show, and see the clinics that contracted it.
+- **Trip status `Rejected`** and provider accept: `POST api/trips/accept`,
+  `POST api/trips/{id}/reject`, and the `TRIP_REJECTED` business event for the clinic and the
+  office. ⚠️ Run `Sync-NotificationCatalog.ps1 -Environment prod` after deploying, or the event
+  reaches nobody.
+- Production report: the trip's Provider on every row and a `providerIds` filter; trips done by
+  external Providers appear with their reported times.
+- **Multi-tenant foundation (RE-049)**, behind `Tenancy:Enforce` (off): `Providers.IsTenant`,
+  `OwnerProviderId` on the fleet, payers, billing items and catalogs, query filters, ownership
+  stamping on save, and `PUT api/Providers/{id}/tenant` for the platform. With no tenant in the
+  database, turning it on changes nothing for anyone.
+- **Per-application access (RE-048)**, behind `AppAccess:Mode` (`Off`): each user signs in only
+  to its own application and each endpoint admits only the applications that use it. `Audit` logs
+  what `Enforce` would refuse, without personal data.
+
+### Security
+- Creating, editing and deleting users and roles, and changing someone else's password, now
+  require the admin role (B20). Before, any office token, a driver's included, could create an
+  admin.
+- Platform-only endpoints (catalogs, Google Maps, notification catalog, system settings,
+  integrators and their API keys, provider writes, role writes) require the new `PlatformAdmin`
+  policy: an admin with no Provider and no Integrator. Same people as before today.
+- An account whose password was set by someone else can only change it; changing it ends every
+  session. A Provider's user sees only the patients of its own trips.
+
+---
+
 ## [2.1.0] - 2026-10-11
 
 **Migrations:** none. Redeploying `v2.0.0` is a full rollback.
