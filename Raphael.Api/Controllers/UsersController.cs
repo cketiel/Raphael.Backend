@@ -14,6 +14,15 @@ namespace Raphael.Api.Controllers
     //[Route("api/users")]
     public class UsersController : ControllerBase
     {
+        /// <summary>
+        /// RoleId of an administrator. The token carries role identifiers, not names.
+        /// Writes are admin-only (B20): without it any office token, a driver's included,
+        /// could create an admin or take over one by changing its password. Reads stay open
+        /// to the office, because Desktop loads users for every role (startup, Reports, the
+        /// route editor).
+        /// </summary>
+        private const string AdminRoleId = "1";
+
         private readonly IUserService _service;
         private readonly ICurrentUserService _currentUser;
 
@@ -23,7 +32,7 @@ namespace Raphael.Api.Controllers
             _currentUser = currentUser;
         }
 
-        // Every user, with its password hash: never to a clinic, which holds its token in the browser.
+        // Every user (UserDto, no password hash): never to a clinic, which holds its token in the browser.
         [NotForClinicUsers]
         [HttpGet]
         public async Task<ActionResult<List<User>>> GetAll()
@@ -42,6 +51,7 @@ namespace Raphael.Api.Controllers
         }
 
         [NotForClinicUsers]
+        [Authorize(Roles = AdminRoleId)]
         [HttpPost("create")]
         public async Task<IActionResult> CreateUser([FromBody] UserCreateDto dto)
         {
@@ -65,6 +75,7 @@ namespace Raphael.Api.Controllers
         }
 
         [NotForClinicUsers]
+        [Authorize(Roles = AdminRoleId)]
         [HttpPut("update")]
         public async Task<IActionResult> UpdateUser([FromBody] UserUpdateDto dto)
         {
@@ -89,6 +100,7 @@ namespace Raphael.Api.Controllers
 
 
         [NotForClinicUsers]
+        [Authorize(Roles = AdminRoleId)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -102,10 +114,16 @@ namespace Raphael.Api.Controllers
         {
             // The user id travels in the body, and a clinic holds its token in the browser: without
             // this a clinic could change, or keep guessing, another user's password. A clinic user
-            // changes only its own, and so does an external Provider's. The office is left as it
-            // was (decided 2026-10-07).
+            // changes only its own, and so does an external Provider's.
             if ((_currentUser.IntegratorId != null || _currentUser.IsExternalProvider || _currentUser.MustChangePassword)
                 && dto.UserId != _currentUser.UserId)
+            {
+                return Forbid();
+            }
+
+            // B20: someone else's password only by an office admin (Desktop, Admin → Users).
+            // Before, any office token, a driver's included, could reset the admin's and sign in as it.
+            if (dto.UserId != _currentUser.UserId && _currentUser.RoleId?.ToString() != AdminRoleId)
             {
                 return Forbid();
             }
