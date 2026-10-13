@@ -64,6 +64,13 @@ namespace Raphael.Shared.Entities
 
         /// <summary>Raphael (Desktop) or External (another system, Booking portal only).</summary>
         public ProviderWorkMode WorkMode { get; set; } = ProviderWorkMode.Raphael;
+
+        /// <summary>
+        /// A client company that bought Raphael: its users are held to its own data (RE-049).
+        /// Only the platform sets it. False for every Provider that existed before, whose users keep
+        /// behaving exactly as they did.
+        /// </summary>
+        public bool IsTenant { get; set; }
     }
 }
 

@@ -1,9 +1,10 @@
+using Raphael.Shared.Interfaces;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Raphael.Shared.Entities
 {
-    public class FundingSource
+    public class FundingSource : IOwnedByProvider
     {
         public int Id { get; set; }
         [Required]
@@ -27,6 +28,12 @@ namespace Raphael.Shared.Entities
 
         //public ICollection<Customer> Customers { get; set; }
         public ICollection<FundingSourceBillingItem> BillingItems { get; set; }
+
+        /// <summary>
+        /// The client company (tenant) this row belongs to. <c>null</c> means Raphael's own
+        /// operation, the general broker, as in <c>User.ProviderId</c> (RE-049).
+        /// </summary>
+        public int? OwnerProviderId { get; set; }
     }
 }
 

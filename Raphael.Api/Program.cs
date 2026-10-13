@@ -682,6 +682,13 @@ builder.Services.Configure<AppAccessOptions>(
     builder.Configuration.GetSection(AppAccessOptions.SectionName));
 
 //
+// Tenant isolation (RE-049). Ships off; see TenancyOptions for why turning it on, before the
+// first tenant exists, changes nothing for anyone.
+//
+builder.Services.Configure<TenancyOptions>(
+    builder.Configuration.GetSection(TenancyOptions.SectionName));
+
+//
 // How long a session lasts, per client application.
 //
 // A driver's phone and a dispatch workstation want opposite answers -- one is carried through a
@@ -1058,6 +1065,20 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
             {
                 Title = conflict.Message,
                 Status = StatusCodes.Status409Conflict,
+                Instance = context.Request.Path
+            });
+            return;
+        }
+
+        // A tenant's user tried to change another company's row, or the common catalog (RE-049).
+        if (exceptionHandler?.Error is Raphael.Shared.Interfaces.TenantAccessException denied)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Title = denied.Message,
+                Status = StatusCodes.Status403Forbidden,
                 Instance = context.Request.Path
             });
             return;

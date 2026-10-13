@@ -41,6 +41,8 @@ namespace Raphael.Shared.Factories
         public bool IsMilanesInternal => true; // Para migraciones, actuar como admin global
         public bool IsExternalProvider => false;
         public bool MustChangePassword => false;
+        public int? TenantId => null;
+        public bool TenancyEnforced => false;
     }
 }
 

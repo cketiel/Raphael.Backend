@@ -1,9 +1,10 @@
+using Raphael.Shared.Interfaces;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Raphael.Shared.Entities
 {
-    public class VehicleRoute
+    public class VehicleRoute : IOwnedByProvider
     {
         public int Id { get; set; }
 
@@ -49,5 +50,11 @@ namespace Raphael.Shared.Entities
         public ICollection<RouteSuspension> Suspensions { get; set; }
         public ICollection<RouteAvailability> Availabilities { get; set; }
         public ICollection<RouteFundingSource> FundingSources { get; set; }
+
+        /// <summary>
+        /// The client company (tenant) this row belongs to. <c>null</c> means Raphael's own
+        /// operation, the general broker, as in <c>User.ProviderId</c> (RE-049).
+        /// </summary>
+        public int? OwnerProviderId { get; set; }
     }
 }

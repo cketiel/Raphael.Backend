@@ -58,6 +58,9 @@ namespace Raphael.Shared.Migrations
                     b.Property<int?>("OwnerIntegratorId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.Property<int>("UnitId")
                         .HasColumnType("int");
 
@@ -67,6 +70,8 @@ namespace Raphael.Shared.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerIntegratorId");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.HasIndex("UnitId");
 
@@ -267,7 +272,12 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("CapacityDetailTypes");
                 });
@@ -287,7 +297,12 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("Capacities");
                 });
@@ -1346,6 +1361,9 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
 
@@ -1362,6 +1380,8 @@ namespace Raphael.Shared.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("FundingSources");
                 });
@@ -2019,6 +2039,9 @@ namespace Raphael.Shared.Migrations
 
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsTenant")
+                        .HasColumnType("bit");
 
                     b.Property<double?>("Latitude")
                         .HasColumnType("float");
@@ -2896,6 +2919,9 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.Property<float>("UnloadTime")
                         .HasColumnType("real");
 
@@ -2905,6 +2931,8 @@ namespace Raphael.Shared.Migrations
 
                     b.HasIndex("Name")
                         .IsUnique();
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("SpaceTypes");
                 });
@@ -3235,7 +3263,12 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("Units");
                 });
@@ -3337,6 +3370,9 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Plate")
                         .HasColumnType("nvarchar(max)");
 
@@ -3356,6 +3392,8 @@ namespace Raphael.Shared.Migrations
                     b.HasIndex("CapacityTypeId");
 
                     b.HasIndex("GroupId");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.HasIndex("VehicleTypeId");
 
@@ -3380,7 +3418,12 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("VehicleGroups");
                 });
@@ -3421,6 +3464,9 @@ namespace Raphael.Shared.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.Property<string>("SmartphoneLogin")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -3437,6 +3483,8 @@ namespace Raphael.Shared.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DriverId");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.HasIndex("SmartphoneLogin")
                         .HasDatabaseName("IX_VehicleRoutes_SmartphoneLogin");
@@ -3461,7 +3509,12 @@ namespace Raphael.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
 
                     b.ToTable("VehicleTypes");
                 });
@@ -3471,6 +3524,11 @@ namespace Raphael.Shared.Migrations
                     b.HasOne("Raphael.Shared.Entities.Integrator", "OwnerIntegrator")
                         .WithMany()
                         .HasForeignKey("OwnerIntegratorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Raphael.Shared.Entities.Unit", "Unit")
@@ -3516,6 +3574,22 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("CapacityDetailType");
 
                     b.Navigation("SpaceType");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.CapacityDetailType", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.CapacityType", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Catalog.CatalogIntegrator", b =>
@@ -3590,6 +3664,14 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("FundingSource");
 
                     b.Navigation("SpaceType");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.FundingSource", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.FundingSourceBillingItem", b =>
@@ -3899,6 +3981,11 @@ namespace Raphael.Shared.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("CapacityType");
                 });
 
@@ -3978,6 +4065,14 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("Trip");
                 });
 
+            modelBuilder.Entity("Raphael.Shared.Entities.Unit", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Raphael.Shared.Entities.User", b =>
                 {
                     b.HasOne("Raphael.Shared.Entities.Integrator", "Integrator")
@@ -4019,6 +4114,11 @@ namespace Raphael.Shared.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Raphael.Shared.Entities.VehicleType", "VehicleType")
                         .WithMany()
                         .HasForeignKey("VehicleTypeId")
@@ -4032,6 +4132,14 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("VehicleType");
                 });
 
+            modelBuilder.Entity("Raphael.Shared.Entities.VehicleGroup", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Raphael.Shared.Entities.VehicleRoute", b =>
                 {
                     b.HasOne("Raphael.Shared.Entities.User", "Driver")
@@ -4039,6 +4147,11 @@ namespace Raphael.Shared.Migrations
                         .HasForeignKey("DriverId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Raphael.Shared.Entities.Vehicle", "Vehicle")
                         .WithMany()
@@ -4049,6 +4162,14 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("Driver");
 
                     b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.VehicleType", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.BillingItem", b =>

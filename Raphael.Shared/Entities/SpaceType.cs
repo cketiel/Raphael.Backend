@@ -1,8 +1,9 @@
+using Raphael.Shared.Interfaces;
 using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.Entities
 {
-    public class SpaceType
+    public class SpaceType : IOwnedByProvider
     {
         public int Id { get; set; }
         [Required]
@@ -22,6 +23,12 @@ namespace Raphael.Shared.Entities
         public ICollection<Trip> Trips { get; set; }
         public ICollection<CapacityDetail> CapacityDetails { get; set; }
         public ICollection<FundingSourceBillingItem> FundingSourceBillingItems { get; set; }
+
+        /// <summary>
+        /// The client company (tenant) that added this entry for itself. <c>null</c> means the
+        /// common catalog every tenant reads and only the platform edits (RE-049, decision M5).
+        /// </summary>
+        public int? OwnerProviderId { get; set; }
     }
 }
 

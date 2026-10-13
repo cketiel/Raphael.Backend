@@ -18,6 +18,12 @@ namespace Raphael.Shared.Helpers
         /// <summary>"true" while the account may only change its password.</summary>
         public const string MustChangePassword = "MustChangePassword";
 
+        /// <summary>
+        /// The tenant (client company) a user is held to: its <c>ProviderId</c> when that Provider
+        /// is a tenant, empty otherwise. Written from the database on every issue (RE-049).
+        /// </summary>
+        public const string TenantId = "TenantId";
+
         /// <summary>The Booking portal's X-Client-App: the only app an external Provider's user enters.</summary>
         public const string BookingApp = "BookingWeb";
     }

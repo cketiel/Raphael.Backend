@@ -1,4 +1,6 @@
-﻿using Raphael.Shared.Helpers;
+﻿using Microsoft.Extensions.Options;
+using Raphael.Api.Settings;
+using Raphael.Shared.Helpers;
 using Raphael.Shared.Interfaces;
 
 namespace Raphael.Api.Services
@@ -6,10 +8,12 @@ namespace Raphael.Api.Services
     public class CurrentUserService : ICurrentUserService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IOptionsMonitor<TenancyOptions> _tenancy;
 
-        public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+        public CurrentUserService(IHttpContextAccessor httpContextAccessor, IOptionsMonitor<TenancyOptions> tenancy)
         {
             _httpContextAccessor = httpContextAccessor;
+            _tenancy = tenancy;
         }
 
         public int? UserId => GetClaimAsInt("UserId");
@@ -21,6 +25,8 @@ namespace Raphael.Api.Services
         public bool IsMilanesInternal => IntegratorId == null && ProviderId == null;
         public bool IsExternalProvider => GetClaimValue(PortalClaims.ProviderMode) == PortalClaims.External;
         public bool MustChangePassword => GetClaimValue(PortalClaims.MustChangePassword) == "true";
+        public int? TenantId => GetClaimAsInt(PortalClaims.TenantId);
+        public bool TenancyEnforced => _tenancy.CurrentValue.Enforce;
 
         private int? GetClaimAsInt(string type)
         {

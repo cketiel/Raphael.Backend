@@ -112,6 +112,35 @@ namespace Raphael.Api.Controllers
         [NotForClinicUsers]
         public async Task<IActionResult> Delete(int id) => Ok(await _providerService.DeleteAsync(id));
 
+        /// <summary>
+        /// Makes a Provider a client company of the platform, or stops it being one (RE-049). Its
+        /// users are held to their own data from their next sign-in or renewal.
+        /// </summary>
+        /// <remarks>
+        /// Only Raphael's office: selling Raphael is the platform's act, never a client's. A Provider
+        /// working outside Raphael (External) cannot be a tenant: it has no fleet here to isolate.
+        /// </remarks>
+        [HttpPut("{id:int}/tenant")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [NotForClinicUsers]
+        public async Task<IActionResult> SetTenant(
+            int id,
+            [FromBody] ProviderTenantRequest request,
+            [FromServices] Raphael.Shared.DbContexts.RaphaelContext context)
+        {
+            var provider = await context.Providers.FindAsync(id);
+            if (provider == null) return NotFound();
+            if (request.IsTenant && provider.WorkMode == Raphael.Shared.Entities.ProviderWorkMode.External)
+                return BadRequest(new { code = "external_provider", message = "A Provider working outside Raphael cannot be a tenant." });
+
+            provider.IsTenant = request.IsTenant;
+            await context.SaveChangesAsync();
+            return Ok(new { provider.Id, provider.IsTenant });
+        }
+
+        /// <summary>Body of <c>PUT api/Providers/{id}/tenant</c>.</summary>
+        public sealed record ProviderTenantRequest(bool IsTenant);
+
         /// <summary>"" when the form carries the field, null when it does not.</summary>
         private string? Carried(string field) =>
             Request.HasFormContentType && Request.Form.ContainsKey(field) ? string.Empty : null;

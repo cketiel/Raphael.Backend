@@ -128,6 +128,15 @@ namespace Raphael.Api.Services
             return user;
         }
 
+        public async Task<(bool Exists, int? ProviderId)> ProviderOfAsync(int userId)
+        {
+            var row = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.ProviderId })
+                .FirstOrDefaultAsync();
+            return row == null ? (false, null) : (true, row.ProviderId);
+        }
+
         public async Task<bool> DeleteAsync(int id)
         {
             var user = await _context.Users.FindAsync(id);

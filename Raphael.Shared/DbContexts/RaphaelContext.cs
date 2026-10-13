@@ -165,6 +165,109 @@ namespace Raphael.Shared.DbContexts
             }
         }
 
+        /// <summary>
+        /// Index and Restrict foreign key to <c>Providers</c> on an entity's <c>OwnerProviderId</c>.
+        /// No navigation property: the tenant is a filter, not something the code walks.
+        /// </summary>
+        private static void OwnedByProvider<T>(ModelBuilder modelBuilder) where T : class
+        {
+            const string column = "OwnerProviderId";
+            modelBuilder.Entity<T>().HasIndex(column);
+            modelBuilder.Entity<T>()
+                .HasOne<Provider>()
+                .WithMany()
+                .HasForeignKey(column)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+
+        /// <summary>
+        /// A tenant's user sees its own rows; anybody else, the rows with no owner (RE-049).
+        /// Clinics are left alone: see the comment where this is applied.
+        /// </summary>
+        /// <remarks>
+        /// Written as two explicit branches, not <c>owner == tenant</c>: with a null tenant that
+        /// comparison is not "both null" in every translation, and getting it wrong here would hide
+        /// Raphael's whole fleet from its own dispatchers and drivers.
+        /// </remarks>
+        private void TenantScoped<T>(ModelBuilder modelBuilder) where T : class, IOwnedByProvider
+        {
+            modelBuilder.Entity<T>().HasQueryFilter(e =>
+                !_currentUserService.TenancyEnforced
+                || _currentUserService.IntegratorId != null
+                || (_currentUserService.TenantId == null && EF.Property<int?>(e, "OwnerProviderId") == null)
+                || (_currentUserService.TenantId != null && EF.Property<int?>(e, "OwnerProviderId") == _currentUserService.TenantId));
+        }
+
+        /// <summary>The common catalog (no owner) for everybody, plus a tenant's own entries (RE-049, M5).</summary>
+        private void CommonCatalog<T>(ModelBuilder modelBuilder) where T : class, IOwnedByProvider
+        {
+            modelBuilder.Entity<T>().HasQueryFilter(e =>
+                !_currentUserService.TenancyEnforced
+                || EF.Property<int?>(e, "OwnerProviderId") == null
+                || (_currentUserService.TenantId != null && EF.Property<int?>(e, "OwnerProviderId") == _currentUserService.TenantId));
+        }
+
+        /// <summary>
+        /// Stamps every new tenant-owned row with the caller's tenant and refuses to let a tenant's
+        /// user change or delete a row that is not its own, the common catalog included (RE-049).
+        /// The client never decides whose a row is: Desktop sends whole entities without the field.
+        /// </summary>
+        private void SealTenantOwnership()
+        {
+            if (!_currentUserService.TenancyEnforced) return;
+            var tenant = _currentUserService.TenantId;
+
+            foreach (var entry in ChangeTracker.Entries<IOwnedByProvider>())
+            {
+                var owner = entry.Property(e => e.OwnerProviderId);
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        // Raphael's own users keep creating ownerless rows, as today.
+                        if (tenant != null) owner.CurrentValue = tenant;
+                        break;
+
+                    case EntityState.Modified:
+                    case EntityState.Deleted:
+                        if (tenant != null && owner.OriginalValue != tenant)
+                            throw new TenantAccessException();
+                        // Nobody moves a row to another company by editing it.
+                        owner.CurrentValue = owner.OriginalValue;
+                        owner.IsModified = false;
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A trip a tenant's user creates (by hand or by import) carries no Provider from the
+        /// Desktop; without one it would disappear from that tenant's own lists (RE-049).
+        /// </summary>
+        private void SealTenantTrips()
+        {
+            if (!_currentUserService.TenancyEnforced || _currentUserService.TenantId is not int tenant) return;
+
+            foreach (var entry in ChangeTracker.Entries<Trip>())
+            {
+                if (entry.State == EntityState.Added && entry.Entity.ProviderId == null)
+                    entry.Entity.ProviderId = tenant;
+            }
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            SealTenantOwnership();
+            SealTenantTrips();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            SealTenantOwnership();
+            SealTenantTrips();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ======================================================
@@ -720,8 +823,11 @@ namespace Raphael.Shared.DbContexts
             // A Provider sees the patients of the trips it carries out, and nobody else's. It used to
             // be "any Provider sees every patient" (SECURITY_FINDINGS.md F16), which turned into a
             // real leak with the first user of an external Provider.
+            // RE-049, decision M4: a tenant's users work with the shared patient list. Only for
+            // tenants and only with isolation on; everybody else keeps exactly this rule.
             modelBuilder.Entity<Customer>().HasQueryFilter(c =>
                _currentUserService.IsMilanesInternal ||
+               (_currentUserService.TenancyEnforced && _currentUserService.TenantId != null) ||
                (_currentUserService.IntegratorId != null && c.IntegratorId == _currentUserService.IntegratorId) ||
                (_currentUserService.ProviderId != null && c.Trips.Any(t => t.ProviderId == _currentUserService.ProviderId))
            );
@@ -878,6 +984,73 @@ namespace Raphael.Shared.DbContexts
             modelBuilder.Entity<Provider>()
                 .HasIndex(p => new { p.CatalogProviderId, p.OwnerProviderId })
                 .HasDatabaseName("IX_Providers_Catalog_Owner");
+
+            // The tenant of the operational data and of the catalogs (RE-049). Null is Raphael's
+            // own operation, or the common catalog. Restrict: a client company is never deleted
+            // from under its fleet, its payers or its own catalog entries.
+            OwnedByProvider<Vehicle>(modelBuilder);
+            OwnedByProvider<VehicleRoute>(modelBuilder);
+            OwnedByProvider<VehicleGroup>(modelBuilder);
+            OwnedByProvider<FundingSource>(modelBuilder);
+            OwnedByProvider<BillingItem>(modelBuilder);
+            OwnedByProvider<VehicleType>(modelBuilder);
+            OwnedByProvider<SpaceType>(modelBuilder);
+            OwnedByProvider<CapacityType>(modelBuilder);
+            OwnedByProvider<CapacityDetailType>(modelBuilder);
+            OwnedByProvider<Unit>(modelBuilder);
+
+            // ---- Tenant isolation (RE-049), only while Tenancy:Enforce is on -------------------
+            //
+            // A tenant's user sees its own fleet and payers, plus the common catalog. Everybody
+            // else (Raphael's office and drivers, background work, users of a Provider that is not
+            // a tenant) sees the rows with no owner, which today is every row: with no tenant in
+            // the database, switching this on changes nothing for them. Clinics are not filtered
+            // here: a clinic tracks its trips through the schedules and routes of whoever carries
+            // them out, and what a clinic may call at all is decided by RE-048.
+            TenantScoped<Vehicle>(modelBuilder);
+            TenantScoped<VehicleRoute>(modelBuilder);
+            TenantScoped<VehicleGroup>(modelBuilder);
+            TenantScoped<FundingSource>(modelBuilder);
+            TenantScoped<BillingItem>(modelBuilder);
+            CommonCatalog<VehicleType>(modelBuilder);
+            CommonCatalog<SpaceType>(modelBuilder);
+            CommonCatalog<CapacityType>(modelBuilder);
+            CommonCatalog<CapacityDetailType>(modelBuilder);
+            CommonCatalog<Unit>(modelBuilder);
+
+            // Rows reached through a route or a payer follow it. Only a tenant's user is filtered:
+            // Raphael's office keeps seeing every schedule, as today, including those of trips it
+            // gave to a tenant. A tenant also sees the schedules of the trips assigned to it.
+            modelBuilder.Entity<Schedule>().HasQueryFilter(x =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || x.VehicleRoute.OwnerProviderId == _currentUserService.TenantId
+                || (x.Trip != null && x.Trip.ProviderId == _currentUserService.TenantId));
+            modelBuilder.Entity<GPS>().HasQueryFilter(x =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || x.VehicleRoute.OwnerProviderId == _currentUserService.TenantId);
+            modelBuilder.Entity<RouteAvailability>().HasQueryFilter(x =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || x.VehicleRoute.OwnerProviderId == _currentUserService.TenantId);
+            modelBuilder.Entity<RouteFundingSource>().HasQueryFilter(x =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || x.VehicleRoute.OwnerProviderId == _currentUserService.TenantId);
+            modelBuilder.Entity<RouteSuspension>().HasQueryFilter(x =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || x.VehicleRoute.OwnerProviderId == _currentUserService.TenantId);
+            // The accounts list: a tenant sees itself and the Providers and clinics it added for
+            // itself (OwnerProviderId), never the other companies on the platform. Raphael's office
+            // is not filtered: it already sees rows that providers added under it.
+            modelBuilder.Entity<Provider>().HasQueryFilter(p =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || p.Id == _currentUserService.TenantId
+                || p.OwnerProviderId == _currentUserService.TenantId);
+            modelBuilder.Entity<Integrator>().HasQueryFilter(i =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || i.OwnerProviderId == _currentUserService.TenantId);
+
+            modelBuilder.Entity<FundingSourceBillingItem>().HasQueryFilter(x =>
+                !_currentUserService.TenancyEnforced || _currentUserService.TenantId == null
+                || x.FundingSource.OwnerProviderId == _currentUserService.TenantId);
 
             // Which catalog Providers each clinic works with (CATALOG_MODEL.md §4.3). Restrict on
             // both sides: the catalog never loses an entity, and a clinic with relations is not

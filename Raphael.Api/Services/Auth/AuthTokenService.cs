@@ -64,7 +64,7 @@ namespace Raphael.Api.Services.Auth
             var policy = _policies.CurrentValue.For(clientApp);
             var now = DateTime.UtcNow;
 
-            var access = CreateAccessToken(ClaimsForUser(user, await ProviderModeOfAsync(user, cancellationToken), clientApp), policy, now, out var accessExpiry);
+            var access = CreateAccessToken(ClaimsForUser(user, await ProviderOfAsync(user, cancellationToken), clientApp), policy, now, out var accessExpiry);
 
             var refresh = await CreateRefreshTokenAsync(
                 userId: user.Id,
@@ -178,19 +178,19 @@ namespace Raphael.Api.Services.Auth
                     return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);
                 }
 
-                var providerMode = await ProviderModeOfAsync(user, cancellationToken);
+                var provider = await ProviderOfAsync(user, cancellationToken);
 
                 // RE-048: a session opened for an application the user no longer belongs to (or
                 // never did, while the check was only auditing) ends at its next renewal.
                 if (_appAccess.CurrentValue.Mode == AppAccessMode.Enforce
-                    && !ClientApps.AllowedFor(user, providerMode).Contains(ClientApps.Normalize(row.ClientApp)))
+                    && !ClientApps.AllowedFor(user, provider.Mode).Contains(ClientApps.Normalize(row.ClientApp)))
                 {
                     await RevokeFamilyAsync(row.FamilyId, "wrong-app", now, cancellationToken);
                     return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);
                 }
 
                 // The application comes from the row, like the policy: decided at sign-in.
-                claims = ClaimsForUser(user, providerMode, row.ClientApp);
+                claims = ClaimsForUser(user, provider, row.ClientApp);
             }
             else
             {
@@ -373,7 +373,7 @@ namespace Raphael.Api.Services.Auth
         /// <see cref="PortalClaims.MustChangePassword"/> while its password was set by somebody else.
         /// And <see cref="ClientApps.Claim"/>, the application the session was opened for (RE-048).
         /// </remarks>
-        private static Claim[] ClaimsForUser(User user, ProviderWorkMode? providerMode, string? clientApp) => new[]
+        private static Claim[] ClaimsForUser(User user, ProviderFacts provider, string? clientApp) => new[]
         {
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.RoleId.ToString()),
@@ -384,16 +384,23 @@ namespace Raphael.Api.Services.Auth
             new Claim("Role", user.RoleId.ToString()),
             new Claim("UserIntegratorId", user.IntegratorId?.ToString() ?? ""),
             new Claim("UserProviderId", user.ProviderId?.ToString() ?? ""),
-            new Claim(PortalClaims.ProviderMode, providerMode?.ToString() ?? ""),
+            new Claim(PortalClaims.ProviderMode, provider.Mode?.ToString() ?? ""),
+            // The company this user is held to (RE-049): only for a Provider the platform made a tenant.
+            new Claim(PortalClaims.TenantId, provider.IsTenant ? user.ProviderId?.ToString() ?? "" : ""),
             new Claim(PortalClaims.MustChangePassword, user.MustChangePassword ? "true" : "false"),
             new Claim(ClientApps.Claim, ClientApps.Normalize(clientApp))
         };
 
-        /// <summary>The work mode of the user's Provider; null for a user of no Provider.</summary>
-        private async Task<ProviderWorkMode?> ProviderModeOfAsync(User user, CancellationToken cancellationToken) =>
+        /// <summary>What the token needs from the user's Provider; read on every issue, never cached.</summary>
+        private readonly record struct ProviderFacts(ProviderWorkMode? Mode, bool IsTenant);
+
+        /// <summary>The work mode of the user's Provider and whether it is a tenant; empty for a user of no Provider.</summary>
+        private async Task<ProviderFacts> ProviderOfAsync(User user, CancellationToken cancellationToken) =>
             user.ProviderId is int providerId
-                ? await _context.Providers.Where(p => p.Id == providerId).Select(p => (ProviderWorkMode?)p.WorkMode).FirstOrDefaultAsync(cancellationToken)
-                : null;
+                ? await _context.Providers.Where(p => p.Id == providerId)
+                    .Select(p => new ProviderFacts(p.WorkMode, p.IsTenant))
+                    .FirstOrDefaultAsync(cancellationToken)
+                : default;
 
         /// <summary>
         /// ⚠️ Reproduced exactly as <c>RiderService.GenerateRiderToken</c> built them.
