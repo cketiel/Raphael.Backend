@@ -814,8 +814,18 @@ namespace Raphael.Shared.DbContexts
                 .HasFilter("[IsCancelled] = 0") // Only apply the uniqueness rule if it is NOT canceled
                 .HasDatabaseName("IX_Trip_Unique_Active_Trip");
 
+            // RE-050 (with Tenancy on): Raphael's admin sees every trip; Raphael's other office
+            // staff only Raphael's own (no Provider). Not narrowed: background work and the
+            // integration API (no staff user), and Raphael's drivers (role 2) — a driver's no-show
+            // also cancels the patient's other legs that day, whoever carries them, and the Driver
+            // app must behave exactly as before.
             modelBuilder.Entity<Trip>().HasQueryFilter(t =>
-                _currentUserService.IsMilanesInternal ||
+                (_currentUserService.IsMilanesInternal
+                    && (!_currentUserService.TenancyEnforced
+                        || _currentUserService.UserId == null
+                        || _currentUserService.RoleId == 1
+                        || _currentUserService.RoleId == 2
+                        || t.ProviderId == null)) ||
                 (_currentUserService.IntegratorId != null && t.IntegratorId == _currentUserService.IntegratorId) ||
                 (_currentUserService.ProviderId != null && t.ProviderId == _currentUserService.ProviderId)
             );

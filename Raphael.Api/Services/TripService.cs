@@ -257,6 +257,7 @@ namespace Raphael.Api.Services
 
             // Only when the portal says so (PortalTripDto.SetProvider); the controller has checked
             // the clinic may give trips to this Provider.
+            var providerBefore = trip.ProviderId;
             if (dto.SetProvider)
             {
                 // Given to another Provider (or back to Raphael) after a rejection: the new one
@@ -274,6 +275,13 @@ namespace Raphael.Api.Services
             }
 
             await _context.SaveChangesAsync();
+
+            // RE-050: a client company is told when a clinic gives it a trip.
+            if (dto.SetProvider && trip.ProviderId is int givenTo && givenTo != providerBefore
+                && await _context.Providers.IgnoreQueryFilters().AnyAsync(p => p.Id == givenTo && p.IsTenant))
+            {
+                await _tripNotifications.TripAssignedAsync(trip, givenTo);
+            }
 
             // If there is no TripId (Manual), we assign the auto-generated ID.
             if (string.IsNullOrEmpty(trip.TripId))
@@ -1660,6 +1668,54 @@ namespace Raphael.Api.Services
             }
         }
         
+        /// <summary>Raised when Raphael's admin is not the one asking to change a trip's Provider.</summary>
+        public sealed class ProviderAssignmentDeniedException : Exception
+        {
+            public ProviderAssignmentDeniedException(string message) : base(message) { }
+        }
+
+        /// <summary>
+        /// Gives the trip to another Provider, or back to Raphael (RE-050). Only Raphael's admin,
+        /// and only before it is routed: once on a route it belongs to whoever is driving it.
+        /// Returns the tenant to tell, when the new Provider is one.
+        /// </summary>
+        private async Task<int?> ApplyProviderAssignmentAsync(Trip trip, int? providerId)
+        {
+            if (trip.ProviderId == providerId) return null;
+
+            var isPlatformAdmin = _currentUserService.RoleId == 1 && _currentUserService.IsMilanesInternal;
+            if (!isPlatformAdmin)
+                throw new ProviderAssignmentDeniedException("Only Raphael's administrator gives a trip to a Provider.");
+            if (trip.VehicleRouteId != null || !(trip.Status == TripStatus.Assigned || trip.Status == TripStatus.Accepted || trip.Status == TripStatus.Rejected))
+                throw new ProviderAssignmentDeniedException("This trip is already routed, started or closed: its Provider can no longer change.");
+
+            var provider = providerId is int pid
+                ? await _context.Providers.IgnoreQueryFilters().Where(p => p.Id == pid).Select(p => new { p.Id, p.IsTenant }).FirstOrDefaultAsync()
+                : null;
+            if (providerId != null && provider == null)
+                throw new ProviderAssignmentDeniedException("That Provider does not exist.");
+
+            var prior = trip.ProviderId;
+            trip.ProviderId = providerId;
+            // A Provider has to accept it; Raphael's own trips are accepted already.
+            trip.Status = providerId == null ? TripStatus.Accepted : TripStatus.Assigned;
+            trip.ProviderOutcome = null;
+            trip.ProviderOutcomeReason = null;
+            trip.ProviderOutcomeAtUtc = null;
+            trip.ProviderOutcomeByUserId = null;
+            _context.TripHistories.Add(new TripHistory
+            {
+                TripId = trip.Id,
+                User = $"Office - {_currentUserService.UserName ?? "admin"}",
+                Field = "ProviderId",
+                PriorValue = prior?.ToString(),
+                NewValue = providerId?.ToString(),
+                ChangeDate = DateTime.UtcNow
+            });
+
+            return provider is { IsTenant: true } ? provider.Id : null;
+        }
+
         public async Task<bool> UpdateAsync(int id, TripUpdateDto dto)
         {
             var trip = await _context.Trips.FindAsync(id);
@@ -1710,9 +1766,14 @@ namespace Raphael.Api.Services
             //trip.PickupNote = dto.PickupNote;
             //trip.IsCancelled = dto.IsCancelled; // lo comente porque estaba dando problemas, cuando se importaba por segunda vez el mismo viaje, al actualizar el viaje, siempre se mandaba 0, y si el viaje ya habia sido cancelado se producia esa cotradiccion isCancelled = false y status = cancelled, lo cual no es correcto
          
+            // RE-050: the Provider changes only when the Desktop asks for it (SetProvider).
+            int? tellTenant = dto.SetProvider ? await ApplyProviderAssignmentAsync(trip, dto.ProviderId) : null;
+
             try
             {
                 await _context.SaveChangesAsync();
+                if (tellTenant is int tenant)
+                    await _tripNotifications.TripAssignedAsync(trip, tenant);
                 return true;
             }
             catch (DbUpdateException ex)

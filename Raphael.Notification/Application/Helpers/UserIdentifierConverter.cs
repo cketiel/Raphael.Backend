@@ -69,6 +69,26 @@ public static class UserIdentifierConverter
         return recipientId == DesktopAudience;
     }
 
+    /// <summary>
+    /// The shared inbox of one client company (tenant) of the platform: what the office audience
+    /// is for Raphael, for that company's Desktop users only (RE-050). A negative id, which no
+    /// user has, so it can never be mistaken for a person.
+    /// </summary>
+    public static Guid TenantAudience(int providerId) =>
+        ToGuid(-providerId, RecipientType.DesktopUser);
+
+    /// <summary>True when the Guid is a tenant's shared inbox; gives back its Provider.</summary>
+    public static bool IsTenantAudience(Guid recipientId, out int providerId)
+    {
+        var id = ToInt(recipientId);
+        providerId = -id;
+        return id < 0 && recipientId == TenantAudience(-id);
+    }
+
+    /// <summary>Any shared inbox: Raphael's office or a tenant's.</summary>
+    public static bool IsSharedAudience(Guid recipientId) =>
+        IsDesktopAudience(recipientId) || IsTenantAudience(recipientId, out _);
+
     private static byte MarkerFor(RecipientType recipientType)
     {
         // Rider keeps marker 0 so the identifiers already persisted remain valid.

@@ -82,6 +82,9 @@ namespace Raphael.Api.Services.Notifications
             var data = BuildTripData(trip);
             data[BusinessEventDataKeys.ProviderName] = providerName;
             data[BusinessEventDataKeys.RejectionReason] = reason;
+            // A rejection is for whoever gave the trip (Raphael's office, and the clinic through
+            // its own channel), never for the company that rejected it.
+            data.Remove(BusinessEventDataKeys.AudienceTenantId);
 
             await PublishAsync(
                 BusinessEventCodes.TripRejected,
@@ -92,6 +95,27 @@ namespace Raphael.Api.Services.Notifications
                     : null,
                 cancellationToken);
         }
+
+        /// <summary>
+        /// Tells a client company that a trip was given to it (RE-050), by Raphael's office or by
+        /// a clinic. Only for tenants: a Provider outside Raphael has no Desktop inbox.
+        /// </summary>
+        public async Task TripAssignedAsync(Trip trip, int tenantProviderId, CancellationToken cancellationToken = default)
+        {
+            if (trip is null) return;
+
+            var data = BuildTripData(trip);
+            data[BusinessEventDataKeys.AudienceTenantId] = tenantProviderId;
+            // Neither the clinic nor the patient is told: this is the Provider's notice.
+            data.Remove(BusinessEventDataKeys.IntegrationId);
+            data.Remove(BusinessEventDataKeys.RiderId);
+
+            await PublishAsync(BusinessEventCodes.TripAssigned, trip, data, ResolveDesktopAuthor(), cancellationToken);
+        }
+
+        /// <summary>Whether a Provider is a client company of the platform. Read past the tenant filter.</summary>
+        private bool IsTenant(int providerId) =>
+            _context.Providers.IgnoreQueryFilters().Any(p => p.Id == providerId && p.IsTenant);
 
         public async Task TripReactivatedAsync(
             Trip trip,
@@ -279,6 +303,11 @@ namespace Raphael.Api.Services.Notifications
 
             if (trip.IntegratorId.HasValue)
                 data[BusinessEventDataKeys.IntegrationId] = trip.IntegratorId.Value;
+
+            // A trip of a client company: its office notices go to that company, not to
+            // Raphael's office (RE-050). Nothing changes for any other trip.
+            if (trip.ProviderId is int providerId && IsTenant(providerId))
+                data[BusinessEventDataKeys.AudienceTenantId] = providerId;
 
             if (_currentUserService.UserId.HasValue)
                 data[BusinessEventDataKeys.PerformedByUserId] = _currentUserService.UserId.Value;

@@ -358,6 +358,11 @@ namespace Raphael.Api.Services
                 .Where(t => t.VehicleRouteId == null
                             && !t.IsCancelled
                             && t.Date >= dayStart && t.Date < dayEnd)
+                // RE-050: Raphael's Schedule routes Raphael's trips; a trip given to a Provider
+                // is that Provider's to route. A tenant's own list is already its own.
+                .Where(t => !_currentUserService.TenancyEnforced
+                            || !_currentUserService.IsMilanesInternal
+                            || t.ProviderId == null)
                 .OrderBy(t => t.FromTime)
                 .Select(t => new UnscheduledTripDto
                 {

@@ -62,7 +62,7 @@ public class GetRecipientNotificationsHandler
                     Id = r.Id,
                     RecipientId = r.RecipientId,
                     RecipientType = r.RecipientType.Name,
-                    IsBroadcast = UserIdentifierConverter.IsDesktopAudience(r.RecipientId),
+                    IsBroadcast = UserIdentifierConverter.IsSharedAudience(r.RecipientId),
                     Status = r.Status.Name,
                     ViewedAtUtc = r.ViewedAtUtc,
                     DeliveredAtUtc = r.DeliveredAtUtc,

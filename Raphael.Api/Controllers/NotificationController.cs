@@ -55,10 +55,15 @@ public sealed class NotificationController : ControllerBase
         if (!_currentUser.UserId.HasValue)
             return Unauthorized();
 
+        // Raphael's office reads its shared inbox; a client company's users read theirs (RE-050).
+        var sharedInbox = _currentUser.TenancyEnforced && _currentUser.TenantId is int tenantId
+            ? UserIdentifierConverter.TenantAudience(tenantId)
+            : UserIdentifierConverter.DesktopAudience;
+
         var shared =
             await _getRecipientNotificationsHandler.Handle(
                 new GetRecipientNotificationsQuery(
-                    UserIdentifierConverter.DesktopAudience,
+                    sharedInbox,
                     RecipientType.DesktopUser),
                 cancellationToken);
 

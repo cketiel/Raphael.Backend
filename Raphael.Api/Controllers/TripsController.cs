@@ -165,6 +165,10 @@ namespace Raphael.Api.Controllers
                 var updated = await _tripService.UpdateAsync(id, dto);
                 return updated ? NoContent() : NotFound();
             }
+            catch (TripService.ProviderAssignmentDeniedException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { code = "provider_assignment", message = ex.Message });
+            }
             catch (InvalidOperationException ex)
             {
                 // This specifically catches the duplicate error sent from the service

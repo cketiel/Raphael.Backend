@@ -24,6 +24,12 @@ public static class BusinessEventDataKeys
     /// <summary>UserId of one concrete dispatcher. Rarely used: the office is addressed as an audience.</summary>
     public const string DesktopUserId = "DesktopUserId";
 
+    /// <summary>
+    /// The client company (tenant) whose Desktop inbox receives the office notice instead of
+    /// Raphael's office (RE-050). Absent, the notice goes to Raphael's office as always.
+    /// </summary>
+    public const string AudienceTenantId = "AudienceTenantId";
+
     /// <summary>IntegratorId. Include it only when the trip belongs to that integration.</summary>
     public const string IntegrationId = "IntegrationId";
 

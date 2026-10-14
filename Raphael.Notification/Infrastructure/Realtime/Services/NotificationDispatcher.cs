@@ -151,6 +151,16 @@ public class NotificationDispatcher : INotificationDispatcher
             return true;
         }
 
+        // A client company's inbox: only its own Desktop users hear it (RE-050).
+        if (UserIdentifierConverter.IsTenantAudience(recipientId, out var tenantId))
+        {
+            await send(
+                _hubContext.Clients.Group(
+                    NotificationGroups.TenantAudience(tenantId)));
+
+            return true;
+        }
+
         //
         // One concrete internal user: a dispatcher or a driver
         //

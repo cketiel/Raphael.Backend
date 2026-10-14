@@ -25,4 +25,7 @@ public static class NotificationGroups
     /// must see are stored once and broadcast here, instead of one row per dispatcher.
     /// </summary>
     public const string DesktopAudience = "DesktopUsers";
+
+    /// <summary>The Desktop users of one client company (RE-050). Raphael's office is not in it.</summary>
+    public static string TenantAudience(int providerId) => $"DesktopUsers:tenant:{providerId}";
 }

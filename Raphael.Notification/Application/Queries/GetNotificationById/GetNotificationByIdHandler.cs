@@ -63,7 +63,7 @@ public class GetNotificationByIdHandler
 
                     RecipientType = r.RecipientType.Name,
 
-                    IsBroadcast = UserIdentifierConverter.IsDesktopAudience(r.RecipientId),
+                    IsBroadcast = UserIdentifierConverter.IsSharedAudience(r.RecipientId),
 
                     Status = r.Status.Name,
 

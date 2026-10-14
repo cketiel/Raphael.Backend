@@ -208,6 +208,24 @@ public static class NotificationRuleCatalog
 
         #endregion
 
+        #region TRIP_ASSIGNED
+
+        new()
+        {
+            RuleCode = "RULE_TRIP_ASSIGNED_DESKTOP",
+            RuleName = "Trip Assigned - Desktop",
+            Description = "Tells a client company (tenant) that Raphael's office or a clinic gave it a trip, to accept or reject.",
+            BusinessEventCode = "TRIP_ASSIGNED",
+            Type = NotificationType.Alert,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.DesktopUser],
+            Channels = [DeliveryChannel.InApp],
+            Actions = ["OPEN_TRIP"]
+        },
+
+        #endregion
+
         #region DRIVER_ROUTE_UPDATED
 
         new()

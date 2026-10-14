@@ -181,7 +181,7 @@ public sealed class NotificationEngine
                         RecipientId = recipient.RecipientId,
                         RecipientType = recipient.RecipientType.Name,
                         IsBroadcast =
-                            UserIdentifierConverter.IsDesktopAudience(
+                            UserIdentifierConverter.IsSharedAudience(
                                 recipient.RecipientId),
                         Status = recipient.Status.Name,
                         DeliveredAtUtc = recipient.DeliveredAtUtc,

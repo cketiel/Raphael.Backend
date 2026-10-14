@@ -153,6 +153,15 @@ public sealed class NotificationFactory
         if (recipientType.Id == RecipientType.DesktopUser.Id &&
             !context.Data.ContainsKey(BusinessEventDataKeys.DesktopUserId))
         {
+            // A client company's notices go to its own inbox, never to Raphael's office (RE-050).
+            if (context.Data.TryGetValue(BusinessEventDataKeys.AudienceTenantId, out var tenantRaw)
+                && tenantRaw is not null
+                && int.TryParse(tenantRaw.ToString(), out var tenantId)
+                && tenantId > 0)
+            {
+                return UserIdentifierConverter.TenantAudience(tenantId);
+            }
+
             return UserIdentifierConverter.DesktopAudience;
         }
 

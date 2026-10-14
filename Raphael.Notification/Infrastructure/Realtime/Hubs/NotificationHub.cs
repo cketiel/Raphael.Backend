@@ -100,12 +100,15 @@ public class NotificationHub : Hub<INotificationClient>
                     ConnectedAtUtc = DateTime.UtcNow
                 });
 
-            // Only the dispatch office listens to the shared broadcast.
+            // Only the dispatch office listens to the shared broadcast. A client company's users
+            // listen to their company's instead, never to Raphael's office (RE-050).
             if (recipientType.Id == RecipientType.DesktopUser.Id)
             {
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,
-                    NotificationGroups.DesktopAudience);
+                    TryGetIntClaim(PortalClaims.TenantId, out var tenantId)
+                        ? NotificationGroups.TenantAudience(tenantId)
+                        : NotificationGroups.DesktopAudience);
             }
         }
 

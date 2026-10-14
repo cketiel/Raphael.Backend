@@ -68,6 +68,9 @@ namespace Raphael.Api.Services.Notifications
         /// <summary>The Provider a trip was given to rejected it (TRIP_REJECTED): the clinic and the office are told.</summary>
         Task TripRejectedAsync(Trip trip, string providerName, string reason, CancellationToken cancellationToken = default);
 
+        /// <summary>A trip was given to a client company (RE-050); its Desktop inbox is told.</summary>
+        Task TripAssignedAsync(Trip trip, int tenantProviderId, CancellationToken cancellationToken = default);
+
         Task TripCancelledAsync(
             Trip trip,
             string cancelledBy,
