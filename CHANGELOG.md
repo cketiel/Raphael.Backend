@@ -21,6 +21,22 @@ give:
 
 ## [Unreleased]
 
+**Migrations:** none. **Clients:** the Provider column and reassignment need the next Desktop;
+older Desktops never send `setProvider` and never touch a trip's Provider.
+
+### Added
+- **Who sees which trips (RE-050, with `Tenancy:Enforce`)**: Raphael's admin sees every trip;
+  Raphael's other office staff only Raphael's own (no Provider). Drivers, background work and the
+  integration API are not narrowed. Raphael's Schedule lists only Raphael's unrouted trips.
+- **Provider (re)assignment from the Desktop**: `TripUpdateDto.setProvider` + `providerId`, Raphael's
+  admin only (403 otherwise), before the trip is routed; a Provider gets it Assigned, Raphael gets it
+  Accepted, and the change goes to the trip history.
+- **One notification inbox per client company**: office notices about a tenant's trips go to that
+  tenant's Desktop users only, never to Raphael's office, and Raphael's never to a tenant. A
+  rejection always goes to whoever gave the trip.
+- **`TRIP_ASSIGNED`** (rule `RULE_TRIP_ASSIGNED_DESKTOP`): a client company is told when Raphael's
+  admin or a clinic gives it a trip. ⚠️ Needs `Sync-NotificationCatalog.ps1` on each environment.
+
 ---
 
 ## [2.2.0] - 2026-10-13
