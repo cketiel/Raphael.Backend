@@ -28,6 +28,8 @@ namespace Raphael.Api.Services.Trips
     /// - An admin of the office (role 1, no Integrator, no Provider) on Raphael's own trips, the
     ///   ones with no Provider: a clinic may give a trip to Raphael, and Raphael may turn it down.
     /// Anyone else, a clinic included, gets a 404.
+    /// Only trips that came from an integration (Booking, the API) are accepted or rejected: a manual
+    /// or imported trip has nobody on the other side to tell (user decision, 2026-10-16).
     /// </remarks>
     public interface ITripCommitmentService
     {
@@ -83,7 +85,7 @@ namespace Raphael.Api.Services.Trips
             if (tripIds.Count > MaxBatch) throw new TripCommitmentRuleException($"Accept at most {MaxBatch} trips at a time.");
 
             var trips = await InScope(scope)
-                .Where(t => tripIds.Contains(t.Id) && !t.IsCancelled && t.Status == TripStatus.Assigned)
+                .Where(t => tripIds.Contains(t.Id) && !t.IsCancelled && t.IntegratorId != null && t.Status == TripStatus.Assigned)
                 .ToListAsync(ct);
             foreach (var trip in trips)
             {
@@ -103,6 +105,8 @@ namespace Raphael.Api.Services.Trips
 
             var trip = await InScope(scope).FirstOrDefaultAsync(t => t.Id == tripId, ct)
                 ?? throw new TripCommitmentDeniedException();
+            if (trip.IntegratorId == null)
+                throw new TripCommitmentRuleException("This trip did not come from an integration: there is nobody to tell, so it cannot be rejected.");
             if (trip.IsCancelled || !Rejectable.Contains(trip.Status))
                 throw new TripCommitmentRuleException("This trip has already been routed, started or closed: it can no longer be rejected.");
 

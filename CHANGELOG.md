@@ -36,6 +36,21 @@ older Desktops never send `setProvider` and never touch a trip's Provider.
   rejection always goes to whoever gave the trip.
 - **`TRIP_ASSIGNED`** (rule `RULE_TRIP_ASSIGNED_DESKTOP`): a client company is told when Raphael's
   admin or a clinic gives it a trip. ⚠️ Needs `Sync-NotificationCatalog.ps1` on each environment.
+- **`PUT api/Providers/{id}/work-mode`** (Raphael's admin): moves a Provider between working in
+  Raphael and External. Going External also clears its tenant flag. Its users keep their accounts.
+- **`TripCreateDto.providerId`**: Raphael's admin may give a new trip to a Provider when creating it
+  (403 `provider_assignment` for anyone else, or for a Provider with no active user). Created from
+  the Desktop it is Accepted, and the history records it.
+- **`GET api/Providers/assignable`** (Raphael's admin): the Providers with at least one active user,
+  the only ones a trip may be given to (PROVIDER_ACCESS_MODEL.md §3.3).
+
+### Changed
+- **Reassignment refuses a Provider with no active user** (403 `provider_assignment`): nobody would
+  see the trip.
+- **A trip with no Integrator (manual or CSV) given to a Provider is born Accepted**, not Assigned:
+  there is nobody to accept it or to tell.
+- **Accept and Reject only act on trips that came from an integration** (`IntegratorId`): Accept
+  skips the others and Reject answers 400.
 
 ---
 

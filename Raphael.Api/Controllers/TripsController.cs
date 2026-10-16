@@ -138,6 +138,10 @@ namespace Raphael.Api.Controllers
                 var createdTrip = await _tripService.CreateAsync(dto);
                 return CreatedAtAction(nameof(GetById), new { id = createdTrip.Id }, createdTrip);
             }
+            catch (TripService.ProviderAssignmentDeniedException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { code = "provider_assignment", message = ex.Message });
+            }
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);

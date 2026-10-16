@@ -69,5 +69,11 @@ namespace Raphael.Shared.DTOs
         public int? FundingSourceId { get; set; }
         public string? PickupCity { get; set; }
         public string? DropoffCity { get; set; }
+
+        /// <summary>
+        /// The Provider that carries it; null = Raphael. Only Raphael's admin may set it (403
+        /// otherwise), and only to a Provider with an active user (RE-050).
+        /// </summary>
+        public int? ProviderId { get; set; }
     }
 }

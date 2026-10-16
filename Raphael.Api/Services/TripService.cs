@@ -1635,6 +1635,18 @@ namespace Raphael.Api.Services
                 trip.ProviderId = null; // Por defecto lo har� Milanes
             }
 
+            // RE-050: Raphael's admin may give a new trip to a Provider. Checked before anything is
+            // stored, so a refusal leaves no trip behind; the history needs the Id, so it goes after.
+            int? tellTenant = null;
+            if (dto.ProviderId is int givenTo)
+            {
+                var provider = await EnsureAssignableAsync(givenTo);
+                trip.ProviderId = givenTo;
+                // Created here, with no Integrator: nobody to accept it or to tell, so it is accepted.
+                trip.Status = trip.IntegratorId == null ? TripStatus.Accepted : TripStatus.Assigned;
+                tellTenant = provider.IsTenant ? provider.Id : null;
+            }
+
             try
             {
                 // Add to context
@@ -1652,6 +1664,22 @@ namespace Raphael.Api.Services
                     // Actualizamos solo el campo TripId
                     await _context.SaveChangesAsync();
                 }
+
+                if (trip.ProviderId != null)
+                {
+                    _context.TripHistories.Add(new TripHistory
+                    {
+                        TripId = trip.Id,
+                        User = $"Office - {_currentUserService.UserName ?? "admin"}",
+                        Field = "ProviderId",
+                        PriorValue = null,
+                        NewValue = trip.ProviderId.ToString(),
+                        ChangeDate = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+                if (tellTenant is int tenant)
+                    await _tripNotifications.TripAssignedAsync(trip, tenant);
 
                 return trip;
             }
@@ -1679,26 +1707,45 @@ namespace Raphael.Api.Services
         /// and only before it is routed: once on a route it belongs to whoever is driving it.
         /// Returns the tenant to tell, when the new Provider is one.
         /// </summary>
+        private void EnsurePlatformAdmin()
+        {
+            if (!(_currentUserService.RoleId == 1 && _currentUserService.IsMilanesInternal))
+                throw new ProviderAssignmentDeniedException("Only Raphael's administrator gives a trip to a Provider.");
+        }
+
+        /// <summary>
+        /// Raphael's admin is asking, the Provider exists, and somebody can see its trips: a Provider
+        /// with no active user cannot carry one (PROVIDER_ACCESS_MODEL.md §3.3).
+        /// </summary>
+        private async Task<(int Id, bool IsTenant)> EnsureAssignableAsync(int providerId)
+        {
+            EnsurePlatformAdmin();
+            var provider = await _context.Providers.IgnoreQueryFilters()
+                .Where(p => p.Id == providerId)
+                .Select(p => new { p.Id, p.IsTenant })
+                .FirstOrDefaultAsync()
+                ?? throw new ProviderAssignmentDeniedException("That Provider does not exist.");
+            if (!await _context.Users.IgnoreQueryFilters().AnyAsync(u => u.ProviderId == providerId && u.IsActive))
+                throw new ProviderAssignmentDeniedException("That Provider has no active user: nobody would see the trip.");
+            return (provider.Id, provider.IsTenant);
+        }
+
         private async Task<int?> ApplyProviderAssignmentAsync(Trip trip, int? providerId)
         {
             if (trip.ProviderId == providerId) return null;
 
-            var isPlatformAdmin = _currentUserService.RoleId == 1 && _currentUserService.IsMilanesInternal;
-            if (!isPlatformAdmin)
-                throw new ProviderAssignmentDeniedException("Only Raphael's administrator gives a trip to a Provider.");
+            EnsurePlatformAdmin();
             if (trip.VehicleRouteId != null || !(trip.Status == TripStatus.Assigned || trip.Status == TripStatus.Accepted || trip.Status == TripStatus.Rejected))
                 throw new ProviderAssignmentDeniedException("This trip is already routed, started or closed: its Provider can no longer change.");
 
-            var provider = providerId is int pid
-                ? await _context.Providers.IgnoreQueryFilters().Where(p => p.Id == pid).Select(p => new { p.Id, p.IsTenant }).FirstOrDefaultAsync()
-                : null;
-            if (providerId != null && provider == null)
-                throw new ProviderAssignmentDeniedException("That Provider does not exist.");
+            (int Id, bool IsTenant)? provider = providerId is int pid ? await EnsureAssignableAsync(pid) : null;
 
             var prior = trip.ProviderId;
             trip.ProviderId = providerId;
-            // A Provider has to accept it; Raphael's own trips are accepted already.
-            trip.Status = providerId == null ? TripStatus.Accepted : TripStatus.Assigned;
+            // A Provider has to accept a trip that came from an integration, so the clinic hears back.
+            // Raphael's own trips, and manual or imported ones (no Integrator: nobody to tell), are
+            // accepted already: the office decided (user decision, 2026-10-16).
+            trip.Status = providerId == null || trip.IntegratorId == null ? TripStatus.Accepted : TripStatus.Assigned;
             trip.ProviderOutcome = null;
             trip.ProviderOutcomeReason = null;
             trip.ProviderOutcomeAtUtc = null;
@@ -1713,7 +1760,7 @@ namespace Raphael.Api.Services
                 ChangeDate = DateTime.UtcNow
             });
 
-            return provider is { IsTenant: true } ? provider.Id : null;
+            return provider is { IsTenant: true } p ? p.Id : null;
         }
 
         public async Task<bool> UpdateAsync(int id, TripUpdateDto dto)
