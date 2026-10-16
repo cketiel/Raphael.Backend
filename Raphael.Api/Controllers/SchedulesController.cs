@@ -127,7 +127,7 @@ namespace Raphael.Api.Controllers
             {
                 return NotFound(ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 // Esto nos dir� si el error es de SQL, de una columna inexistente, etc.
                 var innerError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
@@ -148,7 +148,7 @@ namespace Raphael.Api.Controllers
             {
                 return NotFound(ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 return BadRequest(ex.Message);
             }

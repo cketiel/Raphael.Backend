@@ -26,9 +26,11 @@ namespace Raphael.Api.Services
         private readonly IObservedLegRecorder _observedLegs;
 
         private readonly IDispatchBroadcaster _board;
+        private readonly Trips.ITripChangeGuard _guard;
 
-        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs, IDispatchBroadcaster board)
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs, IDispatchBroadcaster board, Trips.ITripChangeGuard guard)
         {
+            _guard = guard;
             _context = context;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
@@ -48,9 +50,17 @@ namespace Raphael.Api.Services
                 return false;
             }
 
+            _guard.EnsureTripWritable(trip, "ContactPhone");
+
             // The trip pick-up phone number and the customer's main phone number are updated.
             trip.PickupPhone = newPhoneNumber;
             trip.Customer.Phone = newPhoneNumber;
+
+            // RE-051: and the pickup stop, which is the copy the driver actually dials.
+            var pickupStops = await _context.Schedules
+                .Where(s => s.TripId == tripId && s.EventType == ScheduleEventType.Pickup)
+                .ToListAsync();
+            foreach (var stop in pickupStops) stop.Phone = newPhoneNumber;
 
             await _context.SaveChangesAsync();
             return true;
@@ -443,6 +453,9 @@ namespace Raphael.Api.Services
                 throw new InvalidOperationException($"Trip with ID {request.TripId} is already routed.");
             }
 
+            // RE-051: a past day's route is the record of what was driven.
+            _guard.EnsureTripWritable(tripToRoute, "Route");
+
             // A cancelled trip cannot be put on a route. Without this, routing one would
             // set Status to Scheduled below and quietly uncancel it while IsCancelled
             // stayed true: the two markers would disagree, UncancelAsync would refuse it
@@ -734,10 +747,15 @@ namespace Raphael.Api.Services
 
                 var tripDate = (await _context.Trips.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tripId)).Date;
 
-                _context.Schedules.RemoveRange(relatedSchedules);
-
                 // 2. Update the original Trip
                 var trip = await _context.Trips.FindAsync(tripId);
+
+                // RE-051: before anything is removed. Taking a trip off yesterday's route deletes
+                // the stops that say it was driven.
+                if (trip != null) _guard.EnsureTripWritable(trip, "CancelRoute");
+
+                _context.Schedules.RemoveRange(relatedSchedules);
+
                 if (trip != null)
                 {
                     trip.VehicleRouteId = null;
@@ -1136,6 +1154,9 @@ namespace Raphael.Api.Services
 
             if (schedule == null) return false;
 
+            // RE-051: only the day counts here, not a Finished trip — see ITripChangeGuard.
+            _guard.EnsureDayWritable(schedule.Date ?? schedule.Trip?.Date ?? DateTime.MaxValue, schedule.Trip?.ProviderId, schedule.TripId, "Perform");
+
             // Noted before the mapping overwrites it. Only the transition is worth measuring: a
             // driver whose app retries the same confirmation must not have the leg counted twice,
             // or the average for that hour drifts towards whoever has the worst signal.
@@ -1250,6 +1271,8 @@ namespace Raphael.Api.Services
 
             if (schedules == null) return false;
 
+            _guard.EnsureDayWritable(schedules.Date ?? schedules.Trip?.Date ?? DateTime.MaxValue, schedules.Trip?.ProviderId, schedules.TripId, "ScheduleUpdate");
+
             // The driver pressing Arrive is the only signal the system gets that the
             // vehicle reached the pickup address, and it comes through this generic save.
             // Detecting the transition here avoids changing the contract with an app that
@@ -1328,6 +1351,10 @@ namespace Raphael.Api.Services
         {
             if (request?.Stops is null || request.Stops.Count == 0) return 0;
 
+            var routeProviderId = await _context.VehicleRoutes
+                .Where(r => r.Id == request.VehicleRouteId).Select(r => r.OwnerProviderId).FirstOrDefaultAsync();
+            _guard.EnsureDayWritable(request.Date, routeProviderId, null, "Resequence");
+
             var dayStart = request.Date.Date;
             var dayEnd = dayStart.AddDays(1);
             var ids = request.Stops.Select(s => s.Id).ToList();
@@ -1405,11 +1432,13 @@ namespace Raphael.Api.Services
 
         public async Task<bool> SaveSignatureAsync(int scheduleId, byte[] signature)
         {
-            var schedule = await _context.Schedules.FindAsync(scheduleId);
+            var schedule = await _context.Schedules.Include(s => s.Trip).FirstOrDefaultAsync(s => s.Id == scheduleId);
             if (schedule == null)
             {
                 return false;
             }
+
+            _guard.EnsureDayWritable(schedule.Date ?? DateTime.MaxValue, schedule.Trip?.ProviderId, schedule.TripId, "Signature");
 
             schedule.PassengerSignature = signature;
             await _context.SaveChangesAsync();
@@ -2515,6 +2544,8 @@ namespace Raphael.Api.Services
             var schedule = await _context.Schedules.FindAsync(id);
 
             if (schedule == null) return false;
+
+            _guard.EnsureDayWritable(schedule.Date ?? DateTime.MaxValue, null, schedule.TripId, "UpdateEta");
 
             schedule.ETATime = dto.ETA;
             schedule.TravelTime = dto.Travel;

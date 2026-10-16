@@ -36,7 +36,7 @@ namespace Raphael.Api.Controllers
                 await _tripService.UpdateTripTypesAsync(updates);
                 return Ok();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 return StatusCode(500, $"Internal error: {ex.Message}");
             }
@@ -184,7 +184,7 @@ namespace Raphael.Api.Controllers
                 var innerExceptionMessage = ex.InnerException?.Message ?? ex.Message;
                 return StatusCode(500, $"Database error while updating trip: {innerExceptionMessage}");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 // This captures general errors
                 return StatusCode(500, $"Internal server error: {ex.Message}");
@@ -228,7 +228,7 @@ namespace Raphael.Api.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 // Log the exception
                 return StatusCode(500, "An error occurred while processing the request");
@@ -273,7 +273,7 @@ namespace Raphael.Api.Controllers
                     }
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 // Log the exception 
                 return StatusCode(500, "An error occurred while processing the request");
@@ -330,7 +330,7 @@ namespace Raphael.Api.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 // Log the exception 
                 return StatusCode(500, "An error occurred while processing the request");
@@ -391,7 +391,7 @@ namespace Raphael.Api.Controllers
             {
                 return BadRequest(ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 // Log the exception 
                 return StatusCode(500, "An error occurred while processing the request");
@@ -490,7 +490,7 @@ namespace Raphael.Api.Controllers
                 // If when trying to uncancel it is detected that there is already another active equal
                 return Conflict(new { Message = ex.Message }); // Error Code 409: Using Conflict() in the controller helps the Frontend know that it is not a programming error (500), but a duplicate data problem, allowing it to display an alert message to the user.
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 return StatusCode(500, $"Internal error: {ex.Message}");
             }
@@ -520,7 +520,7 @@ namespace Raphael.Api.Controllers
 
                 return NoContent();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 return StatusCode(500, $"Internal error: {ex.Message}");
             }
@@ -546,7 +546,7 @@ namespace Raphael.Api.Controllers
 
                 return NoContent();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 return StatusCode(500, $"Internal error: {ex.Message}");
             }
@@ -619,7 +619,7 @@ namespace Raphael.Api.Controllers
                     Message = ex.Message
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
             {
                 return StatusCode(
                     500,

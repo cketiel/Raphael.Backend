@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services.Notifications;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.Entities;
@@ -55,9 +55,11 @@ namespace Raphael.Api.Services.Trips
         private readonly RaphaelContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly ITripNotificationPublisher _notifications;
+        private readonly ITripChangeGuard _guard;
 
-        public TripCommitmentService(RaphaelContext context, ICurrentUserService currentUser, ITripNotificationPublisher notifications)
+        public TripCommitmentService(RaphaelContext context, ICurrentUserService currentUser, ITripNotificationPublisher notifications, ITripChangeGuard guard)
         {
+            _guard = guard;
             _context = context;
             _currentUser = currentUser;
             _notifications = notifications;
@@ -87,6 +89,10 @@ namespace Raphael.Api.Services.Trips
             var trips = await InScope(scope)
                 .Where(t => tripIds.Contains(t.Id) && !t.IsCancelled && t.IntegratorId != null && t.Status == TripStatus.Assigned)
                 .ToListAsync(ct);
+
+            // RE-051: a past day's trip is not committed to after the fact. Left out, not refused:
+            // Accept is a batch, and the count it answers already says how many moved.
+            trips = trips.Where(t => !_guard.IsReadOnly(t)).ToList();
             foreach (var trip in trips)
             {
                 trip.Status = TripStatus.Accepted;
@@ -107,6 +113,7 @@ namespace Raphael.Api.Services.Trips
                 ?? throw new TripCommitmentDeniedException();
             if (trip.IntegratorId == null)
                 throw new TripCommitmentRuleException("This trip did not come from an integration: there is nobody to tell, so it cannot be rejected.");
+            _guard.EnsureTripWritable(trip, "Reject");
             if (trip.IsCancelled || !Rejectable.Contains(trip.Status))
                 throw new TripCommitmentRuleException("This trip has already been routed, started or closed: it can no longer be rejected.");
 

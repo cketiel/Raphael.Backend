@@ -21,6 +21,24 @@ give:
 
 ## [Unreleased]
 
+### Changed (RE-051 — past, closed and routed trips)
+- **Past and closed trips are read-only.** A trip of a day before today on its Provider's clock, or
+  Finished / Billed / Payed, refuses edit, dispatch-update, cancel, cancel-by-driver, uncancel, Will
+  Call activate/revert, reject, assign-run, start, route, cancel-route and the contact-phone update
+  with a **409** `{ code: "trip_read_only" }`. Accept leaves them out of the count. A past day's
+  stops refuse perform, update, signature, ETA update and resequence (only the day counts there: a
+  Finished trip's stops still re-chain on its own day). The Driver included.
+- **Audited admin correction.** A user with role 1 may still do it by sending
+  `X-Correction-Reason` (URL-encoded); without it the answer is `correction_reason_required`. The
+  correction is written to `TripHistory` (`Field = "Correction"`, operation and prior state, reason).
+- **Delete refuses a past or closed trip**, even for an admin.
+- **A routed trip keeps the fields copied onto its stops.** `PUT api/trips/{id}` refuses changes to
+  date, hours, addresses, type, patient, space type, funding source, authorization and distance, and
+  `dispatch-update` to type and pickup time, with **409** `{ code: "trip_routed_locked", fields }`.
+  Phones and comments are now copied onto the two stops (they were left stale).
+- **Import refuses to overwrite a routed, past or closed trip** (row fails with `TRIP_LOCKED`): it used
+  to move a routed trip's date, hours and addresses out from under its stops.
+
 **Migrations:** none. **Clients:** the Provider column and reassignment need the next Desktop;
 older Desktops never send `setProvider` and never touch a trip's Provider.
 

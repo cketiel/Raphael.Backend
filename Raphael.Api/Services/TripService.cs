@@ -28,9 +28,11 @@ namespace Raphael.Api.Services
         private readonly ITripNotificationPublisher _tripNotifications;
         private readonly IOperationClock _clock;
         private readonly ILogger<TripService> _logger;
+        private readonly Trips.ITripChangeGuard _guard;
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger, Trips.ITripChangeGuard guard)
         {
+            _guard = guard;
             _context = context;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
@@ -1109,6 +1111,19 @@ namespace Raphael.Api.Services
             var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == externalTripId);
             var isNew = trip == null;
 
+            // RE-051. An import overwrites the date, hours and addresses below. On a past or closed
+            // trip that rewrites the record; on a routed one it moves the trip out from under the
+            // stops its driver is following. Either way the row is refused and the trip is left as it is.
+            if (trip != null && (_guard.IsReadOnly(trip) || trip.VehicleRouteId != null))
+            {
+                throw new IntegrationRejectedException(new IntegrationSyncError(
+                    "TRIP_LOCKED",
+                    trip.VehicleRouteId != null
+                        ? "This trip is on a route: the file cannot change it. Take it off the route first."
+                        : "This trip belongs to a past day or is closed: the file cannot change it.",
+                    false));
+            }
+
             // 3b. The same journey, already booked under a different identifier.
             //
             // Until now the import found this out the hard way: the unique index over active
@@ -1768,6 +1783,12 @@ namespace Raphael.Api.Services
             var trip = await _context.Trips.FindAsync(id);
             if (trip == null) return false;
 
+            // RE-051: a past or closed trip is the record of what happened; a routed one had these
+            // fields copied onto its stops. Both refuse before anything is written.
+            _guard.EnsureTripWritable(trip, "Update");
+            _guard.EnsureRoutedFieldsUnchanged(trip, RoutedFieldChanges(trip, dto));
+            bool contactsChanged = ContactsDiffer(trip, dto.PickupPhone, dto.PickupComment, dto.DropoffPhone, dto.DropoffComment);
+
             trip.Day = dto.Day;
             trip.Date = dto.Date;          
             trip.FromTime = dto.FromTime;
@@ -1816,6 +1837,8 @@ namespace Raphael.Api.Services
             // RE-050: the Provider changes only when the Desktop asks for it (SetProvider).
             int? tellTenant = dto.SetProvider ? await ApplyProviderAssignmentAsync(trip, dto.ProviderId) : null;
 
+            if (contactsChanged) await PropagateContactsToStopsAsync(trip);
+
             try
             {
                 await _context.SaveChangesAsync();
@@ -1837,6 +1860,12 @@ namespace Raphael.Api.Services
         {
             var trip = await _context.Trips.FindAsync(id);
             if (trip == null) return false;
+
+            // RE-051. A correction row would be deleted with the trip it describes, so not even an
+            // admin removes a past or closed trip: it is cancelled, or it stays.
+            if (_guard.IsReadOnly(trip))
+                throw new Trips.TripLockedException(Trips.TripLockCodes.ReadOnly,
+                    "This trip belongs to a past day or is closed, and cannot be deleted.");
 
             _context.Trips.Remove(trip);
             await _context.SaveChangesAsync();
@@ -2192,6 +2221,8 @@ namespace Raphael.Api.Services
                 return false;
             }
 
+            _guard.EnsureTripWritable(trip, "Cancel");
+
             var statusBeforeCancellation = trip.Status;
 
             trip.Status = TripStatus.Canceled;
@@ -2234,6 +2265,9 @@ namespace Raphael.Api.Services
             {
                 return false;
             }
+
+            // RE-051: a driver never changes a past day; an admin corrects it from the office.
+            _guard.EnsureTripWritable(trip, "CancelByDriver");
 
             // 2. Buscamos todos los viajes pendientes del mismo cliente para el mismo d�a
             // Filtramos para que no sean el mismo viaje (t.Id != id) 
@@ -2370,6 +2404,8 @@ namespace Raphael.Api.Services
             if (trip is null || trip.IsCancelled || !trip.WillCall)
                 return false;
 
+            _guard.EnsureTripWritable(trip, "ActivateWillCall");
+
             var activatedAtUtc = _clock.UtcNow;
 
             var priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
@@ -2413,6 +2449,8 @@ namespace Raphael.Api.Services
 
             if (trip is null || trip.IsCancelled || trip.WillCall)
                 return false;
+
+            _guard.EnsureTripWritable(trip, "RevertToWillCall");
 
             var priorValue = $"trip.WillCall={trip.WillCall}, trip.FromTime={trip.FromTime}, trip.Status={trip.Status}";
 
@@ -2482,6 +2520,8 @@ namespace Raphael.Api.Services
                 return false; // The ride is not in the correct state for this operation
             }
 
+            _guard.EnsureTripWritable(trip, "Uncancel");
+
             // Revert the status to 'Assigned' or the default status
             trip.Status = TripStatus.Assigned;
             trip.IsCancelled = false;
@@ -2532,12 +2572,25 @@ namespace Raphael.Api.Services
             // ⚠️ WillCall is not one of them, however much the DTO still carries it. See
             // ActivateWillCallAsync and RevertToWillCallAsync: those are the only two
             // writers, and they leave a history row and a notification behind.
+            _guard.EnsureTripWritable(trip, "DispatchUpdate");
+
+            // RE-051: the type sets the early-arrival margin and the hour is the promise the
+            // route's wait is measured from; on a routed trip both live on its stops too.
+            var locked = new List<string>();
+            if (!string.Equals(trip.Type, dto.Type, StringComparison.OrdinalIgnoreCase)) locked.Add("Type");
+            if (trip.FromTime != dto.FromTime) locked.Add("FromTime");
+            _guard.EnsureRoutedFieldsUnchanged(trip, locked);
+
+            bool contactsChanged = ContactsDiffer(trip, dto.PickupPhone, dto.PickupComment, dto.DropoffPhone, dto.DropoffComment);
+
             trip.Type = dto.Type;
             trip.FromTime = dto.FromTime;
             trip.PickupPhone = dto.PickupPhone;
             trip.PickupComment = dto.PickupComment;
             trip.DropoffPhone = dto.DropoffPhone;
             trip.DropoffComment = dto.DropoffComment;
+
+            if (contactsChanged) await PropagateContactsToStopsAsync(trip);
 
             await _context.SaveChangesAsync();
             return true;
@@ -2550,6 +2603,8 @@ namespace Raphael.Api.Services
             {
                 return false; // Not found
             }           
+
+            _guard.EnsureTripWritable(trip, "AssignRun");
 
             trip.VehicleRouteId = vehicleRouteId;
             // Si se asigna a null, el estado vuelve a ser "Accepted" 
@@ -2568,6 +2623,8 @@ namespace Raphael.Api.Services
             if (trip == null)
                 return false;
 
+            _guard.EnsureTripWritable(trip, "Start");
+
             if (trip.Status == TripStatus.Started)
                 throw new InvalidOperationException(
                     "The trip has already been started.");
@@ -2584,6 +2641,74 @@ namespace Raphael.Api.Services
 
             return true;
         }
+        /// <summary>
+        /// The fields of an edit that are copied onto a routed trip's stops, and would move.
+        /// </summary>
+        /// <remarks>
+        /// RE-051. Each one feeds the driver's list or the route's arithmetic: the day, the two
+        /// promised hours (and with them the early-arrival wait), both addresses, the type (which
+        /// sets the wait margin), the patient (the stop's name), and the space type, funding source,
+        /// authorization and distance the stop and the bill are built from. Phones and comments are
+        /// not here: they are copied across instead — see <see cref="PropagateContactsToStopsAsync"/>.
+        /// </remarks>
+        private static List<string> RoutedFieldChanges(Trip trip, TripUpdateDto dto)
+        {
+            static bool Same(string? a, string? b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+            static bool Near(double a, double b) => Math.Abs(a - b) < 0.000001;
+
+            var changed = new List<string>();
+            if (trip.Date.Date != dto.Date.Date) changed.Add("Date");
+            if (trip.FromTime != dto.FromTime) changed.Add("FromTime");
+            if (trip.ToTime != dto.ToTime) changed.Add("ToTime");
+            if (!Same(trip.PickupAddress, dto.PickupAddress) || !Near(trip.PickupLatitude, dto.PickupLatitude) || !Near(trip.PickupLongitude, dto.PickupLongitude))
+                changed.Add("PickupAddress");
+            if (!Same(trip.DropoffAddress, dto.DropoffAddress) || !Near(trip.DropoffLatitude, dto.DropoffLatitude) || !Near(trip.DropoffLongitude, dto.DropoffLongitude))
+                changed.Add("DropoffAddress");
+            if (!Same(trip.Type, dto.Type)) changed.Add("Type");
+            if (trip.CustomerId != dto.CustomerId) changed.Add("Customer");
+            if (trip.SpaceTypeId != dto.SpaceTypeId) changed.Add("SpaceType");
+            if (trip.FundingSourceId != dto.FundingSourceId) changed.Add("FundingSource");
+            if (!Same(trip.Authorization, dto.Authorization)) changed.Add("Authorization");
+            if (Math.Abs((trip.Distance ?? 0) - (dto.Distance ?? 0)) > 0.01) changed.Add("Distance");
+            return changed;
+        }
+
+        private static bool ContactsDiffer(Trip trip, string? pickupPhone, string? pickupComment, string? dropoffPhone, string? dropoffComment) =>
+            trip.PickupPhone != pickupPhone || trip.PickupComment != pickupComment
+            || trip.DropoffPhone != dropoffPhone || trip.DropoffComment != dropoffComment;
+
+        /// <summary>
+        /// Copies a routed trip's phones and comments onto its two stops, the copy the driver reads.
+        /// </summary>
+        /// <remarks>
+        /// RE-051. Same fallback as routing: a stop with no phone of its own shows the patient's.
+        /// Saved by the caller, in the same SaveChanges as the trip.
+        /// </remarks>
+        private async Task PropagateContactsToStopsAsync(Trip trip)
+        {
+            if (trip.VehicleRouteId == null) return;
+
+            var stops = await _context.Schedules.Where(s => s.TripId == trip.Id).ToListAsync();
+            if (stops.Count == 0) return;
+
+            var customerPhone = await _context.Customers
+                .Where(c => c.Id == trip.CustomerId).Select(c => c.Phone).FirstOrDefaultAsync();
+
+            foreach (var stop in stops)
+            {
+                if (stop.EventType == ScheduleEventType.Pickup)
+                {
+                    stop.Phone = trip.PickupPhone ?? customerPhone;
+                    stop.Comment = trip.PickupComment;
+                }
+                else if (stop.EventType == ScheduleEventType.Dropoff)
+                {
+                    stop.Phone = trip.DropoffPhone ?? customerPhone;
+                    stop.Comment = trip.DropoffComment;
+                }
+            }
+        }
+
         private bool IsUniqueConstraintViolation(DbUpdateException ex)
         {
             return ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx &&

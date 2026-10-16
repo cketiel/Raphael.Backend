@@ -403,6 +403,7 @@ builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 
 // Trips
 builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<Raphael.Api.Services.Trips.ITripChangeGuard, Raphael.Api.Services.Trips.TripChangeGuard>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<FundingSourceService>();
 builder.Services.AddScoped<SpaceTypeService>();
@@ -1067,6 +1068,24 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
                 Status = StatusCodes.Status409Conflict,
                 Instance = context.Request.Path
             });
+            return;
+        }
+
+        // RE-051: a past, closed or routed trip refused a change. Our own sentence, no patient
+        // data in it; the code tells the client which of the three it was.
+        if (exceptionHandler?.Error is Raphael.Api.Services.Trips.TripLockedException locked)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+            var problem = new ProblemDetails
+            {
+                Title = locked.Message,
+                Status = StatusCodes.Status409Conflict,
+                Instance = context.Request.Path
+            };
+            problem.Extensions["code"] = locked.Code;
+            problem.Extensions["fields"] = locked.Fields;
+            await context.Response.WriteAsJsonAsync(problem);
             return;
         }
 
