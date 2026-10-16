@@ -6,6 +6,7 @@ using Raphael.Shared.DTOs;
 using System.Threading.Tasks;
 
 using Raphael.Api.Attributes;
+using Microsoft.EntityFrameworkCore;
 namespace Raphael.Api.Controllers
 {
     /// <summary>
@@ -74,6 +75,23 @@ namespace Raphael.Api.Controllers
 
         [HttpGet] public async Task<IActionResult> GetAll() => Ok(await _providerService.GetAllAsync());
 
+        /// <summary>
+        /// The Providers Raphael's admin may give a trip to: those with at least one active user. A
+        /// trip given to an account nobody can see leaves the patient without a ride
+        /// (PROVIDER_ACCESS_MODEL.md §3.3). The update checks it again.
+        /// </summary>
+        [HttpGet("assignable")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [NotForClinicUsers]
+        public async Task<IActionResult> GetAssignable(
+            [FromServices] Raphael.Shared.DbContexts.RaphaelContext context,
+            CancellationToken ct) =>
+            Ok(await context.Providers.IgnoreQueryFilters().AsNoTracking()
+                .Where(p => context.Users.IgnoreQueryFilters().Any(u => u.ProviderId == p.Id && u.IsActive))
+                .OrderBy(p => p.Name)
+                .Select(p => new { p.Id, p.Name })
+                .ToListAsync(ct));
+
         /// <summary>The clinics that contracted this Provider (PROVIDER_ACCESS_MODEL.md §3.6). Office admins only.</summary>
         [HttpGet("{id:int}/clinics")]
         [Authorize(Policy = AuthPolicies.PlatformAdmin)]
@@ -140,6 +158,38 @@ namespace Raphael.Api.Controllers
 
         /// <summary>Body of <c>PUT api/Providers/{id}/tenant</c>.</summary>
         public sealed record ProviderTenantRequest(bool IsTenant);
+
+        /// <summary>
+        /// Moves a Provider between working in Raphael and working outside it (PROVIDER_ACCESS_MODEL.md
+        /// §3.2). Its users follow from their next sign-in: External only enters the Booking portal.
+        /// </summary>
+        /// <remarks>
+        /// Going External also stops it being a tenant: a Provider with no fleet here has nothing to
+        /// isolate. Going to Raphael keeps its users as they are, including any a clinic created
+        /// (user decision, 2026-10-16; the risk is written in §3.2).
+        /// </remarks>
+        [HttpPut("{id:int}/work-mode")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [NotForClinicUsers]
+        public async Task<IActionResult> SetWorkMode(
+            int id,
+            [FromBody] ProviderWorkModeRequest request,
+            [FromServices] Raphael.Shared.DbContexts.RaphaelContext context)
+        {
+            if (!Enum.IsDefined(request.WorkMode)) return BadRequest(new { code = "invalid_work_mode" });
+
+            var provider = await context.Providers.FindAsync(id);
+            if (provider == null) return NotFound();
+
+            provider.WorkMode = request.WorkMode;
+            if (request.WorkMode == Raphael.Shared.Entities.ProviderWorkMode.External)
+                provider.IsTenant = false;
+            await context.SaveChangesAsync();
+            return Ok(new { provider.Id, provider.WorkMode, provider.IsTenant });
+        }
+
+        /// <summary>Body of <c>PUT api/Providers/{id}/work-mode</c>.</summary>
+        public sealed record ProviderWorkModeRequest(Raphael.Shared.Entities.ProviderWorkMode WorkMode);
 
         /// <summary>"" when the form carries the field, null when it does not.</summary>
         private string? Carried(string field) =>
