@@ -193,6 +193,14 @@ public static class NotificationContentBuilder
                     // Raphael turning a trip down leaves only the Providers.
                     + (rejectedBy == "Raphael" ? " Give it to a provider." : " Give it to another provider or to Raphael."));
 
+            case BusinessEventCodes.TripAssigned:
+
+                // RE-050. Without its own case it fell through to the rule's description, so the
+                // company's inbox read "Tells a client company (tenant) that…": a sentence about the
+                // system, not about the trip.
+                return ("Trip Assigned",
+                    $"{Capitalize(tripLabel)}{whenForRider} was given to your company. Accept it or reject it.");
+
             case BusinessEventCodes.RouteOutOfService:
             case BusinessEventCodes.RouteReturnedToService:
 
@@ -238,11 +246,18 @@ public static class NotificationContentBuilder
 
                 parameters[NotificationMetadataKeys.RouteChange] = routeChange;
 
-                return routeChange == RouteChangeTypes.Added
-                    ? ("Route Updated",
-                       $"{Capitalize(tripLabel)} was added to your route. Your schedule needs to be reloaded.")
-                    : ("Route Updated",
-                       $"{Capitalize(tripLabel)} is no longer on your route. Your schedule needs to be reloaded.");
+                // ⚠️ UPDATED (RE-052 garage, RE-053 another vehicle or driver) keeps the trip on the
+                // route. It used to fall into the "no longer on your route" branch, and Raphael.Driver
+                // shows this text as it comes: the driver was told a trip was gone that was not.
+                return routeChange switch
+                {
+                    RouteChangeTypes.Added => ("Route Updated",
+                        $"{Capitalize(tripLabel)} was added to your route. Your schedule needs to be reloaded."),
+                    RouteChangeTypes.Updated => ("Route Updated",
+                        $"Your route changed around {tripLabel}. Your schedule needs to be reloaded."),
+                    _ => ("Route Updated",
+                        $"{Capitalize(tripLabel)} is no longer on your route. Your schedule needs to be reloaded.")
+                };
 
             case BusinessEventCodes.TripReactivated:
 
