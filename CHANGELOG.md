@@ -21,6 +21,42 @@ give:
 
 ## [Unreleased]
 
+### Added (RE-053 — Out of Service)
+- **A vehicle, a driver or both can be taken out of service**, until somebody puts them back.
+  `POST api/out-of-service/preview` says what it would do and saves nothing; `POST api/out-of-service`
+  does it, in **one transaction**, with the preview's fingerprint (**409** `changed_since_preview` if the
+  trips moved since); `POST api/out-of-service/{id}/return` puts one back; `GET api/out-of-service/active`
+  and `GET api/out-of-service/reasons`. JWT, Desktop only.
+- From that moment every route of the subject stops taking trips, and each trip still pending on it,
+  today and on later days, goes back to the unscheduled list exactly as an unroute does. A finished trip
+  is not touched. A trip with the **patient on board** stays on the route and is recorded as
+  `EXCLUDED_ONBOARD`. A route given **another vehicle and/or driver** keeps its trips; the substitute
+  must be in service, free on those days and able to carry every trip's space type, and the change
+  stays on the route.
+- Every operation is recorded (`OutOfServiceRecords`, with reason, note, who and when) together with
+  what it did to each trip (`OutOfServiceTripImpacts`).
+- **New notices for the office:** `ROUTE_OUT_OF_SERVICE` (cause, reasons, trips sent back, on board,
+  kept) and `ROUTE_RETURNED_TO_SERVICE`. No patient data and no note in either.
+- **Dispatch board:** `RouteServiceChanged` on a new `fleet` group (`WatchFleet`), one message per
+  operation with the trips it sent back, instead of one `TripUnrouted` per trip.
+
+### Fixed (RE-053)
+- **Suspensions were stored and never enforced:** a suspended route could be routed like any other.
+  `POST api/Schedules/route` now refuses, with **409** `route_suspended`, a day inside one of the
+  route's suspensions, and with **409** `route_out_of_service` a route whose vehicle or driver is out
+  of service.
+
+### Fixed (notification texts)
+- **`TRIP_ASSIGNED` had no text of its own** (RE-050): a client company's inbox read the rule's
+  technical description. It now says which trip was given to the company and to accept or reject it.
+- **`DRIVER_ROUTE_UPDATED` with `UPDATED`** (RE-052 garage, RE-053 substitution) told the driver the
+  trip was "no longer on your route" while it still was. It now says the route changed.
+
+**Migrations:** `AddOutOfService` — two new tables, no change to any existing one. **Clients:**
+Desktop 1.13.0 for the dialog, the banners and the live backlog; an older Desktop is refused the
+routing with the reason, and its backlog catches up on its next reload. **Notification catalog:**
+sync both new events and rules to each environment (`Sync-NotificationCatalog`).
+
 ### Changed (RE-052 — a route's garage reaches its planned days)
 - **`PUT api/Runs/{id}` carries a new garage onto every planned day** from today on, in the same
   transaction: the Pull-out and Pull-in get the new address (a Pull-out already performed keeps it;

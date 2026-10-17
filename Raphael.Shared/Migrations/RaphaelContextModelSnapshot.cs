@@ -2016,6 +2016,122 @@ namespace Raphael.Shared.Migrations
                     b.ToTable("NotificationRuleRecipients");
                 });
 
+            modelBuilder.Entity("Raphael.Shared.Entities.OutOfServiceRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EndedByName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int?>("EndedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("OriginVehicleRouteId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("ReasonNote")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StartedByName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int?>("StartedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("SubjectId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId")
+                        .HasDatabaseName("IX_OutOfServiceRecords_Operation");
+
+                    b.HasIndex("OwnerProviderId");
+
+                    b.HasIndex("Subject", "SubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_OutOfServiceRecords_Subject_Open")
+                        .HasFilter("[EndedAtUtc] IS NULL");
+
+                    b.ToTable("OutOfServiceRecords", (string)null);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.OutOfServiceTripImpact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("NewDriverId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("NewVehicleId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OldDriverId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OldVehicleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OutOfServiceRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VehicleRouteId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OutOfServiceRecordId");
+
+                    b.HasIndex("TripId")
+                        .HasDatabaseName("IX_OutOfServiceTripImpacts_Trip");
+
+                    b.ToTable("OutOfServiceTripImpacts", (string)null);
+                });
+
             modelBuilder.Entity("Raphael.Shared.Entities.Provider", b =>
                 {
                     b.Property<int>("Id")
@@ -3861,6 +3977,25 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("NotificationRule");
                 });
 
+            modelBuilder.Entity("Raphael.Shared.Entities.OutOfServiceRecord", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.OutOfServiceTripImpact", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.OutOfServiceRecord", "OutOfServiceRecord")
+                        .WithMany("TripImpacts")
+                        .HasForeignKey("OutOfServiceRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OutOfServiceRecord");
+                });
+
             modelBuilder.Entity("Raphael.Shared.Entities.Provider", b =>
                 {
                     b.HasOne("Raphael.Shared.Entities.Catalog.CatalogProvider", "CatalogProvider")
@@ -4217,6 +4352,11 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("Conditions");
 
                     b.Navigation("Recipients");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.OutOfServiceRecord", b =>
+                {
+                    b.Navigation("TripImpacts");
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Role", b =>

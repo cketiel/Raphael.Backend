@@ -127,7 +127,8 @@ namespace Raphael.Api.Controllers
             {
                 return NotFound(ex.Message);
             }
-            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException)
+            catch (Exception ex) when (ex is not Raphael.Api.Services.Trips.TripLockedException
+                                       and not Raphael.Api.Services.OutOfService.RouteNotRoutableException)
             {
                 // Esto nos dir� si el error es de SQL, de una columna inexistente, etc.
                 var innerError = ex.InnerException != null ? ex.InnerException.Message : ex.Message;

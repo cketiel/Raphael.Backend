@@ -1,4 +1,4 @@
-namespace Raphael.Shared.Definitions.Notifications;
+﻿namespace Raphael.Shared.Definitions.Notifications;
 
 /// <summary>
 /// Keys of the dictionary handed to <c>NotificationService.PublishAsync</c>.
@@ -57,6 +57,18 @@ public static class BusinessEventDataKeys
 
     /// <summary>The name of the Provider that rejected the trip (TRIP_REJECTED).</summary>
     public const string ProviderName = "ProviderName";
+
+    /// <summary>RE-053: the Out of Service operation, its subjects and its counts. No patient data.</summary>
+    public const string OutOfServiceOperationId = "OutOfServiceOperationId";
+    public const string OutOfServiceCause = "OutOfServiceCause";
+    public const string VehicleName = "VehicleName";
+    public const string DriverName = "DriverName";
+    public const string RouteNames = "RouteNames";
+    public const string VehicleReasonCode = "VehicleReasonCode";
+    public const string DriverReasonCode = "DriverReasonCode";
+    public const string TripsUnrouted = "TripsUnrouted";
+    public const string TripsOnboard = "TripsOnboard";
+    public const string TripsKept = "TripsKept";
 
     /// <summary>Internal user who performed the action, so the office can hide its own notice.</summary>
     public const string PerformedByUserId = "PerformedByUserId";

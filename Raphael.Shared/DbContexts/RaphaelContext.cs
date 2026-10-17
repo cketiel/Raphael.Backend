@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc.ModelBinding;
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Raphael.Shared.Definitions.CallRequests;
@@ -12,6 +12,7 @@ using Raphael.Shared.Entities.Routing;
 using Raphael.Shared.Routing;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Persistence.Configurations;
+using Raphael.Shared.Definitions.OutOfService;
 using NotificationModel = Raphael.Shared.Entities.Notifications.Notification;
 
 namespace Raphael.Shared.DbContexts
@@ -33,6 +34,12 @@ namespace Raphael.Shared.DbContexts
         public DbSet<TripHistory> TripHistories { get; set; }
         public DbSet<GPS> GPSData { get; set; }
         public DbSet<RouteSuspension> RouteSuspensions { get; set; }
+
+        /// <summary>Vehicles and drivers out of service (RE-053). See <see cref="OutOfServiceRecord"/>.</summary>
+        public DbSet<OutOfServiceRecord> OutOfServiceRecords { get; set; }
+
+        /// <summary>What each Out of Service operation did to each trip (RE-053).</summary>
+        public DbSet<OutOfServiceTripImpact> OutOfServiceTripImpacts { get; set; }
         public DbSet<RouteAvailability> RouteAvailabilities { get; set; }
         public DbSet<RouteFundingSource> RouteFundingSources { get; set; }
         public DbSet<TripLog> TripLogs { get; set; }
@@ -373,6 +380,47 @@ namespace Raphael.Shared.DbContexts
                     .WithOne(e => e.CallRequest)
                     .HasForeignKey(e => e.CallRequestId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // RE-053. ⚠️ No foreign keys to Vehicles, Users, VehicleRoutes or Trips, as in the call
+            // requests: this is history, and a constraint would make deleting any of them fail.
+            modelBuilder.Entity<OutOfServiceRecord>(entity =>
+            {
+                entity.ToTable("OutOfServiceRecords");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Subject).IsRequired().HasMaxLength(20);
+                entity.Property(x => x.ReasonCode).IsRequired().HasMaxLength(40);
+                entity.Property(x => x.ReasonNote).HasMaxLength(OutOfServiceReasonCodes.NoteMaxLength);
+                entity.Property(x => x.StartedByName).HasMaxLength(150);
+                entity.Property(x => x.EndedByName).HasMaxLength(150);
+
+                // One open record per vehicle or driver, enforced by the database: two dispatchers
+                // confirming at once cannot open two; the loser fails and nothing of it is saved.
+                entity.HasIndex(x => new { x.Subject, x.SubjectId })
+                    .IsUnique()
+                    .HasFilter("[EndedAtUtc] IS NULL")
+                    .HasDatabaseName("IX_OutOfServiceRecords_Subject_Open");
+
+                entity.HasIndex(x => x.OperationId)
+                    .HasDatabaseName("IX_OutOfServiceRecords_Operation");
+
+                entity.HasMany(x => x.TripImpacts)
+                    .WithOne(i => i.OutOfServiceRecord)
+                    .HasForeignKey(i => i.OutOfServiceRecordId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<OutOfServiceTripImpact>(entity =>
+            {
+                entity.ToTable("OutOfServiceTripImpacts");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Outcome).IsRequired().HasMaxLength(30);
+                entity.Property(x => x.Date).HasColumnType("date");
+
+                entity.HasIndex(x => x.TripId)
+                    .HasDatabaseName("IX_OutOfServiceTripImpacts_Trip");
             });
 
             modelBuilder.Entity<DriverCallRequestEvent>(entity =>
@@ -1008,6 +1056,7 @@ namespace Raphael.Shared.DbContexts
             OwnedByProvider<CapacityType>(modelBuilder);
             OwnedByProvider<CapacityDetailType>(modelBuilder);
             OwnedByProvider<Unit>(modelBuilder);
+            OwnedByProvider<OutOfServiceRecord>(modelBuilder);
 
             // ---- Tenant isolation (RE-049), only while Tenancy:Enforce is on -------------------
             //
@@ -1022,6 +1071,7 @@ namespace Raphael.Shared.DbContexts
             TenantScoped<VehicleGroup>(modelBuilder);
             TenantScoped<FundingSource>(modelBuilder);
             TenantScoped<BillingItem>(modelBuilder);
+            TenantScoped<OutOfServiceRecord>(modelBuilder);
             CommonCatalog<VehicleType>(modelBuilder);
             CommonCatalog<SpaceType>(modelBuilder);
             CommonCatalog<CapacityType>(modelBuilder);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Raphael.Shared.DTOs.CallRequests;
 
 namespace Raphael.Shared.DTOs.Realtime
@@ -52,6 +52,30 @@ namespace Raphael.Shared.DTOs.Realtime
         public int VehicleRouteId { get; set; }
 
         public DateTime Date { get; set; }
+    }
+
+    /// <summary>
+    /// Routes went out of service or came back (RE-053). Not per day: the route list of every
+    /// open Schedule tab has to drop them or show them again, whatever day it is looking at.
+    /// The screen asks for the open records again; this only says that it has to.
+    /// </summary>
+    public class RouteServiceChangedMessage
+    {
+        public Guid OperationId { get; set; }
+
+        public List<int> VehicleRouteIds { get; set; } = new();
+
+        public bool OutOfService { get; set; }
+
+        /// <summary>
+        /// The trips this operation sent back to the unscheduled list. One message for all of them,
+        /// instead of one TripUnrouted each: a dozen of those would reload every open backlog a
+        /// dozen times in a row.
+        /// </summary>
+        public List<int> UnroutedTripIds { get; set; } = new();
+
+        /// <summary>The days those trips are on, so a screen knows whether its own backlog moved.</summary>
+        public List<DateTime> UnroutedDates { get; set; } = new();
     }
 
     /// <summary>

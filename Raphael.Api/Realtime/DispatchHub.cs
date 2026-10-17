@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services;
@@ -170,6 +170,22 @@ namespace Raphael.Api.Realtime
         public async Task UnwatchCallRequests()
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, DispatchGroups.CallRequests(CallerScope()));
+        }
+
+        /// <summary>
+        /// Starts listening to the fleet's state: routes going out of service and coming back
+        /// (RE-053). Office staff only, as the call-back queue.
+        /// </summary>
+        public async Task WatchFleet()
+        {
+            if (Context.User is null || !_roles.IsOffice(Context.User)) return;
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, DispatchGroups.Fleet(CallerScope()));
+        }
+
+        public async Task UnwatchFleet()
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, DispatchGroups.Fleet(CallerScope()));
         }
 
         /// <summary>

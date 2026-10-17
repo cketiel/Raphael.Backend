@@ -226,6 +226,42 @@ public static class NotificationRuleCatalog
 
         #endregion
 
+        #region ROUTE_OUT_OF_SERVICE
+
+        new()
+        {
+            RuleCode = "RULE_ROUTE_OUT_OF_SERVICE_DESKTOP",
+            RuleName = "Route Out of Service - Desktop",
+            Description = "Tells the dispatch office that a vehicle, a driver or both were taken out of service, why, and how many trips went back to the unscheduled list.",
+            BusinessEventCode = "ROUTE_OUT_OF_SERVICE",
+            Type = NotificationType.Alert,
+            Priority = NotificationPriority.High,
+            Severity = NotificationSeverity.Warning,
+            Recipients = [RecipientType.DesktopUser],
+            Channels = [DeliveryChannel.InApp],
+            Actions = []
+        },
+
+        #endregion
+
+        #region ROUTE_RETURNED_TO_SERVICE
+
+        new()
+        {
+            RuleCode = "RULE_ROUTE_RETURNED_TO_SERVICE_DESKTOP",
+            RuleName = "Route Returned to Service - Desktop",
+            Description = "Tells the dispatch office that a vehicle or a driver is back in service, so its routes can take trips again.",
+            BusinessEventCode = "ROUTE_RETURNED_TO_SERVICE",
+            Type = NotificationType.Notice,
+            Priority = NotificationPriority.Medium,
+            Severity = NotificationSeverity.Information,
+            Recipients = [RecipientType.DesktopUser],
+            Channels = [DeliveryChannel.InApp],
+            Actions = []
+        },
+
+        #endregion
+
         #region DRIVER_ROUTE_UPDATED
 
         new()

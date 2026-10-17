@@ -193,6 +193,40 @@ public static class NotificationContentBuilder
                     // Raphael turning a trip down leaves only the Providers.
                     + (rejectedBy == "Raphael" ? " Give it to a provider." : " Give it to another provider or to Raphael."));
 
+            case BusinessEventCodes.RouteOutOfService:
+            case BusinessEventCodes.RouteReturnedToService:
+
+                // RE-053. A route event, not a trip event: no trip label, and never a patient. The
+                // reasons travel as codes; the Desktop words them in the reader's language.
+                foreach (var key in new[]
+                         {
+                             BusinessEventDataKeys.OutOfServiceOperationId, BusinessEventDataKeys.OutOfServiceCause,
+                             BusinessEventDataKeys.VehicleName, BusinessEventDataKeys.DriverName,
+                             BusinessEventDataKeys.RouteNames, BusinessEventDataKeys.VehicleReasonCode,
+                             BusinessEventDataKeys.DriverReasonCode, BusinessEventDataKeys.TripsUnrouted,
+                             BusinessEventDataKeys.TripsOnboard, BusinessEventDataKeys.TripsKept
+                         })
+                {
+                    var value = GetString(context, key);
+                    if (value is not null) parameters[key] = value;
+                }
+
+                var subject = DescribeOutOfServiceSubject(
+                    GetString(context, BusinessEventDataKeys.VehicleName),
+                    GetString(context, BusinessEventDataKeys.DriverName));
+                var routes = GetString(context, BusinessEventDataKeys.RouteNames);
+                var onRoutes = string.IsNullOrWhiteSpace(routes) ? "" : $" (route {routes})";
+
+                if (eventCode == BusinessEventCodes.RouteReturnedToService)
+                    return ("Back in Service", $"{subject}{onRoutes} is back in service and can take trips again.");
+
+                var unrouted = GetString(context, BusinessEventDataKeys.TripsUnrouted) ?? "0";
+                var onboard = GetString(context, BusinessEventDataKeys.TripsOnboard) ?? "0";
+
+                return ("Route Out of Service",
+                    $"{subject}{onRoutes} is out of service. {unrouted} trip(s) went back to the unscheduled list."
+                    + (onboard == "0" ? "" : $" {onboard} trip(s) with a patient on board stayed on the route."));
+
             case BusinessEventCodes.DriverRouteUpdated:
 
                 // A signal, not a notice. The flag is what keeps it out of the inbox and off
@@ -304,6 +338,16 @@ public static class NotificationContentBuilder
 
         return text;
     }
+
+    /// <summary>"Vehicle Van 12 and driver John Doe", or whichever of the two is there.</summary>
+    private static string DescribeOutOfServiceSubject(string? vehicle, string? driver) =>
+        (vehicle, driver) switch
+        {
+            ({ } v, { } d) => $"Vehicle {v} and driver {d}",
+            ({ } v, null) => $"Vehicle {v}",
+            (null, { } d) => $"Driver {d}",
+            _ => "A route"
+        };
 
     private static string DescribeActorSuffix(string? cancelledBy)
     {

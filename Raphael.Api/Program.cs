@@ -1,4 +1,4 @@
-
+﻿
 
 using AspNetCoreRateLimit;
 using FluentValidation;
@@ -405,6 +405,7 @@ builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 builder.Services.AddScoped<ITripService, TripService>();
 builder.Services.AddScoped<Raphael.Api.Services.Trips.ITripChangeGuard, Raphael.Api.Services.Trips.TripChangeGuard>();
 builder.Services.AddScoped<Raphael.Api.Services.Routing.IGarageChangeService, Raphael.Api.Services.Routing.GarageChangeService>();
+builder.Services.AddScoped<Raphael.Api.Services.OutOfService.IOutOfServiceService, Raphael.Api.Services.OutOfService.OutOfServiceService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<FundingSourceService>();
 builder.Services.AddScoped<SpaceTypeService>();
@@ -1102,6 +1103,29 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
                 Instance = context.Request.Path
             };
             problem.Extensions["code"] = refusedGarage.Code;
+            await context.Response.WriteAsJsonAsync(problem);
+            return;
+        }
+
+        // RE-053: an Out of Service that cannot be done as asked, or a route that cannot take trips.
+        // Nothing was saved.
+        if (exceptionHandler?.Error is Raphael.Api.Services.OutOfService.OutOfServiceRefusedException refusedOut)
+        {
+            var status = refusedOut.IsBadRequest ? StatusCodes.Status400BadRequest : StatusCodes.Status409Conflict;
+            context.Response.StatusCode = status;
+            context.Response.ContentType = "application/problem+json";
+            var problem = new ProblemDetails { Title = refusedOut.Message, Status = status, Instance = context.Request.Path };
+            problem.Extensions["code"] = refusedOut.Code;
+            await context.Response.WriteAsJsonAsync(problem);
+            return;
+        }
+
+        if (exceptionHandler?.Error is Raphael.Api.Services.OutOfService.RouteNotRoutableException notRoutable)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/problem+json";
+            var problem = new ProblemDetails { Title = notRoutable.Message, Status = StatusCodes.Status409Conflict, Instance = context.Request.Path };
+            problem.Extensions["code"] = notRoutable.Code;
             await context.Response.WriteAsJsonAsync(problem);
             return;
         }

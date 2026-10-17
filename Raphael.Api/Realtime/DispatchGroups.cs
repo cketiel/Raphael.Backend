@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Raphael.Api.Realtime
 {
@@ -46,6 +46,13 @@ namespace Raphael.Api.Realtime
 
         public static string CallRequests(int? providerId) =>
             CallRequests(providerId.HasValue ? providerId.Value.ToString() : InternalScope);
+
+        /// <summary>The fleet's state: which routes are out of service (RE-053). Not per day.</summary>
+        public static string Fleet(string scope) =>
+            $"fleet:{scope}";
+
+        public static string Fleet(int? providerId) =>
+            Fleet(providerId.HasValue ? providerId.Value.ToString() : InternalScope);
 
         /// <summary>
         /// The day part of a group name. Invariant and date-only: a group name is an identifier,

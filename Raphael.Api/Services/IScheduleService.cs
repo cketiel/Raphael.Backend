@@ -20,6 +20,12 @@ namespace Raphael.Api.Services
         Task<IEnumerable<UnscheduledTripDto>> GetUnscheduledTripsByDateAsync(DateTime date);
         Task RouteTripAsync(RouteTripRequest request);
         Task CancelRouteForTripAsync(int scheduleId);
+
+        /// <summary>
+        /// <see cref="CancelRouteForTripAsync"/> without its transaction and without its notices:
+        /// the caller holds the transaction, commits, and notifies (RE-053).
+        /// </summary>
+        Task<Raphael.Shared.Entities.Trip?> UnrouteTripInTransactionAsync(int tripId, int vehicleRouteId);
         Task<bool> UpdateAsync(int id, ScheduleDto dto);
 
         /// <summary>

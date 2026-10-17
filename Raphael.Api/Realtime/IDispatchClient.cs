@@ -1,4 +1,4 @@
-using Raphael.Shared.DTOs.Realtime;
+﻿using Raphael.Shared.DTOs.Realtime;
 
 namespace Raphael.Api.Realtime
 {
@@ -16,6 +16,7 @@ namespace Raphael.Api.Realtime
         Task TripUnrouted(TripUnroutedMessage message);
 
         Task RouteChanged(RouteChangedMessage message);
+        Task RouteServiceChanged(RouteServiceChangedMessage message);
 
         Task VehiclePosition(VehiclePositionMessage message);
 

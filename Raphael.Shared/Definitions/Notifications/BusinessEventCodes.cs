@@ -1,4 +1,4 @@
-namespace Raphael.Shared.Definitions.Notifications;
+﻿namespace Raphael.Shared.Definitions.Notifications;
 
 /// <summary>
 /// Business events actually published by the system.
@@ -28,6 +28,15 @@ public static class BusinessEventCodes
 
     /// <summary>A trip was given to a Provider that is a client company (RE-050).</summary>
     public const string TripAssigned = "TRIP_ASSIGNED";
+
+    /// <summary>
+    /// A vehicle, a driver or both were taken out of service (RE-053): their routes cannot take
+    /// trips, and the pending ones went back to the unscheduled list. For the dispatch office.
+    /// </summary>
+    public const string RouteOutOfService = "ROUTE_OUT_OF_SERVICE";
+
+    /// <summary>A vehicle or a driver out of service was put back (RE-053). Its trips do not come back by themselves.</summary>
+    public const string RouteReturnedToService = "ROUTE_RETURNED_TO_SERVICE";
 
     /// <summary>
     /// A cancelled trip was put back in service.

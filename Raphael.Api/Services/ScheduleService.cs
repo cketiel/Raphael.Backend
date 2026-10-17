@@ -470,6 +470,10 @@ namespace Raphael.Api.Services
                     $"Trip with ID {request.TripId} is cancelled and cannot be routed.");
             }
 
+            // RE-053: not on a route whose vehicle or driver is out of service, nor on a day it is
+            // suspended. The Desktop hides those routes; this is what holds when it does not.
+            await OutOfService.RouteServiceStatus.EnsureRoutableAsync(_context, vehicleRoute, tripToRoute.Date);
+
             // Every clock field on a Schedule is a SQL `time`: a time of day, 00:00:00 to
             // 23:59:59.9999999. The hours below are built by adding and subtracting
             // TimeSpans, which has no floor at midnight and no ceiling at 24h, so a route
@@ -720,6 +724,77 @@ namespace Raphael.Api.Services
                 tripToRoute.ProviderId);
         }
 
+        /// <summary>
+        /// Takes a trip off its route, back to the unscheduled trips, and re-derives the route day.
+        /// Saves, but inside the caller's transaction: the caller commits and only then notifies.
+        /// </summary>
+        /// <remarks>
+        /// The body of <see cref="CancelRouteForTripAsync"/>, unchanged, so that an Out of Service
+        /// (RE-053) can take many trips off in one transaction and leave none half-done.
+        /// </remarks>
+        public async Task<Trip?> UnrouteTripInTransactionAsync(int tripId, int vehicleRouteId)
+        {
+            // 1. Find and delete all schedules associated with this trip
+            var relatedSchedules = await _context.Schedules
+                .Where(s => s.TripId == tripId)
+                .ToListAsync();
+
+            var tripDate = (await _context.Trips.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tripId)).Date;
+
+            // 2. Update the original Trip
+            var trip = await _context.Trips.FindAsync(tripId);
+
+            // RE-051: before anything is removed. Taking a trip off yesterday's route deletes
+            // the stops that say it was driven.
+            if (trip != null) _guard.EnsureTripWritable(trip, "CancelRoute");
+
+            _context.Schedules.RemoveRange(relatedSchedules);
+
+            if (trip != null)
+            {
+                trip.VehicleRouteId = null;
+                trip.Status = TripStatus.Accepted; // Or the previous state that corresponds
+                _context.Trips.Update(trip);
+
+                // 3. Create status change log
+                _context.TripLogs.Add(new TripLog { TripId = trip.Id, Status = trip.Status, Date = DateTime.UtcNow.Date, Time = DateTime.UtcNow.TimeOfDay });
+            }
+
+            await _context.SaveChangesAsync(); // We save so that the next query sees the changes.
+
+            // 4. Whether other trips are left for this route on this day is no longer asked.
+            // The answer fed the block below, which is commented out because Pull-out and
+            // Pull-in must survive an empty route — so the count was a round trip whose
+            // result nobody read, and it scanned the route's whole history to get it.
+            /*bool otherTripsExist = await _context.Schedules
+                .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);*/
+
+            // Nunca eliminar los Pull-out/in, aunque no queden viajes, pq si no hay conexion con el servidor entonces las app clientes eliminan los pull-out/in y se desconfigura toda la ruta. Lo que si se puede hacer es recalcular la secuencia para que Pull-out sea 0 y Pull-in el �ltimo, aunque no queden viajes entre medio.
+            /*if (!otherTripsExist)
+            {
+                // If there are no more trips left, we also eliminate Pull-out and Pull-in.
+                var dayEvents = await _context.Schedules
+                    .Where(s => s.VehicleRouteId == vehicleRouteId && !s.TripId.HasValue)
+                    .ToListAsync();
+
+                _context.Schedules.RemoveRange(dayEvents);
+            }
+            else
+            {
+                // If there are other trips left, we just recalculate the sequence.
+                await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
+            }*/
+
+            await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
+
+            // Taking the first trip off a route moves the garage hour just as much as
+            // putting one in front of it does.
+            await ApplyDerivedRouteValuesAsync(vehicleRouteId, tripDate);
+
+            await _context.SaveChangesAsync();
+            return trip;
+        }
+
         public async Task CancelRouteForTripAsync(int scheduleId)
         {
             // Captured for the signal below: the driver of the route the trip is leaving has
@@ -737,67 +812,10 @@ namespace Raphael.Api.Services
                     throw new KeyNotFoundException("Schedule for a trip not found.");
                 }
                
-                var tripId = scheduleToCancel.TripId.Value;
                 var vehicleRouteId = scheduleToCancel.VehicleRouteId;
 
-                // 1. Find and delete all schedules associated with this trip
-                var relatedSchedules = await _context.Schedules
-                    .Where(s => s.TripId == tripId)
-                    .ToListAsync();
+                var trip = await UnrouteTripInTransactionAsync(scheduleToCancel.TripId.Value, vehicleRouteId);
 
-                var tripDate = (await _context.Trips.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tripId)).Date;
-
-                // 2. Update the original Trip
-                var trip = await _context.Trips.FindAsync(tripId);
-
-                // RE-051: before anything is removed. Taking a trip off yesterday's route deletes
-                // the stops that say it was driven.
-                if (trip != null) _guard.EnsureTripWritable(trip, "CancelRoute");
-
-                _context.Schedules.RemoveRange(relatedSchedules);
-
-                if (trip != null)
-                {
-                    trip.VehicleRouteId = null;
-                    trip.Status = TripStatus.Accepted; // Or the previous state that corresponds
-                    _context.Trips.Update(trip);
-
-                    // 3. Create status change log
-                    _context.TripLogs.Add(new TripLog { TripId = trip.Id, Status = trip.Status, Date = DateTime.UtcNow.Date, Time = DateTime.UtcNow.TimeOfDay });
-                }
-
-                await _context.SaveChangesAsync(); // We save so that the next query sees the changes.
-
-                // 4. Whether other trips are left for this route on this day is no longer asked.
-                // The answer fed the block below, which is commented out because Pull-out and
-                // Pull-in must survive an empty route — so the count was a round trip whose
-                // result nobody read, and it scanned the route's whole history to get it.
-                /*bool otherTripsExist = await _context.Schedules
-                    .AnyAsync(s => s.VehicleRouteId == vehicleRouteId && s.Trip.Date.Date == tripDate.Date);*/
-
-                // Nunca eliminar los Pull-out/in, aunque no queden viajes, pq si no hay conexion con el servidor entonces las app clientes eliminan los pull-out/in y se desconfigura toda la ruta. Lo que si se puede hacer es recalcular la secuencia para que Pull-out sea 0 y Pull-in el �ltimo, aunque no queden viajes entre medio.
-                /*if (!otherTripsExist)
-                {
-                    // If there are no more trips left, we also eliminate Pull-out and Pull-in.
-                    var dayEvents = await _context.Schedules
-                        .Where(s => s.VehicleRouteId == vehicleRouteId && !s.TripId.HasValue)
-                        .ToListAsync();
-
-                    _context.Schedules.RemoveRange(dayEvents);
-                }
-                else
-                {
-                    // If there are other trips left, we just recalculate the sequence.
-                    await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
-                }*/
-
-                await RecalculateSequenceForRouteAsync(vehicleRouteId, tripDate);
-
-                // Taking the first trip off a route moves the garage hour just as much as
-                // putting one in front of it does.
-                await ApplyDerivedRouteValuesAsync(vehicleRouteId, tripDate);
-
-                await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 unroutedTrip = trip;

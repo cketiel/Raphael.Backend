@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs.Realtime;
@@ -15,6 +15,9 @@ namespace Raphael.Api.Realtime
         Task TripUnroutedAsync(int tripId, int vehicleRouteId, DateTime date, int? providerId);
 
         Task RouteChangedAsync(int vehicleRouteId, DateTime date);
+
+        /// <summary>Routes went out of service or came back (RE-053). See <see cref="RouteServiceChangedMessage"/>.</summary>
+        Task RouteServiceChangedAsync(RouteServiceChangedMessage message, int? providerId);
 
         /// <param name="operatingDate">
         /// The business day the route is working, which is what the screens are grouped by.
@@ -122,6 +125,17 @@ namespace Raphael.Api.Realtime
                         .Select(t => t.Id)
                         .ToListAsync();
                     await TrackingChangedAsync(tripIds);
+                });
+
+        public Task RouteServiceChangedAsync(RouteServiceChangedMessage message, int? providerId) =>
+            SafeAsync(
+                nameof(RouteServiceChangedAsync),
+                async () =>
+                {
+                    await _hub.Clients.Group(DispatchGroups.Fleet(DispatchGroups.InternalScope)).RouteServiceChanged(message);
+
+                    if (providerId.HasValue && providerId.Value > 0)
+                        await _hub.Clients.Group(DispatchGroups.Fleet(providerId)).RouteServiceChanged(message);
                 });
 
         public Task TripTrackingChangedAsync(int tripId) =>

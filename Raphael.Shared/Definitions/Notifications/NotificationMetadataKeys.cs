@@ -1,4 +1,4 @@
-namespace Raphael.Shared.Definitions.Notifications;
+﻿namespace Raphael.Shared.Definitions.Notifications;
 
 /// <summary>
 /// Keys stored in <c>NotificationMetadata</c> alongside every notification.
@@ -44,6 +44,18 @@ public static class NotificationMetadataKeys
 
     /// <summary>Why the Provider rejected the trip (TRIP_REJECTED).</summary>
     public const string RejectionReason = "RejectionReason";
+
+    /// <summary>RE-053, Out of Service: VEHICLE, DRIVER or BOTH.</summary>
+    public const string OutOfServiceCause = "OutOfServiceCause";
+    public const string OutOfServiceOperationId = "OutOfServiceOperationId";
+    public const string VehicleName = "VehicleName";
+    public const string DriverName = "DriverName";
+    public const string RouteNames = "RouteNames";
+    public const string VehicleReasonCode = "VehicleReasonCode";
+    public const string DriverReasonCode = "DriverReasonCode";
+    public const string TripsUnrouted = "TripsUnrouted";
+    public const string TripsOnboard = "TripsOnboard";
+    public const string TripsKept = "TripsKept";
 
     /// <summary>
     /// Internal user who performed the action, when there is one.

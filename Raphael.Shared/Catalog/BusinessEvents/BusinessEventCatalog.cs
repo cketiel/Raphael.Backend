@@ -973,6 +973,38 @@ public static class BusinessEventCatalog
             CategoryName = "Route",
             CategoryDescription = "Events generated during route creation and management.",
 
+            GroupCode = "ROUTE_MANAGEMENT",
+            GroupName = "Route Management",
+            GroupDescription = "Events related to route lifecycle.",
+
+            EventCode = "ROUTE_OUT_OF_SERVICE",
+            EventName = "Route Out of Service",
+            EventDescription = "A vehicle, a driver or both were taken out of service: their routes cannot take trips and the pending ones went back to the unscheduled list.",
+            Source = "OutOfServiceService"
+        },
+
+        new()
+        {
+            CategoryCode = "ROUTE",
+            CategoryName = "Route",
+            CategoryDescription = "Events generated during route creation and management.",
+
+            GroupCode = "ROUTE_MANAGEMENT",
+            GroupName = "Route Management",
+            GroupDescription = "Events related to route lifecycle.",
+
+            EventCode = "ROUTE_RETURNED_TO_SERVICE",
+            EventName = "Route Returned to Service",
+            EventDescription = "A vehicle or a driver out of service was put back: its routes can take trips again.",
+            Source = "OutOfServiceService"
+        },
+
+        new()
+        {
+            CategoryCode = "ROUTE",
+            CategoryName = "Route",
+            CategoryDescription = "Events generated during route creation and management.",
+
             GroupCode = "ROUTE_OPTIMIZATION",
             GroupName = "Route Optimization",
             GroupDescription = "Events related to route optimization.",
