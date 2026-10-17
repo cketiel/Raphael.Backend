@@ -12,9 +12,11 @@ namespace Raphael.Api.Services
     public class RunService : IRunService
     {
         private readonly RaphaelContext _context;
+        private readonly Routing.IGarageChangeService _garage;
 
-        public RunService(RaphaelContext context)
+        public RunService(RaphaelContext context, Routing.IGarageChangeService garage)
         {
+            _garage = garage;
             _context = context;
         }
 
@@ -130,8 +132,29 @@ namespace Raphael.Api.Services
             // are null because Entity Framework does not automatically load them after an Add.
             return await GetByIdAsync(route.Id);
         }
-        public async Task<bool> UpdateAsync(int id, VehicleRouteDto dto)
+        public async Task<GarageChangePreviewDto?> UpdateAsync(int id, VehicleRouteDto dto, string? confirmedFingerprint = null, CancellationToken ct = default)
         {
+            // RE-052: one transaction for the route and for every planned day its garage reaches.
+            // A day half re-chained is worse than the old garage left everywhere.
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+            if (!await _context.VehicleRoutes.AnyAsync(r => r.Id == id, ct)) return null;
+
+            // Staged before the route itself changes: it compares against the garage the route had.
+            var garage = await _garage.StageAsync(id, new GarageChangeRequestDto
+            {
+                Garage = dto.Garage,
+                GarageLatitude = dto.GarageLatitude,
+                GarageLongitude = dto.GarageLongitude
+            }, ct);
+
+            // What the user confirmed is not what is there any more: somebody routed, reordered or
+            // edited in between. Nothing is applied; they look again.
+            if (garage.Result.GarageChanged && confirmedFingerprint != null && confirmedFingerprint != garage.Result.Fingerprint)
+                throw new Routing.GarageChangeRefusedException(
+                    "The route or its planned days changed since you reviewed the change. Nothing was saved: review it again.",
+                    Routing.GarageChangeRefusedException.ChangedSincePreview);
+
             // It is CRUCIAL to include the child collections when searching for the entity to update.
             // If they are not included, EF will think they do not exist and delete them.
             var route = await _context.VehicleRoutes
@@ -140,7 +163,7 @@ namespace Raphael.Api.Services
                 .Include(r => r.FundingSources)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
-            if (route == null) return false;
+            if (route == null) return null;
 
             // Simple property mapping
             route.Name = dto.Name;
@@ -161,8 +184,16 @@ namespace Raphael.Api.Services
             UpdateAvailabilities(route, dto.Availabilities);
             UpdateFundingSources(route, dto.FundingSources);
 
-            await _context.SaveChangesAsync();
-            return true;
+            await _context.SaveChangesAsync(ct);
+
+            // The last moment a stop is honoured. From here the commit runs to the end: a commit
+            // cancelled halfway is exactly the incomplete save this transaction exists to prevent.
+            ct.ThrowIfCancellationRequested();
+            await transaction.CommitAsync(CancellationToken.None);
+
+            // After the commit: nobody is told about a change that could still roll back.
+            await _garage.NotifyAsync(id, garage);
+            return garage.Result;
         }
 
         public async Task<bool> DeleteAsync(int id)

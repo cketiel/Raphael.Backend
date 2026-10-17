@@ -21,6 +21,23 @@ give:
 
 ## [Unreleased]
 
+### Changed (RE-052 — a route's garage reaches its planned days)
+- **`PUT api/Runs/{id}` carries a new garage onto every planned day** from today on, in the same
+  transaction: the Pull-out and Pull-in get the new address (a Pull-out already performed keeps it;
+  a finished day is left alone; past days are never touched), and each day is re-chained whole — every
+  pending leg priced at the hour it is driven, ETAs chained, waits and garage hour derived as after a
+  reorder. It answers **200** with what it did; any other update is still **204**. A garage leg that
+  cannot be measured refuses the save with **409** `{ code: "garage_leg_unavailable" }`.
+- **`POST api/Runs/{id}/garage-change/preview`**: the same work, nothing saved, for the Desktop's
+  confirmation. It answers with a `fingerprint` of the route's state; the save sends it back in
+  `X-Garage-Preview` and is refused untouched with **409** `{ code: "route_changed_since_preview" }`
+  if anything moved in between.
+- **A cancelled save rolls back.** The request's cancellation reaches every step before the commit;
+  the commit itself is never cancelled halfway.
+- **`RouteChangeTypes.Updated` (`UPDATED`)** on `DRIVER_ROUTE_UPDATED` when the driver is already out.
+- **`RouteEtaChain`**: the dispatch screen's arrival chain ported to the server, and the first test
+  project, `Raphael.Api.Tests`, holding it to the Desktop's figures.
+
 ### Changed (RE-051 — past, closed and routed trips)
 - **Past and closed trips are read-only.** A trip of a day before today on its Provider's clock, or
   Finished / Billed / Payed, refuses edit, dispatch-update, cancel, cancel-by-driver, uncancel, Will

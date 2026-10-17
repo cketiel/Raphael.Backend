@@ -26,6 +26,12 @@ namespace Raphael.Api.Services
         /// Writes a whole route's new order in one transaction. Returns how many stops moved.
         /// </summary>
         Task<int> ResequenceAsync(ScheduleResequenceRequest request);
+
+        /// <summary>
+        /// Re-derives a route-day's waits and garage hour on the rows already tracked, without
+        /// saving (RE-052). The same last word a reorder gets.
+        /// </summary>
+        Task RederiveRouteDayAsync(int vehicleRouteId, DateTime date);
         Task<bool> PerformUpdateAsync(int id, ScheduleDto dto);
         Task<bool> SaveSignatureAsync(int scheduleId, byte[] signature);
         Task<byte[]?> GetSignatureAsync(int scheduleId);

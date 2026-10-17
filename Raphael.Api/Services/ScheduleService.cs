@@ -1418,6 +1418,10 @@ namespace Raphael.Api.Services
             return changed;
         }
 
+        /// <inheritdoc />
+        public Task RederiveRouteDayAsync(int vehicleRouteId, DateTime date) =>
+            ApplyDerivedRouteValuesAsync(vehicleRouteId, date);
+
         /// <summary>
         /// Pins an hour that ran off either end of the day to that end of the day.
         /// </summary>

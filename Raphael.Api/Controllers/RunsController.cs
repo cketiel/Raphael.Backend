@@ -60,13 +60,43 @@ namespace Raphael.Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var success = await _service.UpdateAsync(id, dto);
-            if (!success)
+            // RE-052: the preview the user confirmed, if any, and the request's own cancellation, so a
+            // stop from the Desktop rolls the whole save back.
+            var confirmed = Request.Headers["X-Garage-Preview"].ToString();
+            var result = await _service.UpdateAsync(id, dto,
+                string.IsNullOrWhiteSpace(confirmed) ? null : confirmed, HttpContext.RequestAborted);
+            if (result == null)
             {
                 return NotFound($"Could not update because the route with ID {id} was not found.");
             }
-            // 204 NoContent is the standard response for a successful PUT that returns no content.
+
+            // RE-052: a new garage answers with what it did to the planned days, so the Desktop can
+            // show it when it differs from the preview. Anything else stays the 204 it always was.
+            if (result.GarageChanged) return Ok(result);
             return NoContent();
+        }
+
+        /// <summary>
+        /// What giving this route a new garage would do to the days already planned on it (RE-052).
+        /// Nothing is saved.
+        /// </summary>
+        [HttpPost("{id}/garage-change/preview")]
+        public async Task<ActionResult<GarageChangePreviewDto>> PreviewGarageChange(
+            int id,
+            [FromBody] GarageChangeRequestDto request,
+            [FromServices] Raphael.Api.Services.Routing.IGarageChangeService garage,
+            CancellationToken ct)
+        {
+            if (request == null) return BadRequest();
+
+            try
+            {
+                return Ok(await garage.PreviewAsync(id, request, ct));
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         [HttpDelete("{id}")]

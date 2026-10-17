@@ -107,4 +107,10 @@ public static class RouteChangeTypes
     /// reassigned is the office's business, and the cancellation has its own notice.
     /// </remarks>
     public const string Removed = "REMOVED";
+
+    /// <summary>
+    /// The route itself changed under the driver — its garage (RE-052). Raphael.Driver matches any
+    /// value other than ADDED by the trip id it carries, and reloads.
+    /// </summary>
+    public const string Updated = "UPDATED";
 }
