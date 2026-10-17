@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to `Raphael.Backend`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
@@ -20,6 +20,24 @@ give:
 ---
 
 ## [Unreleased]
+
+---
+
+## [2.3.0] - 2026-10-17
+
+**Migrations:** one, additive: `AddOutOfService` creates `OutOfServiceRecords` and
+`OutOfServiceTripImpacts`; no existing table or row is touched. Redeploying `v2.2.0` remains a working
+rollback; the two tables simply stay, unread.
+**Clients:** Driver unchanged: `DRIVER_ROUTE_UPDATED` gains `UPDATED`, which it already treats like any
+change and reloads. Desktop ≥1.12.0 keeps working, but **until Desktop 1.13.0**: RE-051's refusals reach
+it as the server's message with no banner, and nobody — the admin included — can correct a past or
+closed trip, because the audited correction needs 1.13.0; Out of Service, the garage preview, the
+Provider column and reassignment have no screen yet. **Routing now respects suspensions**, which it
+never did. **Notification catalog:** run `Sync-NotificationCatalog.ps1 -Environment prod` after the
+deploy (`TRIP_ASSIGNED`, `ROUTE_OUT_OF_SERVICE`, `ROUTE_RETURNED_TO_SERVICE`).
+
+MINOR: new, backward-compatible endpoints, fields and events; no field or endpoint a client uses was
+removed or renamed (`GIT_WORKFLOW.md` §4).
 
 ### Added (RE-053 — Out of Service)
 - **A vehicle, a driver or both can be taken out of service**, until somebody puts them back.
@@ -51,11 +69,6 @@ give:
   technical description. It now says which trip was given to the company and to accept or reject it.
 - **`DRIVER_ROUTE_UPDATED` with `UPDATED`** (RE-052 garage, RE-053 substitution) told the driver the
   trip was "no longer on your route" while it still was. It now says the route changed.
-
-**Migrations:** `AddOutOfService` — two new tables, no change to any existing one. **Clients:**
-Desktop 1.13.0 for the dialog, the banners and the live backlog; an older Desktop is refused the
-routing with the reason, and its backlog catches up on its next reload. **Notification catalog:**
-sync both new events and rules to each environment (`Sync-NotificationCatalog`).
 
 ### Changed (RE-052 — a route's garage reaches its planned days)
 - **`PUT api/Runs/{id}` carries a new garage onto every planned day** from today on, in the same
@@ -91,9 +104,6 @@ sync both new events and rules to each environment (`Sync-NotificationCatalog`).
   Phones and comments are now copied onto the two stops (they were left stale).
 - **Import refuses to overwrite a routed, past or closed trip** (row fails with `TRIP_LOCKED`): it used
   to move a routed trip's date, hours and addresses out from under its stops.
-
-**Migrations:** none. **Clients:** the Provider column and reassignment need the next Desktop;
-older Desktops never send `setProvider` and never touch a trip's Provider.
 
 ### Added
 - **Who sees which trips (RE-050, with `Tenancy:Enforce`)**: Raphael's admin sees every trip;
