@@ -592,7 +592,10 @@ namespace Raphael.Api.Controllers
            
         }
 
+        // RE-057: the Driver calls it. Without the attribute only the Desktop would be admitted, and
+        // with AppAccess in Enforce the driver's Start would answer 403.
         [HttpPost("{id}/start")]
+        [AllowApps(ClientApps.Desktop, ClientApps.Driver)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

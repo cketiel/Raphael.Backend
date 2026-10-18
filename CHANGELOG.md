@@ -53,6 +53,17 @@ every existing Provider stays active), `DeactivatedAtUtc`, `DeactivatedByUserId`
 - **Saving the Integrator form no longer changes `IsActive`**: only `PUT api/Integrators/{id}/active`
   does. An older Desktop that unticks the box is ignored.
 
+### Changed (RE-057 — start trip from the Driver)
+- **`POST api/trips/{id}/start` admits the Driver app** (`[AllowApps]`): without it, with AppAccess in
+  Enforce, a driver's Start would have answered 403.
+- **It also starts a trip in `Waiting` or `Late`**: a Will Call whose patient is ready is Waiting.
+- **Starting twice answers 204**, without notifying again (it was 400): the Driver retries when the
+  network fails. A driver only starts the trips of their own routes (404 otherwise).
+- It writes a `TripLog` row for `Started`, like `Arrived`.
+- **`GET api/Schedules/driver/pending` sends `Status`** (the trip's), so the Driver knows a pickup was
+  already started. Additive: an older Driver does not read it.
+- ⚠️ **Nothing requires Start before Arrive**: a Driver without the button works exactly as before.
+
 ### Fixed (RE-056)
 - **Adding a catalog entity the company already had could create a second row** (only the Desktop
   stopped it), splitting its trips and

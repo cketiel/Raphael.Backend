@@ -169,6 +169,9 @@ namespace Raphael.Api.Services
                     Patient = s.Trip.Customer.FullName,
                     CustomerId = s.Trip.CustomerId,
                     CustomerPhone = s.Trip.Customer.Phone,
+                    // RE-057: the Driver needs it to know a pickup was already started. Additive:
+                    // an older Driver does not read it.
+                    Status = s.Trip != null ? s.Trip.Status : null,
                 })
                 .ToListAsync();
         }

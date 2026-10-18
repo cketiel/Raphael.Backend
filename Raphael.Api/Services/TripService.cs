@@ -2654,25 +2654,57 @@ namespace Raphael.Api.Services
             return true;
         }
 
+        private const int DriverRoleIdForStart = 2;
+
+        /// <summary>
+        /// The driver set off towards the pickup (RE-057): <c>Started</c>, and the office, the patient
+        /// and the integration are told.
+        /// </summary>
+        /// <remarks>
+        /// ⚠️ Nothing else depends on it, on purpose: a Driver version without the Start button keeps
+        /// arriving and performing exactly as before. Requiring it before Arrive is for later, once
+        /// every driver has the new version (BACKLOG).
+        /// </remarks>
         public async Task<bool> StartTripAsync(int id, TimeSpan? travel)
         {
             var trip = await _context.Trips
+                .Include(t => t.Run)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (trip == null)
                 return false;
 
+            // RE-057: a driver only starts the trips of their own routes; anything else is "not found".
+            if (_currentUserService.RoleId == DriverRoleIdForStart
+                && (trip.Run == null || trip.Run.DriverId != _currentUserService.UserId))
+                return false;
+
             _guard.EnsureTripWritable(trip, "Start");
 
-            if (trip.Status == TripStatus.Started)
-                throw new InvalidOperationException(
-                    "The trip has already been started.");
+            // RE-057: starting twice is not an error. The Driver retries when the network fails, and a
+            // retry that arrives after the first one must not stop the driver nor notify twice.
+            if (trip.Status == TripStatus.Started
+                || trip.Status == TripStatus.Arrived
+                || trip.Status == TripStatus.InProgress)
+                return true;
 
-            if (trip.Status != TripStatus.Scheduled)
+            // Waiting and Late too: a Will Call whose patient is ready is Waiting, and it is the
+            // trip that most needs the patient told a vehicle is on its way.
+            if (trip.Status != TripStatus.Scheduled
+                && trip.Status != TripStatus.Waiting
+                && trip.Status != TripStatus.Late)
                 throw new InvalidOperationException(
-                    "The trip cannot be started because it is not scheduled.");
+                    "The trip cannot be started in its current status.");
 
             trip.Status = TripStatus.Started;
+
+            _context.TripLogs.Add(new TripLog
+            {
+                TripId = trip.Id,
+                Status = TripStatus.Started,
+                Date = DateTime.UtcNow.Date,
+                Time = DateTime.UtcNow.TimeOfDay
+            });
 
             await _context.SaveChangesAsync();
 
