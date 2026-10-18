@@ -110,6 +110,34 @@ Invoke-Sql "UPDATE Users SET PasswordHash = '$hash', IsActive = 1, MustChangePas
 $driverId = Get-Id "SELECT Id FROM Users WHERE Username = 'test.driver'"
 Write-Host "test.driver ready (id $driverId)"
 
+# ---- 3b. A Provider with its own driver, to test switching a Provider off (RE-055) ----------
+# Inserted in SQL: the Providers endpoint takes a multipart form, which PowerShell 5.1 cannot send.
+# Left active on every run; switching it off is the test.
+# Provider 1 is Raphael's own company card (ProviderService.ContactProviderId) and can never be
+# switched off: it must exist first, or the test Provider would take id 1 on an empty database.
+Invoke-Sql @"
+IF NOT EXISTS (SELECT 1 FROM Providers WHERE Id = 1)
+BEGIN
+    SET IDENTITY_INSERT Providers ON;
+    INSERT INTO Providers (Id, Name, WorkMode, IsTenant, IsActive) VALUES (1, 'Raphael', 0, 0, 1);
+    SET IDENTITY_INSERT Providers OFF;
+END
+"@ | Out-Null
+
+Invoke-Sql @"
+IF NOT EXISTS (SELECT 1 FROM Providers WHERE Name = 'TEST-PROVIDER')
+    INSERT INTO Providers (Name, Address, Phone, WorkMode, IsTenant, IsActive)
+    VALUES ('TEST-PROVIDER', '600 Test Provider Ave, Miami, FL 33130', '3050000001', 0, 0, 1);
+ELSE
+    UPDATE Providers SET IsActive = 1, DeactivatedAtUtc = NULL, DeactivatedByUserId = NULL WHERE Name = 'TEST-PROVIDER';
+"@ | Out-Null
+$testProviderId = [int](Invoke-Sql "SELECT Id FROM Providers WHERE Name = 'TEST-PROVIDER'" | Select-Object -First 1)
+if (-not (Invoke-Sql "SELECT Id FROM Users WHERE Username = 'test.provider.driver'")) {
+    Api Post 'api/Users/create' @{ fullName = 'Test Provider Driver'; username = 'test.provider.driver'; password = $TestPassword; roleId = 2; providerId = $testProviderId } | Out-Null
+}
+Invoke-Sql "UPDATE Users SET PasswordHash = '$hash', IsActive = 1, MustChangePassword = 0, ProviderId = $testProviderId WHERE Username = 'test.provider.driver';" | Out-Null
+Write-Host "TEST-PROVIDER (id $testProviderId) and test.provider.driver ready"
+
 # ---- 4. Vehicle ------------------------------------------------------------------------------
 if (-not (Get-Id "SELECT Id FROM VehicleGroups WHERE Name = 'TEST'")) {
     Api Post 'api/VehicleGroups' @{ name = 'TEST'; description = 'Local test data'; color = '#7C3AED' } | Out-Null
