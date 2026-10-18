@@ -403,6 +403,7 @@ builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 
 // Trips
 builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<Raphael.Api.Services.Places.ITripNotesService, Raphael.Api.Services.Places.TripNotesService>();
 builder.Services.AddScoped<Raphael.Api.Services.Trips.ITripChangeGuard, Raphael.Api.Services.Trips.TripChangeGuard>();
 builder.Services.AddScoped<Raphael.Api.Services.Routing.IGarageChangeService, Raphael.Api.Services.Routing.GarageChangeService>();
 builder.Services.AddScoped<Raphael.Api.Services.OutOfService.IOutOfServiceService, Raphael.Api.Services.OutOfService.OutOfServiceService>();

@@ -7,6 +7,7 @@ using Raphael.Shared.DbContexts;
 using Raphael.Shared.Definitions.Notifications;
 using Raphael.Shared.DTOs;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Entities.Places;
 using Raphael.Shared.Time;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.SignalR;
@@ -175,7 +176,12 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    // RE-054: the patient sees what the clinic or the file said, never the office's
+                    // notes about them. A trip from before RE-054 has no row and keeps its comment.
+                    Comment = s.Trip == null ? null
+                        : _context.TripStopNotes.Any(n => n.TripId == s.TripId && n.Side == (s.EventType == ScheduleEventType.Pickup ? TripSide.Pickup : TripSide.Dropoff))
+                            ? _context.TripStopNotes.Where(n => n.TripId == s.TripId && n.Side == (s.EventType == ScheduleEventType.Pickup ? TripSide.Pickup : TripSide.Dropoff)).Select(n => n.FileComment).FirstOrDefault()
+                            : (s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment),
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute != null && s.VehicleRoute.Driver != null ? s.VehicleRoute.Driver.FullName : "N/A",
@@ -206,7 +212,7 @@ namespace Raphael.Api.Services
 
         public async Task<IEnumerable<TripReadDto>> GetMyTripHistoryAsync(int customerId, DateTime startDate, DateTime endDate)
         {
-            return await _context.Trips
+            var history = await _context.Trips
                 .AsNoTracking()
                 .Include(t => t.SpaceType)
                 .Include(t => t.FundingSource)
@@ -214,6 +220,18 @@ namespace Raphael.Api.Services
                 .OrderByDescending(t => t.Date)
                 .Select(t => MapToTripReadDto(t))
                 .ToListAsync();
+
+            // RE-054: the patient sees what the clinic or the file said, never the office's notes.
+            var ids = history.Select(t => t.Id).ToList();
+            var stops = await _context.TripStopNotes.AsNoTracking().Where(n => ids.Contains(n.TripId)).ToListAsync();
+            foreach (var trip in history)
+            {
+                var pickup = stops.FirstOrDefault(n => n.TripId == trip.Id && n.Side == TripSide.Pickup);
+                var dropoff = stops.FirstOrDefault(n => n.TripId == trip.Id && n.Side == TripSide.Dropoff);
+                if (pickup != null) trip.PickupComment = pickup.FileComment;
+                if (dropoff != null) trip.DropoffComment = dropoff.FileComment;
+            }
+            return history;
         }
 
         public async Task<List<GpsDataDto>> GetMyActiveVehicleLocationAsync(int customerId)

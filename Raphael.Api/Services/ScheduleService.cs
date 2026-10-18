@@ -83,7 +83,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,
@@ -139,7 +139,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,
@@ -205,7 +205,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,
@@ -253,7 +253,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName, 
@@ -313,7 +313,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,
@@ -640,7 +640,6 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = tripToRoute.PickupLatitude,
                     ScheduleLongitude = tripToRoute.PickupLongitude,
                     Phone = tripToRoute.PickupPhone ?? tripToRoute.Customer.Phone,
-                    Comment = tripToRoute.PickupComment,
                     FundingSourceName = tripToRoute.FundingSource?.Name ?? "N/A",
                     AuthNo = tripToRoute.Authorization,
                     SpaceTypeName = tripToRoute.SpaceType.Name,
@@ -665,7 +664,6 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = tripToRoute.DropoffLatitude,
                     ScheduleLongitude = tripToRoute.DropoffLongitude,
                     Phone = tripToRoute.DropoffPhone ?? tripToRoute.Customer.Phone, // tripToRoute.Customer.MobilePhone ?? tripToRoute.Customer.Phone,
-                    Comment = tripToRoute.DropoffComment,
                     FundingSourceName = tripToRoute.FundingSource?.Name ?? "N/A",
                     AuthNo = tripToRoute.Authorization,
                     SpaceTypeName = tripToRoute.SpaceType.Name,
@@ -1509,7 +1507,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,
@@ -1588,7 +1586,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,
@@ -2411,7 +2409,7 @@ namespace Raphael.Api.Services
                     ScheduleLatitude = s.ScheduleLatitude,
                     ScheduleLongitude = s.ScheduleLongitude,
                     Phone = s.Phone,
-                    Comment = s.Comment,
+                    Comment = s.Trip == null ? null : s.EventType == ScheduleEventType.Pickup ? s.Trip.PickupComment : s.Trip.DropoffComment, // RE-054: read from the trip, never copied
                     AuthNo = s.AuthNo,
                     FundingSource = s.FundingSourceName,
                     Driver = s.VehicleRoute.Driver.FullName,

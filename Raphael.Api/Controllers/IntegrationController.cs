@@ -36,6 +36,7 @@ namespace Raphael.Api.Controllers
         private readonly GetRecipientNotificationsHandler _getRecipientNotificationsHandler;
         private readonly MarkNotificationViewedHandler _markViewedHandler;
         private readonly MarkNotificationAcknowledgedHandler _markAcknowledgedHandler;
+        private readonly Raphael.Api.Services.Places.ITripNotesService _tripNotes;
 
         /// <summary>
         /// Retrieves the Integrator ID stored in the HttpContext by the security filter.
@@ -52,8 +53,10 @@ namespace Raphael.Api.Controllers
             IIntegrationHubTokenService hubTokenService,
             GetRecipientNotificationsHandler getRecipientNotificationsHandler,
             MarkNotificationViewedHandler markViewedHandler,
-            MarkNotificationAcknowledgedHandler markAcknowledgedHandler)
+            MarkNotificationAcknowledgedHandler markAcknowledgedHandler,
+            Raphael.Api.Services.Places.ITripNotesService tripNotes)
         {
+            _tripNotes = tripNotes;
             _tripService = tripService;
             _currentUserService = currentUserService;
             _historyService = tripHistoryService;
@@ -209,6 +212,9 @@ namespace Raphael.Api.Controllers
             // address, a patient's phone — and it must never reach a third party.
             var trips = await _tripService.GetIntegrationTripDetailsAsync(date, externalIds, CurrentIntegratorId);
 
+            // RE-054: the integrator gets back only what it sent, never the office's notes.
+            var external = await _tripNotes.GetExternalCommentsAsync(trips);
+
             // Mapping to DTO to expose only necessary fields and protect internal entity structure
             var response = trips.Select(t => new IntegrationTripDto
             {
@@ -226,8 +232,8 @@ namespace Raphael.Api.Controllers
                 DropoffLatitude = t.DropoffLatitude,
                 DropoffLongitude = t.DropoffLongitude,
                 Distance = t.Distance ?? 0,
-                PickupComment = t.PickupComment,
-                DropoffComment = t.DropoffComment,
+                PickupComment = external[t.Id].Pickup,
+                DropoffComment = external[t.Id].Dropoff,
                 SpaceTypeName = t.SpaceType?.Name,
                 FundingSourceName = t.FundingSource?.Name,
                 Type = t.Type

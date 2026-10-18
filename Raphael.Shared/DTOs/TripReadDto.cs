@@ -1,4 +1,4 @@
-using Raphael.Shared.Entities;
+﻿using Raphael.Shared.Entities;
 using System.ComponentModel.DataAnnotations;
 
 namespace Raphael.Shared.DTOs
@@ -63,6 +63,12 @@ namespace Raphael.Shared.DTOs
 
         /// <summary>Its Provider works outside Raphael: once it accepts, the clinic can only cancel.</summary>
         public bool ProviderIsExternal { get; set; }
+
+        /// <summary>
+        /// RE-054: notes of this trip's places and patient still waiting for the office to look at
+        /// them (new lines a file brought). Filled on the day and range lists; 0 elsewhere.
+        /// </summary>
+        public int NotesToReview { get; set; }
     }
 
 

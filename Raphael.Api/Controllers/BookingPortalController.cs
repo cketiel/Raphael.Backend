@@ -25,12 +25,15 @@ namespace Raphael.Api.Controllers
         private readonly ITripService _tripService;
         private readonly ICurrentUserService _currentUserService;
         private readonly ITripHistoryService _historyService;
+        private readonly Raphael.Api.Services.Places.ITripNotesService _tripNotes;
 
         public BookingPortalController(
             ITripService tripService,
             ICurrentUserService currentUserService,
-            ITripHistoryService historyService) 
+            ITripHistoryService historyService,
+            Raphael.Api.Services.Places.ITripNotesService tripNotes)
         {
+            _tripNotes = tripNotes;
             _tripService = tripService;
             _currentUserService = currentUserService;
             _historyService = historyService;
@@ -184,6 +187,10 @@ namespace Raphael.Api.Controllers
 
             // El Global Query Filter en RaphaelContext ya se encarga de filtrar por IntegratorId
             var trips = await _tripService.GetByDateRangeAsync(startDate, end);
+
+            // RE-054: a clinic (or an external Provider) sees the comment it sent, never the
+            // office's notes about the patient and their home.
+            await _tripNotes.ApplyExternalCommentsAsync(trips);
             return Ok(trips);
         }
 

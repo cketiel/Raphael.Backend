@@ -29,10 +29,12 @@ namespace Raphael.Api.Services
         private readonly IOperationClock _clock;
         private readonly ILogger<TripService> _logger;
         private readonly Trips.ITripChangeGuard _guard;
+        private readonly Places.ITripNotesService _notes;
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger, Trips.ITripChangeGuard guard)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger, Trips.ITripChangeGuard guard, Places.ITripNotesService notes)
         {
             _guard = guard;
+            _notes = notes;
             _context = context;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
@@ -254,8 +256,10 @@ namespace Raphael.Api.Services
             trip.Type = dto.Type ?? (isReturn ? TripType.Return : TripType.Appointment);
             trip.Authorization = dto.Authorization;
             trip.IsCancelled = false;
-            trip.PickupComment = dto.PickupComment;
-            trip.DropoffComment = dto.DropoffComment;
+
+            // RE-054: what the clinic wrote is kept as its own text and learnt as notes to review;
+            // the driver reads it composed with the place's and the patient's notes.
+            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.External);
 
             // Only when the portal says so (PortalTripDto.SetProvider); the controller has checked
             // the clinic may give trips to this Provider.
@@ -611,8 +615,8 @@ namespace Raphael.Api.Services
             trip.Type = dto.Type ?? TripType.Appointment;
             trip.Authorization = dto.Authorization;
 
-            trip.PickupComment = dto.PickupComment;
-            trip.DropoffComment = dto.DropoffComment;
+            // RE-054: the integrator's text is kept as theirs, and is all they get back.
+            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.External);
 
             // --- ATTACHMENT (UPSERT / EXPLICIT DELETE) ---
 
@@ -1184,8 +1188,9 @@ namespace Raphael.Api.Services
             trip.Dropoff = item.Dropoff;
             trip.PickupPhone = item.PickupPhone;
             trip.DropoffPhone = item.DropoffPhone;
-            trip.PickupComment = item.PickupComment;
-            trip.DropoffComment = item.DropoffComment;
+            // RE-054: the file's comment is kept as the file's and nothing else. It used to be
+            // written over the trip's comment, so a re-import erased what the office had added.
+            await _notes.ApplyIncomingAsync(trip, item.PickupComment, item.DropoffComment, Places.CommentOrigin.External);
 
             _context.TripHistories.Add(new TripHistory
             {
@@ -1620,10 +1625,8 @@ namespace Raphael.Api.Services
                 Type = dto.Type,
                 Pickup = dto.Pickup,
                 PickupPhone = dto.PickupPhone,
-                PickupComment = dto.PickupComment,
                 Dropoff = dto.Dropoff,
                 DropoffPhone = dto.DropoffPhone,
-                DropoffComment = dto.DropoffComment,
                 TripId = dto.TripId,
                 Authorization = dto.Authorization,
                 Distance = dto.Distance,
@@ -1661,6 +1664,10 @@ namespace Raphael.Api.Services
                 trip.Status = trip.IntegratorId == null ? TripStatus.Accepted : TripStatus.Assigned;
                 tellTenant = provider.IsTenant ? provider.Id : null;
             }
+
+            // RE-054: what the office typed beyond the notes of the place and the patient is this
+            // trip's own note; the comment stored is the composed one.
+            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.Office);
 
             try
             {
@@ -1805,10 +1812,8 @@ namespace Raphael.Api.Services
             trip.Type = dto.Type;
             trip.Pickup = dto.Pickup;
             trip.PickupPhone = dto.PickupPhone;
-            trip.PickupComment = dto.PickupComment;
             trip.Dropoff = dto.Dropoff;
             trip.DropoffPhone = dto.DropoffPhone;
-            trip.DropoffComment = dto.DropoffComment;
             trip.TripId = dto.TripId;
             trip.Authorization = dto.Authorization;
             trip.Distance = dto.Distance;
@@ -1836,6 +1841,9 @@ namespace Raphael.Api.Services
          
             // RE-050: the Provider changes only when the Desktop asks for it (SetProvider).
             int? tellTenant = dto.SetProvider ? await ApplyProviderAssignmentAsync(trip, dto.ProviderId) : null;
+
+            // RE-054: after the addresses, which decide the places.
+            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.Office);
 
             if (contactsChanged) await PropagateContactsToStopsAsync(trip);
 
@@ -1891,6 +1899,14 @@ namespace Raphael.Api.Services
 
             var fundingSourceIds = trips.Select(t => t.FundingSourceId).Where(id => id != null).Distinct().ToList();
             var spaceTypeIds = trips.Select(t => t.SpaceTypeId).Distinct().ToList();
+
+            // RE-054: the grids flag trips whose notes a file has added to and nobody has looked at.
+            // Not for a clinic or an external Provider: the notes are the office's.
+            if (_currentUserService.IntegratorId == null && !_currentUserService.IsExternalProvider)
+            {
+                var toReview = await _notes.CountNotesToReviewAsync(trips.Select(t => t.Id).ToList());
+                foreach (var trip in trips) trip.NotesToReview = toReview.GetValueOrDefault(trip.Id);
+            }
 
             if (fundingSourceIds.Count == 0) return trips;
 
@@ -2586,9 +2602,8 @@ namespace Raphael.Api.Services
             trip.Type = dto.Type;
             trip.FromTime = dto.FromTime;
             trip.PickupPhone = dto.PickupPhone;
-            trip.PickupComment = dto.PickupComment;
             trip.DropoffPhone = dto.DropoffPhone;
-            trip.DropoffComment = dto.DropoffComment;
+            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.Office);
 
             if (contactsChanged) await PropagateContactsToStopsAsync(trip);
 
@@ -2648,8 +2663,9 @@ namespace Raphael.Api.Services
         /// RE-051. Each one feeds the driver's list or the route's arithmetic: the day, the two
         /// promised hours (and with them the early-arrival wait), both addresses, the type (which
         /// sets the wait margin), the patient (the stop's name), and the space type, funding source,
-        /// authorization and distance the stop and the bill are built from. Phones and comments are
-        /// not here: they are copied across instead — see <see cref="PropagateContactsToStopsAsync"/>.
+        /// authorization and distance the stop and the bill are built from. Phones are not here: they
+        /// are copied across instead — see <see cref="PropagateContactsToStopsAsync"/>. Comments are
+        /// not copied at all since RE-054: the stops read them from the trip.
         /// </remarks>
         private static List<string> RoutedFieldChanges(Trip trip, TripUpdateDto dto)
         {
@@ -2674,11 +2690,11 @@ namespace Raphael.Api.Services
         }
 
         private static bool ContactsDiffer(Trip trip, string? pickupPhone, string? pickupComment, string? dropoffPhone, string? dropoffComment) =>
-            trip.PickupPhone != pickupPhone || trip.PickupComment != pickupComment
-            || trip.DropoffPhone != dropoffPhone || trip.DropoffComment != dropoffComment;
+            trip.PickupPhone != pickupPhone || trip.DropoffPhone != dropoffPhone;
 
         /// <summary>
-        /// Copies a routed trip's phones and comments onto its two stops, the copy the driver reads.
+        /// Copies a routed trip's phones onto its two stops, the copy the driver reads. Comments are
+        /// no longer copied (RE-054): the stops read the trip's, so there is no copy to fall behind.
         /// </summary>
         /// <remarks>
         /// RE-051. Same fallback as routing: a stop with no phone of its own shows the patient's.
@@ -2699,12 +2715,10 @@ namespace Raphael.Api.Services
                 if (stop.EventType == ScheduleEventType.Pickup)
                 {
                     stop.Phone = trip.PickupPhone ?? customerPhone;
-                    stop.Comment = trip.PickupComment;
                 }
                 else if (stop.EventType == ScheduleEventType.Dropoff)
                 {
                     stop.Phone = trip.DropoffPhone ?? customerPhone;
-                    stop.Comment = trip.DropoffComment;
                 }
             }
         }
