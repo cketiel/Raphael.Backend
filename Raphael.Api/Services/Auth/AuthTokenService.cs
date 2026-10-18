@@ -172,7 +172,12 @@ namespace Raphael.Api.Services.Auth
                 var integratorOff = user?.IntegratorId is int integratorId
                     && !await _context.Integrators.AnyAsync(i => i.Id == integratorId && i.IsActive, cancellationToken);
 
-                if (user is null || !user.IsActive || integratorOff)
+                // RE-055: and for a user whose Provider the platform switched off.
+                var providerOff = user?.ProviderId is int providerId
+                    && await _context.Providers.IgnoreQueryFilters()
+                        .AnyAsync(p => p.Id == providerId && !p.IsActive, cancellationToken);
+
+                if (user is null || !user.IsActive || integratorOff || providerOff)
                 {
                     await RevokeFamilyAsync(row.FamilyId, "subject-unavailable", now, cancellationToken);
                     return RefreshOutcome.Failed(RefreshFailure.SubjectUnavailable);

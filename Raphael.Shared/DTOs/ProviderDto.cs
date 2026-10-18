@@ -66,5 +66,14 @@ namespace Raphael.Shared.DTOs
 
         /// <summary>Raphael (works in the Desktop) or External (Booking portal only). Read-only here.</summary>
         public ProviderWorkMode WorkMode { get; set; }
+
+        /// <summary>
+        /// False when the platform switched it off (RE-055). Read-only here: it changes only through
+        /// <c>PUT api/Providers/{id}/active</c>, never by saving the form.
+        /// </summary>
+        public bool IsActive { get; set; } = true;
+
+        /// <summary>When it was switched off. Null while active. Read-only.</summary>
+        public DateTime? DeactivatedAtUtc { get; set; }
     }
 }

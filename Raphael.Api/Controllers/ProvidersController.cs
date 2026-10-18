@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Raphael.Api.Services;
 using Raphael.Shared.DTOs;
+using Raphael.Shared.Entities;
 using System.Threading.Tasks;
 
 using Raphael.Api.Attributes;
@@ -190,6 +191,75 @@ namespace Raphael.Api.Controllers
 
         /// <summary>Body of <c>PUT api/Providers/{id}/work-mode</c>.</summary>
         public sealed record ProviderWorkModeRequest(Raphael.Shared.Entities.ProviderWorkMode WorkMode);
+
+        /// <summary>
+        /// The trips this Provider still has to carry out from today on, so the office is warned
+        /// before switching it off (RE-055). Only a warning: deactivating never touches its trips.
+        /// </summary>
+        [HttpGet("{id:int}/pending-trips")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [NotForClinicUsers]
+        public async Task<IActionResult> GetPendingTrips(
+            int id,
+            [FromServices] Raphael.Shared.DbContexts.RaphaelContext context,
+            [FromServices] Raphael.Shared.Time.IOperationClock clock,
+            CancellationToken ct)
+        {
+            if (!await context.Providers.IgnoreQueryFilters().AnyAsync(p => p.Id == id, ct)) return NotFound();
+
+            var today = clock.TodayFor(id);
+            var count = await context.Trips.IgnoreQueryFilters().AsNoTracking()
+                .CountAsync(t => t.ProviderId == id
+                    && !t.IsCancelled
+                    && t.Date >= today
+                    && t.Status != TripStatus.Finished
+                    && t.Status != TripStatus.Canceled
+                    && t.Status != TripStatus.Billed
+                    && t.Status != TripStatus.Payed
+                    && t.Status != TripStatus.Rejected, ct);
+
+            return Ok(new { ProviderId = id, PendingTrips = count });
+        }
+
+        /// <summary>
+        /// Switches a Provider off or back on (RE-055). Its users cannot sign in while it is off, and
+        /// a session already open ends at its next renewal; nothing is checked on every request.
+        /// </summary>
+        /// <remarks>
+        /// Only Raphael's office. Raphael's own company card (id 1) can never be switched off.
+        /// Its trips are left exactly as they are: the warning comes from <c>pending-trips</c>.
+        /// </remarks>
+        [HttpPut("{id:int}/active")]
+        [Authorize(Policy = AuthPolicies.PlatformAdmin)]
+        [NotForClinicUsers]
+        public async Task<IActionResult> SetActive(
+            int id,
+            [FromBody] ProviderActiveRequest request,
+            [FromServices] Raphael.Shared.DbContexts.RaphaelContext context,
+            [FromServices] Raphael.Shared.Interfaces.ICurrentUserService currentUser)
+        {
+            if (id == RaphaelProviderId && !request.IsActive)
+                return BadRequest(new { code = "raphael_provider", message = "Raphael's own company cannot be deactivated." });
+
+            var provider = await context.Providers.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id);
+            if (provider == null) return NotFound();
+
+            if (provider.IsActive != request.IsActive)
+            {
+                provider.IsActive = request.IsActive;
+                provider.DeactivatedAtUtc = request.IsActive ? null : DateTime.UtcNow;
+                provider.DeactivatedByUserId = request.IsActive ? null : currentUser.UserId;
+                await context.SaveChangesAsync();
+            }
+
+            return Ok(new { provider.Id, provider.IsActive, provider.DeactivatedAtUtc });
+        }
+
+        /// <summary>Body of <c>PUT api/Providers/{id}/active</c>.</summary>
+        public sealed record ProviderActiveRequest(bool IsActive);
+
+        /// <summary>Raphael's own company card; see <c>ProviderService.ContactProviderId</c>.</summary>
+        private const int RaphaelProviderId = 1;
 
         /// <summary>"" when the form carries the field, null when it does not.</summary>
         private string? Carried(string field) =>

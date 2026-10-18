@@ -28,6 +28,18 @@ unique place indexes, and empties those five tables (RE-054 starts from zero). *
 **Clients:** Desktop and Driver unchanged keep working (the comment fields they read and send are the
 same). The notes window needs the Desktop release of RE-054.
 **Config:** new section `Notes` (`Notes__Enabled=false` switches the notes worker off without a deploy).
+**Migrations (RE-055):** `ProviderDeactivation`, additive: `Providers.IsActive` (default **true**, so
+every existing Provider stays active), `DeactivatedAtUtc`, `DeactivatedByUserId`.
+**Clients (RE-055):** unchanged apps keep working; switching a Provider off needs the Desktop release of RE-055.
+
+### Added (RE-055 — Provider deactivation)
+- **The platform can switch a Provider off** (`PUT api/Providers/{id}/active`, platform admins only) and
+  back on. Raphael's own company (id 1) cannot be switched off. The row and its trips are kept as they are.
+- **Its users cannot sign in**: 403 `provider_disabled`, like `integrator_disabled`. A session already
+  open ends at its next token renewal; nothing is checked on every request.
+- `GET api/Providers/{id}/pending-trips`: trips it still has from today on, to warn before switching it
+  off. Only a warning.
+- `ProviderDto.IsActive` and `DeactivatedAtUtc` (read-only).
 
 ### Added (RE-054 — place and patient notes)
 - **Places**: the patient's home, or a facility shared by every patient that goes there, with one

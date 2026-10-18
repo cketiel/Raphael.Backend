@@ -71,6 +71,24 @@ namespace Raphael.Shared.Entities
         /// behaving exactly as they did.
         /// </summary>
         public bool IsTenant { get; set; }
+
+        // ---- Deactivation, added in RE-055 ---------------------------------------------------
+
+        /// <summary>
+        /// False when the platform has switched this Provider off (typically, it stopped paying).
+        /// Its users cannot sign in, and a session already open ends at its next renewal.
+        /// </summary>
+        /// <remarks>
+        /// Checked only at sign-in and at token renewal, never on every request (user decision,
+        /// 2026-10-18). The row is never deleted: its trips and its history stay as they were.
+        /// </remarks>
+        public bool IsActive { get; set; } = true;
+
+        /// <summary>When it was last switched off. Null while active.</summary>
+        public DateTime? DeactivatedAtUtc { get; set; }
+
+        /// <summary>The platform user who switched it off. Null while active.</summary>
+        public int? DeactivatedByUserId { get; set; }
     }
 }
 

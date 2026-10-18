@@ -62,6 +62,15 @@ namespace Raphael.Api.Controllers
                     new { code = "integrator_disabled", message = "Your organization's access is disabled. Contact the office." });
             }
 
+            // RE-055: the same for the users of a Provider the platform switched off. Checked here
+            // and at renewal only, never on every request (user decision, 2026-10-18).
+            if (user.ProviderId is int deactivatedProviderId && await ProviderIsDeactivatedAsync(deactivatedProviderId))
+            {
+                return StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new { code = "provider_disabled", message = "Your company's access is disabled. Contact the office." });
+            }
+
             // A Provider that works outside Raphael only sees its trips in the Booking portal. Its
             // users are created by clinics too, and must never be treated as the office: not in
             // the Desktop, not in any other app (PROVIDER_ACCESS_MODEL.md §3.4, F15).
@@ -203,6 +212,13 @@ namespace Raphael.Api.Controllers
 
         private Task<bool> IntegratorIsActiveAsync(int integratorId) =>
             _context.Integrators.AnyAsync(i => i.Id == integratorId && i.IsActive);
+
+        /// <summary>
+        /// Asks whether the Provider is switched off, not whether it is on: a row the query cannot
+        /// see must never lock its users out.
+        /// </summary>
+        private Task<bool> ProviderIsDeactivatedAsync(int providerId) =>
+            _context.Providers.IgnoreQueryFilters().AnyAsync(p => p.Id == providerId && !p.IsActive);
     }
 
     public class LoginRequest

@@ -135,7 +135,9 @@ namespace Raphael.Api.Services
                     CatalogProviderId = p.CatalogProviderId,
                     OwnerProviderId = p.OwnerProviderId,
                     IsTenant = p.IsTenant,
-                    WorkMode = p.WorkMode
+                    WorkMode = p.WorkMode,
+                    IsActive = p.IsActive,
+                    DeactivatedAtUtc = p.DeactivatedAtUtc
                 }).ToListAsync();
         }
 
