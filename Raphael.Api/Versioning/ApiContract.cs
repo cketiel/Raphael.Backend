@@ -35,6 +35,6 @@ namespace Raphael.Api.Versioning
         /// <summary>
         /// Version of <c>_meta/INTEGRATION_API_SPEC.md</c> that this build implements.
         /// </summary>
-        public const string IntegrationSpec = "1.0.0";
+        public const string IntegrationSpec = "1.1.0";
     }
 }

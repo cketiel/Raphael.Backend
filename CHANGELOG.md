@@ -21,6 +21,22 @@ give:
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-10-18
+
+**Slices:** RE-054, RE-055, RE-056, RE-057 (four, so the patch is .3: `_meta/GIT_WORKFLOW.md` §4).
+**Migrations (three, all additive):** `AddPlacesAndNotes`, `NotesWorkerAndUniquePlaces` (RE-054) and
+`ProviderDeactivation` (RE-055). A release with migrations cannot be undone by redeploying `v2.3.0`:
+the code goes back, the schema does not. Detail of each one below.
+**Clients:** Desktop 1.13.0 and Driver 1.6.0 keep working. The new screens need Desktop **1.14.2** and
+Driver **1.7.3**. A Driver without Start Trip keeps arriving and performing exactly as before.
+**After deploying:** run `Sync-NotificationCatalog -Environment prod`, or `DRIVER_STARTED_TRIP` reaches nobody.
+**Integration:** `INTEGRATION_API_SPEC` **1.1.0** (`ApiContract.IntegrationSpec`), published without notice
+(user decision). `DRIVER_STARTED_TRIP` starts reaching integrators, as the spec already said.
+
+### Added (developer tooling)
+- `tools/seed-local/Seed-Local.ps1`: local test data (test users, a run, today's trips routed, the
+  notification catalog, a test Provider). Refuses anything but localhost.
+
 **Migrations:** two, additive: `AddPlacesAndNotes` creates `Places`, `PlaceEntrances`, `PlaceNotes`,
 `CustomerNotes` and `TripStopNotes`; `NotesWorkerAndUniquePlaces` adds the worker's markers and the
 unique place indexes, and empties those five tables (RE-054 starts from zero). **No column is added to
