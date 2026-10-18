@@ -88,6 +88,15 @@ function Api([string] $method, [string] $path, $body = $null) {
     }
 }
 
+# ---- 2b. Notification catalog --------------------------------------------------------------
+# Business events and their rules, as Sync-NotificationCatalog does in DEV and PROD. Without them
+# nothing is notified locally. Events first: a rule refers to its event.
+foreach ($step in 'business-events', 'notification-rules') {
+    Invoke-RestMethod -Method Post -Headers $headers -TimeoutSec 120 `
+        -Uri "${ApiUrl}api/admin/notification/catalog/${step}?updateExisting=false" | Out-Null
+}
+Write-Host 'Notification catalog synced'
+
 function Get-Id([string] $query) {
     $v = Invoke-Sql $query | Select-Object -First 1
     if ($v) { [int]$v } else { $null }
