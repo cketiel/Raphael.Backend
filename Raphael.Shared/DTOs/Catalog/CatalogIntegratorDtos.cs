@@ -37,6 +37,12 @@ namespace Raphael.Shared.DTOs.Catalog
         public int? MyIntegratorId { get; set; }
 
         /// <summary>
+        /// This company added it and then uncontracted it (RE-056): the row is kept, inactive, and
+        /// <see cref="MyIntegratorId"/> still points to it, so contracting it again reactivates that row.
+        /// </summary>
+        public bool IsUncontracted { get; set; }
+
+        /// <summary>
         /// How many companies have added it in total. Only the general broker is told; a
         /// provider has no business knowing who else is talking to whom.
         /// </summary>
@@ -136,6 +142,12 @@ namespace Raphael.Shared.DTOs.Catalog
 
         public bool InMyCompany { get; set; }
         public int? MyIntegratorId { get; set; }
+
+        /// <summary>
+        /// This company added it and then uncontracted it (RE-056): the row is kept, inactive, and
+        /// <see cref="MyIntegratorId"/> still points to it, so contracting it again reactivates that row.
+        /// </summary>
+        public bool IsUncontracted { get; set; }
         public int? AddedByCompanyCount { get; set; }
     }
 

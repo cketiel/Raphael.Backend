@@ -10,6 +10,8 @@ namespace Raphael.Api.Services
         Task<IntegratorDto> CreateAsync(IntegratorDto dto);
         Task<bool> UpdateAsync(int id, IntegratorDto dto);
         Task<bool> DeleteAsync(int id);
+        /// <summary>Uncontracts the Integrator or contracts it again (RE-056).</summary>
+        Task<bool> SetActiveAsync(int id, bool isActive);
         Task<FundingSource?> GetFundingSourceByIntegratorIdAsync(int? integratorId);
     }
 }

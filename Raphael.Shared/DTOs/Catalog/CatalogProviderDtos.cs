@@ -34,6 +34,12 @@ namespace Raphael.Shared.DTOs.Catalog
         /// <summary>The provider it became for this company, when it became one.</summary>
         public int? MyProviderId { get; set; }
 
+        /// <summary>
+        /// This company added it and then uncontracted it (RE-056): the row is kept, inactive, and
+        /// <see cref="MyProviderId"/> still points to it, so contracting it again reactivates that row.
+        /// </summary>
+        public bool IsUncontracted { get; set; }
+
         /// <summary>Total companies that added it. Only the general broker is told.</summary>
         public int? AddedByCompanyCount { get; set; }
 
@@ -155,6 +161,12 @@ namespace Raphael.Shared.DTOs.Catalog
 
         public bool InMyCompany { get; set; }
         public int? MyProviderId { get; set; }
+
+        /// <summary>
+        /// This company added it and then uncontracted it (RE-056): the row is kept, inactive, and
+        /// <see cref="MyProviderId"/> still points to it, so contracting it again reactivates that row.
+        /// </summary>
+        public bool IsUncontracted { get; set; }
         public int? AddedByCompanyCount { get; set; }
     }
 

@@ -48,6 +48,17 @@ namespace Raphael.Api.Controllers
 
         [HttpDelete("{id}")] public async Task<IActionResult> Delete(int id) => Ok(await _service.DeleteAsync(id));
 
+        /// <summary>
+        /// Uncontracts an Integrator, or contracts it again (RE-056): the only way to change
+        /// <c>IsActive</c>, which the form no longer saves. Same authority as editing it.
+        /// </summary>
+        [HttpPut("{id:int}/active")]
+        public async Task<IActionResult> SetActive(int id, [FromBody] IntegratorActiveRequest request) =>
+            await _service.SetActiveAsync(id, request.IsActive) ? Ok(new { Id = id, request.IsActive }) : NotFound();
+
+        /// <summary>Body of <c>PUT api/Integrators/{id}/active</c>.</summary>
+        public sealed record IntegratorActiveRequest(bool IsActive);
+
         // ---- Who works with whom (PROVIDER_ACCESS_MODEL.md §3.6): the office sees and corrects a
         // clinic's contracted Providers and its row in the catalog. Office admins only (class attributes).
 

@@ -41,6 +41,24 @@ every existing Provider stays active), `DeactivatedAtUtc`, `DeactivatedByUserId`
   off. Only a warning.
 - `ProviderDto.IsActive` and `DeactivatedAtUtc` (read-only).
 
+### Added (RE-056 — uncontracting catalog entities)
+- **Uncontract an Integrator or contract it again**: `PUT api/Integrators/{id}/active` (same admins
+  who edit it). Off, its API key stops working and its users cannot sign in, as before. A Provider is
+  uncontracted with RE-055's `PUT api/Providers/{id}/active`: one flag, not two states.
+- **Catalog**: `IsUncontracted` on both catalogs' list items and detail. Only an active row counts as
+  "in my company" (filter, facets and the flag); `MyProviderId` / `MyIntegratorId` still point to the
+  uncontracted row.
+
+### Changed (RE-056)
+- **Saving the Integrator form no longer changes `IsActive`**: only `PUT api/Integrators/{id}/active`
+  does. An older Desktop that unticks the box is ignored.
+
+### Fixed (RE-056)
+- **Adding a catalog entity the company already had could create a second row** (only the Desktop
+  stopped it), splitting its trips and
+  history. Creating a Provider or Integrator from a catalog entity that already has one for the same
+  company now returns that row, contracting it again if it was off. Nothing is created.
+
 ### Added (RE-054 — place and patient notes)
 - **Places**: the patient's home, or a facility shared by every patient that goes there, with one
   entrance per point trips stop at. Created from zero as trips come in, never seeded. Found in SQL by

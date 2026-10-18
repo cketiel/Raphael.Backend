@@ -143,6 +143,33 @@ namespace Raphael.Api.Services
 
         public async Task<ProviderDto> CreateAsync(ProviderDto dto)
         {
+            // RE-056: a catalog entity this company already has (active or uncontracted) is never
+            // added twice. A second row would split its trips and history between two Providers.
+            // The uncontracted one is contracted again instead, as it was.
+            if (dto.CatalogProviderId is int catalogId)
+            {
+                var owner = _currentUser.ProviderId;
+                var existing = await _context.Providers.IgnoreQueryFilters()
+                    .Where(p => p.CatalogProviderId == catalogId)
+                    .Where(p => owner.HasValue ? p.OwnerProviderId == owner.Value : p.OwnerProviderId == null)
+                    .OrderByDescending(p => p.IsActive)
+                    .FirstOrDefaultAsync();
+                if (existing != null)
+                {
+                    if (!existing.IsActive)
+                    {
+                        existing.IsActive = true;
+                        existing.DeactivatedAtUtc = null;
+                        existing.DeactivatedByUserId = null;
+                        await _context.SaveChangesAsync();
+                    }
+                    dto.Id = existing.Id;
+                    dto.Logo = existing.Logo;
+                    dto.IsActive = true;
+                    return dto;
+                }
+            }
+
             string fileName = string.Empty;
             if (dto.LogoFile != null)
             {

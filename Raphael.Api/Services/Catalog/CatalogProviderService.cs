@@ -64,7 +64,9 @@ namespace Raphael.Api.Services.Catalog
             var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
             var pageNumber = Math.Max(request.PageNumber, 1);
 
-            var mine = MyProviders();
+            // RE-056: only an active row is "in my company"; an inactive one was uncontracted.
+            var mine = MyProviders().Where(p => p.IsActive);
+            var allMine = MyProviders();
             var query = _context.CatalogProviders.AsNoTracking().AsQueryable();
 
             if (!request.IncludeInactive)
@@ -115,10 +117,13 @@ namespace Raphael.Api.Services.Catalog
                     GeocodeStatus = (int)c.GeocodeStatus,
                     IsActive = c.IsActive,
                     HasCoordinates = c.Latitude != null && c.Longitude != null,
-                    MyProviderId = mine
+                    MyProviderId = allMine
                         .Where(p => p.CatalogProviderId == c.Id)
+                        .OrderByDescending(p => p.IsActive)
                         .Select(p => (int?)p.Id)
                         .FirstOrDefault(),
+                    IsUncontracted = !mine.Any(p => p.CatalogProviderId == c.Id)
+                        && allMine.Any(p => p.CatalogProviderId == c.Id),
                     AddedByCompanyCount = _context.Providers
                         .Count(p => p.CatalogProviderId == c.Id)
                 })
@@ -126,7 +131,7 @@ namespace Raphael.Api.Services.Catalog
 
             foreach (var item in items)
             {
-                item.InMyCompany = item.MyProviderId.HasValue;
+                item.InMyCompany = item.MyProviderId.HasValue && !item.IsUncontracted;
 
                 if (!CallerIsBroker)
                 {
@@ -526,10 +531,13 @@ namespace Raphael.Api.Services.Catalog
             CatalogProvider row,
             CancellationToken cancellationToken)
         {
-            var myId = await MyProviders()
+            var mineRow = await MyProviders()
                 .Where(p => p.CatalogProviderId == row.Id)
-                .Select(p => (int?)p.Id)
+                .OrderByDescending(p => p.IsActive)
+                .Select(p => new { p.Id, p.IsActive })
                 .FirstOrDefaultAsync(cancellationToken);
+            var myId = mineRow?.Id;
+            var uncontracted = mineRow is { IsActive: false };
 
             var addedBy = CallerIsBroker
                 ? await _context.Providers
@@ -607,7 +615,8 @@ namespace Raphael.Api.Services.Catalog
                 UpdatedByUserName = UserName(row.UpdatedByUserId),
                 UpdatedByProviderId = row.UpdatedByProviderId,
                 UpdatedByProviderName = ProviderName(row.UpdatedByProviderId),
-                InMyCompany = myId.HasValue,
+                InMyCompany = myId.HasValue && !uncontracted,
+                IsUncontracted = uncontracted,
                 MyProviderId = myId,
                 AddedByCompanyCount = addedBy
             };

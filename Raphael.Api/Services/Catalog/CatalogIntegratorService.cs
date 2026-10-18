@@ -74,7 +74,9 @@ namespace Raphael.Api.Services.Catalog
             var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
             var pageNumber = Math.Max(request.PageNumber, 1);
 
-            var mine = MyIntegrators();
+            // RE-056: only an active row is "in my company"; an inactive one was uncontracted.
+            var mine = MyIntegrators().Where(i => i.IsActive);
+            var allMine = MyIntegrators();
             var query = _context.CatalogIntegrators.AsNoTracking().AsQueryable();
 
             if (!request.IncludeInactive)
@@ -118,10 +120,13 @@ namespace Raphael.Api.Services.Catalog
                     GeocodeStatus = (int)c.GeocodeStatus,
                     IsActive = c.IsActive,
                     HasCoordinates = c.Latitude != null && c.Longitude != null,
-                    MyIntegratorId = mine
+                    MyIntegratorId = allMine
                         .Where(i => i.CatalogIntegratorId == c.Id)
+                        .OrderByDescending(i => i.IsActive)
                         .Select(i => (int?)i.Id)
                         .FirstOrDefault(),
+                    IsUncontracted = !mine.Any(i => i.CatalogIntegratorId == c.Id)
+                        && allMine.Any(i => i.CatalogIntegratorId == c.Id),
                     AddedByCompanyCount = _context.Integrators
                         .Count(i => i.CatalogIntegratorId == c.Id)
                 })
@@ -129,7 +134,7 @@ namespace Raphael.Api.Services.Catalog
 
             foreach (var item in items)
             {
-                item.InMyCompany = item.MyIntegratorId.HasValue;
+                item.InMyCompany = item.MyIntegratorId.HasValue && !item.IsUncontracted;
 
                 // Computed for everyone because branching the projection would cost a second
                 // query; dropped here because a provider has no business knowing who else is
@@ -557,10 +562,13 @@ namespace Raphael.Api.Services.Catalog
             CatalogIntegrator row,
             CancellationToken cancellationToken)
         {
-            var myId = await MyIntegrators()
+            var mineRow = await MyIntegrators()
                 .Where(i => i.CatalogIntegratorId == row.Id)
-                .Select(i => (int?)i.Id)
+                .OrderByDescending(i => i.IsActive)
+                .Select(i => new { i.Id, i.IsActive })
                 .FirstOrDefaultAsync(cancellationToken);
+            var myId = mineRow?.Id;
+            var uncontracted = mineRow is { IsActive: false };
 
             var addedBy = CallerIsBroker
                 ? await _context.Integrators
@@ -610,7 +618,8 @@ namespace Raphael.Api.Services.Catalog
                 UpdatedByUserName = people.UserName(row.UpdatedByUserId),
                 UpdatedByProviderId = row.UpdatedByProviderId,
                 UpdatedByProviderName = people.ProviderName(row.UpdatedByProviderId),
-                InMyCompany = myId.HasValue,
+                InMyCompany = myId.HasValue && !uncontracted,
+                IsUncontracted = uncontracted,
                 MyIntegratorId = myId,
                 AddedByCompanyCount = addedBy
             };

@@ -72,8 +72,49 @@ namespace Raphael.Api.Services
             };
         }
 
+        /// <summary>
+        /// Uncontracts an Integrator, or contracts it again (RE-056). Off, its API key stops working and its
+        /// users cannot sign in; a session already open ends at its next renewal. Nothing is deleted.
+        /// </summary>
+        public async Task<bool> SetActiveAsync(int id, bool isActive)
+        {
+            var integrator = await _context.Integrators.FirstOrDefaultAsync(i => i.Id == id);
+            if (integrator == null) return false;
+            if (integrator.IsActive != isActive)
+            {
+                integrator.IsActive = isActive;
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+
         public async Task<IntegratorDto> CreateAsync(IntegratorDto dto)
         {
+            // RE-056: a catalog entity this company already has (active or uncontracted) is never
+            // added twice. A second row would split its trips and history between two Integrators.
+            // The uncontracted one is contracted again instead, with the API key it had.
+            if (dto.CatalogIntegratorId is int catalogId)
+            {
+                var owner = _currentUser.ProviderId;
+                var existing = await _context.Integrators.IgnoreQueryFilters()
+                    .Where(i => i.CatalogIntegratorId == catalogId)
+                    .Where(i => owner.HasValue ? i.OwnerProviderId == owner.Value : i.OwnerProviderId == null)
+                    .OrderByDescending(i => i.IsActive)
+                    .FirstOrDefaultAsync();
+                if (existing != null)
+                {
+                    if (!existing.IsActive)
+                    {
+                        existing.IsActive = true;
+                        await _context.SaveChangesAsync();
+                    }
+                    dto.Id = existing.Id;
+                    dto.ApiKey = existing.ApiKey;
+                    dto.IsActive = true;
+                    return dto;
+                }
+            }
+
             var integrator = new Integrator
             {
                 IsActive = true,
@@ -127,7 +168,8 @@ namespace Raphael.Api.Services
                 dto.Longitude ?? existing.Longitude));
 
             existing.CatalogIntegratorId = catalogId;
-            existing.IsActive = dto.IsActive;
+            // RE-056: IsActive is not saved with the form. Contracting and uncontracting go through
+            // SetActiveAsync (PUT api/Integrators/{id}/active), the only way to do it.
             existing.FundingSourceId = dto.FundingSourceId;
             existing.Comments = AccountIdentity.Sent(dto.Comments, existing.Comments);
 
