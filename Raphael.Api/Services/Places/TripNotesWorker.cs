@@ -18,16 +18,16 @@ namespace Raphael.Api.Services.Places
         private readonly TripNotesQueue _queue;
         private readonly IServiceScopeFactory _scopes;
         private readonly IOptionsMonitor<NotesOptions> _options;
-        private readonly IOperationClock _clock;
         private readonly ILogger<TripNotesWorker> _logger;
 
+        // No IOperationClock here: it is scoped and this worker lives as long as the API. It is read
+        // from a scope each time it is needed, like the notes service.
         public TripNotesWorker(TripNotesQueue queue, IServiceScopeFactory scopes, IOptionsMonitor<NotesOptions> options,
-            IOperationClock clock, ILogger<TripNotesWorker> logger)
+            ILogger<TripNotesWorker> logger)
         {
             _queue = queue;
             _scopes = scopes;
             _options = options;
-            _clock = clock;
             _logger = logger;
         }
 
@@ -89,7 +89,9 @@ namespace Raphael.Api.Services.Places
             {
                 try
                 {
-                    var now = _clock.NowFor(null);
+                    DateTime now;
+                    using (var clockScope = _scopes.CreateScope())
+                        now = clockScope.ServiceProvider.GetRequiredService<IOperationClock>().NowFor(null);
                     var next = now.Date.AddHours(Math.Clamp(_options.CurrentValue.NightlyPassHour, 0, 23));
                     if (next <= now) next = next.AddDays(1);
                     await Task.Delay(next - now, stoppingToken);
