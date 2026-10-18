@@ -8,6 +8,7 @@ using Raphael.Shared.Entities;
 using Raphael.Shared.Entities.CallRequests;
 using Raphael.Shared.Entities.Catalog;
 using Raphael.Shared.Entities.Notifications;
+using Raphael.Shared.Entities.Places;
 using Raphael.Shared.Entities.Routing;
 using Raphael.Shared.Routing;
 using Raphael.Shared.Interfaces;
@@ -161,6 +162,16 @@ namespace Raphael.Shared.DbContexts
 
         /// <summary>Counties, for grouping the catalog and for filtering it.</summary>
         public DbSet<County> Counties { get; set; }
+
+        #endregion
+
+        #region Places and notes (RE-054)
+
+        public DbSet<Place> Places { get; set; }
+        public DbSet<PlaceEntrance> PlaceEntrances { get; set; }
+        public DbSet<PlaceNote> PlaceNotes { get; set; }
+        public DbSet<CustomerNote> CustomerNotes { get; set; }
+        public DbSet<TripStopNote> TripStopNotes { get; set; }
 
         #endregion
 
@@ -1058,6 +1069,16 @@ namespace Raphael.Shared.DbContexts
             OwnedByProvider<Unit>(modelBuilder);
             OwnedByProvider<OutOfServiceRecord>(modelBuilder);
 
+            // RE-054: places and patient notes. A tenant keeps its own; entrances, place notes and
+            // trip ends are reached through a place or a trip, which are already filtered.
+            modelBuilder.ApplyConfiguration(new PlaceConfiguration());
+            modelBuilder.ApplyConfiguration(new PlaceEntranceConfiguration());
+            modelBuilder.ApplyConfiguration(new PlaceNoteConfiguration());
+            modelBuilder.ApplyConfiguration(new CustomerNoteConfiguration());
+            modelBuilder.ApplyConfiguration(new TripStopNoteConfiguration());
+            OwnedByProvider<Place>(modelBuilder);
+            OwnedByProvider<CustomerNote>(modelBuilder);
+
             // ---- Tenant isolation (RE-049), only while Tenancy:Enforce is on -------------------
             //
             // A tenant's user sees its own fleet and payers, plus the common catalog. Everybody
@@ -1072,6 +1093,8 @@ namespace Raphael.Shared.DbContexts
             TenantScoped<FundingSource>(modelBuilder);
             TenantScoped<BillingItem>(modelBuilder);
             TenantScoped<OutOfServiceRecord>(modelBuilder);
+            TenantScoped<Place>(modelBuilder);
+            TenantScoped<CustomerNote>(modelBuilder);
             CommonCatalog<VehicleType>(modelBuilder);
             CommonCatalog<SpaceType>(modelBuilder);
             CommonCatalog<CapacityType>(modelBuilder);

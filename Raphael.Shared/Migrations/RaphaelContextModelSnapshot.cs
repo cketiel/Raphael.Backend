@@ -2132,6 +2132,268 @@ namespace Raphael.Shared.Migrations
                     b.ToTable("OutOfServiceTripImpacts", (string)null);
                 });
 
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.CustomerNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerProviderId");
+
+                    b.HasIndex("CustomerId", "Status")
+                        .HasDatabaseName("IX_CustomerNotes_Customer_Status");
+
+                    b.ToTable("CustomerNotes", (string)null);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.Place", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("AddressKey")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("CatalogIntegratorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("OwnerProviderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddressKey")
+                        .HasDatabaseName("IX_Places_AddressKey");
+
+                    b.HasIndex("CatalogIntegratorId");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("IX_Places_CustomerId")
+                        .HasFilter("[CustomerId] IS NOT NULL");
+
+                    b.HasIndex("OwnerProviderId");
+
+                    b.ToTable("Places", (string)null);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.PlaceEntrance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<int>("PlaceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlaceId");
+
+                    b.HasIndex("Latitude", "Longitude")
+                        .HasDatabaseName("IX_PlaceEntrances_LatLng");
+
+                    b.ToTable("PlaceEntrances", (string)null);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.PlaceNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PlaceEntranceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlaceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlaceEntranceId");
+
+                    b.HasIndex("PlaceId", "Status")
+                        .HasDatabaseName("IX_PlaceNotes_Place_Status");
+
+                    b.ToTable("PlaceNotes", (string)null);
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.TripStopNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileComment")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PlaceEntranceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PlaceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Side")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TripNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlaceEntranceId");
+
+                    b.HasIndex("PlaceId")
+                        .HasDatabaseName("IX_TripStopNotes_PlaceId")
+                        .HasFilter("[PlaceId] IS NOT NULL");
+
+                    b.HasIndex("TripId", "Side")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TripStopNotes_Trip_Side");
+
+                    b.ToTable("TripStopNotes", (string)null);
+                });
+
             modelBuilder.Entity("Raphael.Shared.Entities.Provider", b =>
                 {
                     b.Property<int>("Id")
@@ -3996,6 +4258,96 @@ namespace Raphael.Shared.Migrations
                     b.Navigation("OutOfServiceRecord");
                 });
 
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.CustomerNote", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.Place", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Catalog.CatalogIntegrator", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogIntegratorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raphael.Shared.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raphael.Shared.Entities.Provider", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerProviderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.PlaceEntrance", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Places.Place", "Place")
+                        .WithMany("Entrances")
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Place");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.PlaceNote", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Places.PlaceEntrance", "PlaceEntrance")
+                        .WithMany()
+                        .HasForeignKey("PlaceEntranceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raphael.Shared.Entities.Places.Place", "Place")
+                        .WithMany("Notes")
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Place");
+
+                    b.Navigation("PlaceEntrance");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.TripStopNote", b =>
+                {
+                    b.HasOne("Raphael.Shared.Entities.Places.PlaceEntrance", "PlaceEntrance")
+                        .WithMany()
+                        .HasForeignKey("PlaceEntranceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raphael.Shared.Entities.Places.Place", "Place")
+                        .WithMany()
+                        .HasForeignKey("PlaceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Raphael.Shared.Entities.Trip", "Trip")
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Place");
+
+                    b.Navigation("PlaceEntrance");
+
+                    b.Navigation("Trip");
+                });
+
             modelBuilder.Entity("Raphael.Shared.Entities.Provider", b =>
                 {
                     b.HasOne("Raphael.Shared.Entities.Catalog.CatalogProvider", "CatalogProvider")
@@ -4357,6 +4709,13 @@ namespace Raphael.Shared.Migrations
             modelBuilder.Entity("Raphael.Shared.Entities.OutOfServiceRecord", b =>
                 {
                     b.Navigation("TripImpacts");
+                });
+
+            modelBuilder.Entity("Raphael.Shared.Entities.Places.Place", b =>
+                {
+                    b.Navigation("Entrances");
+
+                    b.Navigation("Notes");
                 });
 
             modelBuilder.Entity("Raphael.Shared.Entities.Role", b =>
