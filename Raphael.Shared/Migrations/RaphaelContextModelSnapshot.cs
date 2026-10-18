@@ -2202,8 +2202,8 @@ namespace Raphael.Shared.Migrations
 
                     b.Property<string>("AddressKey")
                         .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
 
                     b.Property<int?>("CatalogIntegratorId")
                         .HasColumnType("int");
@@ -2246,16 +2246,19 @@ namespace Raphael.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AddressKey")
-                        .HasDatabaseName("IX_Places_AddressKey");
-
                     b.HasIndex("CatalogIntegratorId");
 
-                    b.HasIndex("CustomerId")
-                        .HasDatabaseName("IX_Places_CustomerId")
-                        .HasFilter("[CustomerId] IS NOT NULL");
-
                     b.HasIndex("OwnerProviderId");
+
+                    b.HasIndex("OwnerProviderId", "AddressKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Places_Facility")
+                        .HasFilter("[CustomerId] IS NULL AND [IsActive] = 1");
+
+                    b.HasIndex("CustomerId", "OwnerProviderId", "AddressKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Places_Home")
+                        .HasFilter("[CustomerId] IS NOT NULL AND [IsActive] = 1");
 
                     b.ToTable("Places", (string)null);
                 });
@@ -2360,14 +2363,23 @@ namespace Raphael.Shared.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ComposedHash")
+                        .HasColumnType("int");
+
                     b.Property<string>("FileComment")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PlaceChosenByUser")
+                        .HasColumnType("bit");
 
                     b.Property<int?>("PlaceEntranceId")
                         .HasColumnType("int");
 
                     b.Property<int?>("PlaceId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Side")
                         .HasColumnType("int");

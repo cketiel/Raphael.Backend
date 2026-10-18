@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Raphael.Api.Services.Catalog;
 using Raphael.Api.Services.Routing;
 using Raphael.Shared.DbContexts;
@@ -61,6 +61,7 @@ namespace Raphael.Api.Services.ProviderPortal
         private static readonly string[] Reportable = { TripStatus.Accepted, TripStatus.Waiting, TripStatus.Late };
 
         private readonly RaphaelContext _context;
+        private readonly Raphael.Api.Services.Places.ITripNotesQueue _notesQueue;
         private readonly ICurrentUserService _currentUser;
         private readonly ITripService _trips;
         private readonly ICatalogAccountSync _sync;
@@ -75,8 +76,10 @@ namespace Raphael.Api.Services.ProviderPortal
             ICatalogAccountSync sync,
             IRoutingService routing,
             IOperationClock clock,
-            Raphael.Api.Services.Trips.ITripCommitmentService commitment)
+            Raphael.Api.Services.Trips.ITripCommitmentService commitment,
+            Raphael.Api.Services.Places.ITripNotesQueue notesQueue)
         {
+            _notesQueue = notesQueue;
             _commitment = commitment;
             _context = context;
             _currentUser = currentUser;
@@ -207,6 +210,9 @@ namespace Raphael.Api.Services.ProviderPortal
             Stamp(trip, ProviderOutcome.Completed, null);
             History(trip, "Status", prior, $"{TripStatus.Finished} (picked up {dto.PickedUpAt:hh\\:mm}, dropped off {dto.DroppedOffAt:hh\\:mm})");
             await _context.SaveChangesAsync(ct);
+
+            // RE-054: an external Provider's trip is never routed in Raphael; it is learnt from here.
+            _notesQueue.Enqueue(trip.Id, Raphael.Api.Services.Places.NotesWork.Learn);
         }
 
         /// <remarks>

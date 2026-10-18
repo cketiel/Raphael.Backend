@@ -15,13 +15,18 @@ public class PlaceConfiguration : IEntityTypeConfiguration<Place>
     {
         builder.ToTable("Places");
 
-        // Every trip saved looks a facility up by this column.
-        builder.HasIndex(x => x.AddressKey).HasDatabaseName("IX_Places_AddressKey");
+        // One active facility per address and company, one active home per patient, address and
+        // company: the database, not the order of the work, keeps two processes from creating the
+        // same place twice. The loser of the race reads the winner's row and uses it.
+        builder.HasIndex(x => new { x.OwnerProviderId, x.AddressKey })
+            .IsUnique()
+            .HasFilter("[CustomerId] IS NULL AND [IsActive] = 1")
+            .HasDatabaseName("UX_Places_Facility");
 
-        // A patient's homes.
-        builder.HasIndex(x => x.CustomerId)
-            .HasFilter("[CustomerId] IS NOT NULL")
-            .HasDatabaseName("IX_Places_CustomerId");
+        builder.HasIndex(x => new { x.CustomerId, x.OwnerProviderId, x.AddressKey })
+            .IsUnique()
+            .HasFilter("[CustomerId] IS NOT NULL AND [IsActive] = 1")
+            .HasDatabaseName("UX_Places_Home");
 
         builder.HasOne(x => x.Customer).WithMany()
             .HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);

@@ -404,6 +404,12 @@ builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 // Trips
 builder.Services.AddScoped<ITripService, TripService>();
 builder.Services.AddScoped<Raphael.Api.Services.Places.ITripNotesService, Raphael.Api.Services.Places.TripNotesService>();
+// RE-054: the notes worker. The queue is the only door the rest of the system uses, and the
+// worker runs apart from every request. Notes:Enabled=false switches both off.
+builder.Services.Configure<Raphael.Api.Services.Places.NotesOptions>(builder.Configuration.GetSection("Notes"));
+builder.Services.AddSingleton<Raphael.Api.Services.Places.TripNotesQueue>();
+builder.Services.AddSingleton<Raphael.Api.Services.Places.ITripNotesQueue>(sp => sp.GetRequiredService<Raphael.Api.Services.Places.TripNotesQueue>());
+builder.Services.AddHostedService<Raphael.Api.Services.Places.TripNotesWorker>();
 builder.Services.AddScoped<Raphael.Api.Services.Trips.ITripChangeGuard, Raphael.Api.Services.Trips.TripChangeGuard>();
 builder.Services.AddScoped<Raphael.Api.Services.Routing.IGarageChangeService, Raphael.Api.Services.Routing.GarageChangeService>();
 builder.Services.AddScoped<Raphael.Api.Services.OutOfService.IOutOfServiceService, Raphael.Api.Services.OutOfService.OutOfServiceService>();

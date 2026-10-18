@@ -51,5 +51,23 @@ namespace Raphael.Shared.Entities.Places
         /// <summary>What the office or the driver wrote for this trip only.</summary>
         [MaxLength(NoteRules.MaxTripNoteLength)]
         public string? TripNote { get; set; }
+
+        /// <summary>
+        /// The office picked this place by hand ("use another place"): processing keeps it instead of
+        /// matching the address again.
+        /// </summary>
+        public bool PlaceChosenByUser { get; set; }
+
+        /// <summary>
+        /// When the notes worker last processed this end. Null: never, or a file sent a new comment
+        /// since. Processing happens in the background, never inside an import, a save or routing.
+        /// </summary>
+        public DateTime? ProcessedAtUtc { get; set; }
+
+        /// <summary>
+        /// Fingerprint of the comment last composed for this end. A trip comment that no longer matches
+        /// it was typed by the office, and what it adds becomes <see cref="TripNote"/>.
+        /// </summary>
+        public int? ComposedHash { get; set; }
     }
 }

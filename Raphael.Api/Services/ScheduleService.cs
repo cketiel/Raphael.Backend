@@ -28,8 +28,11 @@ namespace Raphael.Api.Services
         private readonly IDispatchBroadcaster _board;
         private readonly Trips.ITripChangeGuard _guard;
 
-        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs, IDispatchBroadcaster board, Trips.ITripChangeGuard guard)
+        private readonly Places.ITripNotesQueue _notesQueue;
+
+        public ScheduleService(RaphaelContext context, NotificationService notificationService, ICurrentUserService currentUserService, ITripNotificationPublisher tripNotifications, IOperationClock clock, IObservedLegRecorder observedLegs, IDispatchBroadcaster board, Trips.ITripChangeGuard guard, Places.ITripNotesQueue notesQueue)
         {
+            _notesQueue = notesQueue;
             _guard = guard;
             _context = context;
             _notificationService = notificationService;
@@ -1258,6 +1261,10 @@ namespace Raphael.Api.Services
                 else if (schedule.EventType == ScheduleEventType.Dropoff)
                 {
                     await _tripNotifications.DriverCompletedTripAsync(schedule.Trip);
+
+                    // RE-054: the trip is over; the notes worker learns from it later. In memory, after
+                    // the save: it cannot slow down or fail the driver's finish.
+                    _notesQueue.Enqueue(schedule.Trip.Id, Places.NotesWork.Learn);
                 }
             }
 

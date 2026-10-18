@@ -3,6 +3,7 @@ using Raphael.Api.Services.Trips;
 using Raphael.Shared.DbContexts;
 using Raphael.Shared.DTOs.Places;
 using Raphael.Shared.Entities;
+using Raphael.Shared.Entities.Catalog;
 using Raphael.Shared.Entities.Places;
 using Raphael.Shared.Interfaces;
 using Raphael.Shared.Routing;
@@ -10,24 +11,19 @@ using Raphael.Shared.Time;
 
 namespace Raphael.Api.Services.Places
 {
-    /// <summary>Who sent the comment text a trip is being saved with.</summary>
-    public enum CommentOrigin
-    {
-        /// <summary>A trip file, a clinic booking or the integration API: the text is theirs, kept as is.</summary>
-        External,
-
-        /// <summary>The office, typing in the trip's comment field.</summary>
-        Office,
-    }
-
     public interface ITripNotesService
     {
         /// <summary>
-        /// Called by every path that saves a trip, before its SaveChanges: finds or creates the places
-        /// of both ends, keeps what an external source said, learns its new lines as notes to review,
-        /// and writes the composed comment the driver reads. Never calls Google.
+        /// Works a batch of trips (RE-054): finds or creates the places of both ends, learns what each
+        /// file said as notes to review, and, for <see cref="NotesWork.Compose"/>, writes the comment
+        /// the driver reads. One load of places and notes per batch; never calls Google. Called by the
+        /// notes worker and by the notes window, never by an import, a save, routing or finishing a trip.
         /// </summary>
-        Task ApplyIncomingAsync(Trip trip, string? pickupText, string? dropoffText, CommentOrigin origin);
+        /// <returns>How many trips could not be worked.</returns>
+        Task<int> ProcessTripsAsync(IReadOnlyCollection<int> tripIds, NotesWork work, CancellationToken cancellationToken = default);
+
+        /// <summary>Today's and tomorrow's open trips, for the nightly pass.</summary>
+        Task<List<int>> TripsForNightlyPassAsync(CancellationToken cancellationToken = default);
 
         Task<TripNotesDto?> GetAsync(int tripId);
         Task<TripNotesDto?> SetTripNoteAsync(int tripId, TripSide side, string? text);
@@ -54,18 +50,77 @@ namespace Raphael.Api.Services.Places
 
         /// <summary>Same rule, written over trips already read for a clinic or an external Provider.</summary>
         Task ApplyExternalCommentsAsync(IEnumerable<Raphael.Shared.DTOs.TripReadDto> trips);
+    }
 
+    /// <summary>
+    /// What an import, a clinic booking, the integration API or the trip form store for the notes
+    /// (RE-054): the source's own text, apart from the comment. A couple of plain writes in the same
+    /// save; no lookup of places, no reading of notes. The notes worker does the rest later.
+    /// </summary>
+    public static class TripFileComments
+    {
         /// <summary>
-        /// The one-off seed from the trip history: places and entrances from the trips of a date range,
-        /// and the lines of their comments as notes to review. Run month by month; safe to run twice.
-        /// With <paramref name="dryRun"/> nothing is written and the result says what would be.
+        /// A file, a clinic or an integrator sent this trip with these comments. A new trip carries
+        /// them as its comment, as always. A trip already worked keeps its composed comment: only the
+        /// source's text changes, and the worker composes again. That is what stops a re-import from
+        /// erasing what the office added.
         /// </summary>
-        Task<PlacesSeedResultDto> SeedFromHistoryAsync(DateTime from, DateTime to, bool dryRun);
+        public static async Task StashAsync(RaphaelContext context, Trip trip, bool isNew, string? pickup, string? dropoff)
+        {
+            pickup = Clean(pickup);
+            dropoff = Clean(dropoff);
+
+            if (isNew)
+            {
+                trip.PickupComment = pickup;
+                trip.DropoffComment = dropoff;
+                context.TripStopNotes.Add(new TripStopNote { Trip = trip, Side = TripSide.Pickup, FileComment = pickup });
+                context.TripStopNotes.Add(new TripStopNote { Trip = trip, Side = TripSide.Dropoff, FileComment = dropoff });
+                return;
+            }
+
+            var rows = await context.TripStopNotes.Where(s => s.TripId == trip.Id).ToListAsync();
+            foreach (var (side, text) in new[] { (TripSide.Pickup, pickup), (TripSide.Dropoff, dropoff) })
+            {
+                var row = rows.FirstOrDefault(r => r.Side == side);
+                if (row == null)
+                {
+                    // A trip from before RE-054: its comment may hold what the office typed over the
+                    // years. It stays; the worker keeps those lines as the trip's own note.
+                    context.TripStopNotes.Add(new TripStopNote { Trip = trip, Side = side, FileComment = text });
+                    continue;
+                }
+
+                var neverWorked = row.ProcessedAtUtc == null && row.ComposedHash == null;
+                row.FileComment = text;
+                row.ProcessedAtUtc = null;
+                // Nothing composed yet, so nothing of the office's to protect: the comment is the file's.
+                if (neverWorked)
+                {
+                    if (side == TripSide.Pickup) trip.PickupComment = text;
+                    else trip.DropoffComment = text;
+                }
+            }
+        }
+
+        /// <summary>A trip typed in the office: no source text, the comment is the office's.</summary>
+        public static void StashOffice(RaphaelContext context, Trip trip)
+        {
+            context.TripStopNotes.Add(new TripStopNote { Trip = trip, Side = TripSide.Pickup });
+            context.TripStopNotes.Add(new TripStopNote { Trip = trip, Side = TripSide.Dropoff });
+        }
+
+        private static string? Clean(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
     /// <summary>Notes of places and patients, and the comment each trip end carries for the driver (RE-054).</summary>
     /// <remarks>
-    /// PHI: note texts and home addresses never reach a log line, an exception message or a URL.
+    /// <para>
+    /// The company a place, a patient note or a learnt line belongs to is the trip's: the tenant
+    /// that carries it, or Raphael (null). It is set explicitly, because the worker runs with no user
+    /// and the context's filters would otherwise see only Raphael's rows.
+    /// </para>
+    /// <para>PHI: note texts and home addresses never reach a log line, an exception message or a URL.</para>
     /// </remarks>
     public sealed class TripNotesService : ITripNotesService
     {
@@ -74,6 +129,9 @@ namespace Raphael.Api.Services.Places
 
         /// <summary>A stop this close to a patient's home, or their record's position, is that home.</summary>
         public const double HomeMeters = 60;
+
+        /// <summary>A new facility this close to a catalog entry takes its name.</summary>
+        public const double CatalogMeters = 60;
 
         private const int DriverRoleId = 2;
 
@@ -86,318 +144,364 @@ namespace Raphael.Api.Services.Places
         private readonly ICurrentUserService _currentUser;
         private readonly IOperationClock _clock;
         private readonly ITripChangeGuard _guard;
+        private readonly ITripNotesQueue _queue;
+        private readonly ILogger<TripNotesService> _logger;
 
-        public TripNotesService(RaphaelContext context, ICurrentUserService currentUser, IOperationClock clock, ITripChangeGuard guard)
+        public TripNotesService(RaphaelContext context, ICurrentUserService currentUser, IOperationClock clock,
+            ITripChangeGuard guard, ITripNotesQueue queue, ILogger<TripNotesService> logger)
         {
             _context = context;
             _currentUser = currentUser;
             _clock = clock;
             _guard = guard;
+            _queue = queue;
+            _logger = logger;
         }
 
         // =====================================================================================
-        // Saving a trip
+        // The worker's job
         // =====================================================================================
 
-        public async Task ApplyIncomingAsync(Trip trip, string? pickupText, string? dropoffText, CommentOrigin origin)
+        public async Task<int> ProcessTripsAsync(IReadOnlyCollection<int> tripIds, NotesWork work, CancellationToken cancellationToken = default)
         {
-            var customer = trip.Customer ?? await _context.Customers.FindAsync(trip.CustomerId);
-            var stops = await EnsureStopsAsync(trip);
-
-            foreach (var stop in stops)
+            if (tripIds.Count == 0) return 0;
+            try
             {
-                var isPickup = stop.Side == TripSide.Pickup;
-                var (place, entrance) = await ResolvePlaceAsync(
-                    customer,
-                    isPickup ? trip.PickupAddress : trip.DropoffAddress,
-                    isPickup ? trip.PickupCity : trip.DropoffCity,
-                    isPickup ? trip.PickupLatitude : trip.DropoffLatitude,
-                    isPickup ? trip.PickupLongitude : trip.DropoffLongitude,
-                    isPickup ? trip.Pickup : trip.Dropoff,
-                    create: true);
-                stop.Place = place;
-                stop.PlaceEntrance = entrance;
-
-                var text = isPickup ? pickupText : dropoffText;
-                if (origin == CommentOrigin.External)
+                await ProcessBatchAsync(tripIds, work, cancellationToken);
+                return 0;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // One by one, so one bad trip (or a place another process created at the same moment)
+                // does not hold back the rest. The retry reads what the other process saved.
+                _logger.LogWarning(ex, "Notes: batch of {Count} trip(s) failed, retrying one by one", tripIds.Count);
+                _context.ChangeTracker.Clear();
+                var failed = 0;
+                foreach (var id in tripIds)
                 {
-                    stop.FileComment = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-                    if (place != null) await LearnFromFileAsync(place, trip.CustomerId, stop.FileComment);
-                }
-                else
-                {
-                    var current = isPickup ? trip.PickupComment : trip.DropoffComment;
-                    if (!string.Equals(Clean(text), Clean(current), StringComparison.Ordinal))
+                    try
                     {
-                        var sources = await SourcesAsync(stop, trip.CustomerId, includeTripNote: false);
-                        stop.TripNote = NoteComposer.TripNoteFromEditedComment(text, sources);
+                        await ProcessBatchAsync(new[] { id }, work, cancellationToken);
+                    }
+                    catch (Exception one) when (one is not OperationCanceledException)
+                    {
+                        failed++;
+                        _logger.LogWarning(one, "Notes: trip {TripId} could not be worked", id);
+                        _context.ChangeTracker.Clear();
                     }
                 }
+                return failed;
             }
-
-            await ComposeAsync(trip, stops);
         }
 
-        /// <summary>
-        /// The two ends of the trip, created when missing. A trip from before RE-054 has a comment and
-        /// no rows: that comment is adopted as what the source said, so the Rider app and the
-        /// integration API keep receiving exactly what they did.
-        /// </summary>
-        private async Task<List<TripStopNote>> EnsureStopsAsync(Trip trip)
+        public async Task<List<int>> TripsForNightlyPassAsync(CancellationToken cancellationToken = default)
         {
-            var stops = IsNew(trip)
-                ? new List<TripStopNote>()
-                : await _context.TripStopNotes.Where(s => s.TripId == trip.Id).ToListAsync();
+            var today = _clock.TodayFor(null);
+            var tomorrow = today.AddDays(1);
+            return await _context.Trips.IgnoreQueryFilters().AsNoTracking()
+                .Where(t => t.Date >= today && t.Date <= tomorrow && !t.IsCancelled && !ClosedStatuses.Contains(t.Status))
+                .Select(t => t.Id).ToListAsync(cancellationToken);
+        }
 
-            foreach (var side in new[] { TripSide.Pickup, TripSide.Dropoff })
+        private async Task ProcessBatchAsync(IReadOnlyCollection<int> tripIds, NotesWork work, CancellationToken cancellationToken)
+        {
+            var trips = await _context.Trips.IgnoreQueryFilters().Include(t => t.Customer)
+                .Where(t => tripIds.Contains(t.Id)).ToListAsync(cancellationToken);
+            if (trips.Count == 0) return;
+
+            var stops = await _context.TripStopNotes.Where(s => tripIds.Contains(s.TripId)).ToListAsync(cancellationToken);
+            var cache = await NotesCache.LoadAsync(this, trips, stops, cancellationToken);
+
+            foreach (var trip in trips)
             {
-                if (stops.Any(s => s.Side == side)) continue;
-                var stop = new TripStopNote
+                var owner = cache.OwnerOf(trip);
+                var closed = trip.IsCancelled || ClosedStatuses.Contains(trip.Status) || trip.Date.Date < _clock.TodayFor(trip.ProviderId);
+
+                foreach (var side in new[] { TripSide.Pickup, TripSide.Dropoff })
                 {
-                    Trip = trip,
-                    Side = side,
-                    FileComment = IsNew(trip) ? null : Clean(side == TripSide.Pickup ? trip.PickupComment : trip.DropoffComment),
-                };
-                _context.TripStopNotes.Add(stop);
-                stops.Add(stop);
+                    var isPickup = side == TripSide.Pickup;
+                    var stop = stops.FirstOrDefault(s => s.TripId == trip.Id && s.Side == side);
+                    if (stop == null)
+                    {
+                        // A trip from before RE-054: its comment is adopted as what the source said,
+                        // so the Rider app and the integration API keep receiving exactly what they did.
+                        stop = new TripStopNote { Trip = trip, Side = side, FileComment = Clean(isPickup ? trip.PickupComment : trip.DropoffComment) };
+                        _context.TripStopNotes.Add(stop);
+                        stops.Add(stop);
+                    }
+
+                    if (!stop.PlaceChosenByUser || stop.PlaceId == null)
+                    {
+                        var (place, entrance) = await cache.ResolveAsync(owner, trip.Customer,
+                            isPickup ? trip.PickupAddress : trip.DropoffAddress, isPickup ? trip.PickupCity : trip.DropoffCity,
+                            isPickup ? trip.PickupLatitude : trip.DropoffLatitude, isPickup ? trip.PickupLongitude : trip.DropoffLongitude,
+                            create: true, cancellationToken);
+                        stop.Place = place;
+                        stop.PlaceEntrance = entrance;
+                        if (place == null) stop.PlaceId = null;
+                        if (entrance == null) stop.PlaceEntranceId = null;
+                    }
+
+                    var stopPlace = stop.Place ?? cache.PlaceById(stop.PlaceId);
+                    if (stopPlace != null) cache.Learn(stopPlace, owner, trip.CustomerId, stop.FileComment);
+
+                    var pickupDone = isPickup && trip.Status == TripStatus.InProgress;
+                    if (work == NotesWork.Compose && !closed && !pickupDone)
+                    {
+                        var current = isPickup ? trip.PickupComment : trip.DropoffComment;
+                        if (stop.ComposedHash == null || StableHash(current) != stop.ComposedHash)
+                            stop.TripNote = NoteComposer.TripNoteFromEditedComment(current, cache.Sources(stop, stopPlace, trip.CustomerId, owner, includeTripNote: false));
+
+                        var composed = NoteComposer.Compose(cache.Sources(stop, stopPlace, trip.CustomerId, owner, includeTripNote: true));
+                        if (isPickup) trip.PickupComment = composed;
+                        else trip.DropoffComment = composed;
+                        stop.ComposedHash = StableHash(composed);
+                    }
+                    stop.ProcessedAtUtc = _clock.UtcNow;
+                }
             }
-            return stops.OrderBy(s => s.Side).ToList();
+
+            await _context.SaveChangesAsync(cancellationToken);
         }
 
         /// <summary>
-        /// The lines of a file comment the place and the patient do not have yet become place notes to
-        /// review. Compared with every note, removed ones included: a line the office deleted does not
-        /// come back with tomorrow's file.
+        /// Places and notes for one batch, loaded once and searched in memory. Only a stop that
+        /// matches nothing by address asks the database again (an entrance nearby, a catalog name).
         /// </summary>
-        private async Task LearnFromFileAsync(Place place, int customerId, string? fileComment, NoteSource source = NoteSource.Import)
+        private sealed class NotesCache
         {
-            if (string.IsNullOrWhiteSpace(fileComment)) return;
+            private readonly TripNotesService _s;
+            private readonly HashSet<int> _tenants;
+            private readonly List<Place> _places;
+            private readonly Dictionary<Place, List<PlaceNote>> _placeNotes;
+            private readonly List<CustomerNote> _customerNotes;
 
-            var known = new List<string>();
-            if (!IsNew(place))
-                known.AddRange(await _context.PlaceNotes.Where(n => n.PlaceId == place.Id).Select(n => n.Text).ToListAsync());
-            known.AddRange(place.Notes.Where(IsNew).Select(n => n.Text));
-            known.AddRange(await _context.CustomerNotes.Where(n => n.CustomerId == customerId).Select(n => n.Text).ToListAsync());
-
-            foreach (var line in NoteText.NewLines(fileComment, known))
+            private NotesCache(TripNotesService s, HashSet<int> tenants, List<Place> places, List<PlaceNote> placeNotes, List<CustomerNote> customerNotes)
             {
-                var note = new PlaceNote { Place = place, Text = line, Source = source, Status = NoteStatus.ToReview };
-                Stamp(note);
-                _context.PlaceNotes.Add(note); // EF puts it in place.Notes too
-            }
-        }
-
-        // =====================================================================================
-        // Finding a place — SQL only, never Google
-        // =====================================================================================
-
-        private async Task<(Place? Place, PlaceEntrance? Entrance)> ResolvePlaceAsync(
-            Customer? customer, string? address, string? city, double lat, double lng, string? placeName, bool create)
-        {
-            if (string.IsNullOrWhiteSpace(address)) return (null, null);
-
-            var key = NoteText.AddressKey(address);
-            var hasPoint = lat != 0 && lng != 0;
-
-            // 1. One of this patient's homes: same address, or a stop at its door.
-            Place? match = null;
-            if (customer != null)
-            {
-                var homes = await _context.Places.Include(p => p.Entrances)
-                    .Where(p => p.CustomerId == customer.Id && p.IsActive).ToListAsync();
-                homes.AddRange(_context.Places.Local.Where(p => IsNew(p) && p.CustomerId == customer.Id && p.IsActive));
-                match = homes.FirstOrDefault(p => p.AddressKey == key)
-                    ?? (hasPoint ? homes.FirstOrDefault(p => p.Entrances.Any(e => e.IsActive && Meters(e, lat, lng) <= HomeMeters)) : null);
+                _s = s;
+                _tenants = tenants;
+                _places = places;
+                _placeNotes = places.ToDictionary(p => p, p => placeNotes.Where(n => n.PlaceId == p.Id).OrderBy(n => n.Id).ToList());
+                _customerNotes = customerNotes;
             }
 
-            // 2. A facility at this address.
-            if (match == null)
+            public static async Task<NotesCache> LoadAsync(TripNotesService s, List<Trip> trips, List<TripStopNote> stops, CancellationToken ct)
             {
-                match = _context.Places.Local.FirstOrDefault(p => IsNew(p) && p.CustomerId == null && p.IsActive && p.AddressKey == key)
-                    ?? await _context.Places.Include(p => p.Entrances)
-                        .Where(p => p.CustomerId == null && p.IsActive && p.AddressKey == key)
-                        .OrderBy(p => p.Id).FirstOrDefaultAsync();
+                var context = s._context;
+                var tenants = (await context.Providers.IgnoreQueryFilters().Where(p => p.IsTenant).Select(p => p.Id).ToListAsync(ct)).ToHashSet();
+
+                var keys = trips.SelectMany(t => new[] { NoteText.AddressKey(t.PickupAddress), NoteText.AddressKey(t.DropoffAddress) })
+                    .Where(k => k.Length > 0).Distinct().ToList();
+                var customerIds = trips.Select(t => t.CustomerId).Distinct().ToList();
+                var linked = stops.Where(x => x.PlaceId != null).Select(x => x.PlaceId!.Value).Distinct().ToList();
+
+                var places = await context.Places.IgnoreQueryFilters().Include(p => p.Entrances)
+                    .Where(p => (p.IsActive && (keys.Contains(p.AddressKey) || (p.CustomerId != null && customerIds.Contains(p.CustomerId.Value))))
+                                || linked.Contains(p.Id))
+                    .ToListAsync(ct);
+                var placeIds = places.Select(p => p.Id).ToList();
+                var placeNotes = await context.PlaceNotes.Where(n => placeIds.Contains(n.PlaceId)).ToListAsync(ct);
+                var customerNotes = await context.CustomerNotes.IgnoreQueryFilters()
+                    .Where(n => customerIds.Contains(n.CustomerId)).OrderBy(n => n.Id).ToListAsync(ct);
+
+                return new NotesCache(s, tenants, places, placeNotes, customerNotes);
             }
 
-            // 3. A facility with an entrance right where this stop is (the file spelled the address another way).
-            if (match == null && hasPoint)
+            /// <summary>The company the trip's places and notes belong to: its tenant, or Raphael (null).</summary>
+            public int? OwnerOf(Trip trip) =>
+                trip.ProviderId is int provider && _tenants.Contains(provider) ? provider : null;
+
+            public Place? PlaceById(int? id) => id == null ? null : _places.FirstOrDefault(p => p.Id == id);
+
+            public async Task<(Place? Place, PlaceEntrance? Entrance)> ResolveAsync(int? owner, Customer? customer,
+                string? address, string? city, double lat, double lng, bool create, CancellationToken ct)
             {
-                var dLat = SameEntranceMeters / 111_000d;
+                if (string.IsNullOrWhiteSpace(address)) return (null, null);
+
+                var key = NoteText.AddressKey(address);
+                var hasPoint = lat != 0 && lng != 0;
+                var mine = _places.Where(p => p.IsActive && p.OwnerProviderId == owner).ToList();
+
+                // 1. One of this patient's homes: same address, or a stop at its door.
+                Place? match = null;
+                if (customer != null)
+                {
+                    var homes = mine.Where(p => p.CustomerId == customer.Id).ToList();
+                    match = homes.FirstOrDefault(p => p.AddressKey == key)
+                        ?? (hasPoint ? homes.FirstOrDefault(p => p.Entrances.Any(e => e.IsActive && Meters(e, lat, lng) <= HomeMeters)) : null);
+                }
+
+                // 2. A facility at this address.
+                match ??= mine.FirstOrDefault(p => p.CustomerId == null && p.AddressKey == key);
+
+                // 3. A facility with an entrance right where this stop is: in memory first, then the database.
+                if (match == null && hasPoint)
+                {
+                    match = Nearest(mine.Where(p => p.CustomerId == null), lat, lng);
+                    if (match == null)
+                    {
+                        var dLat = SameEntranceMeters / 111_000d;
+                        var dLng = dLat / Math.Max(0.2, Math.Cos(lat * Math.PI / 180));
+                        var near = await _s._context.Places.IgnoreQueryFilters().Include(p => p.Entrances)
+                            .Where(p => p.CustomerId == null && p.IsActive && p.OwnerProviderId == owner && p.Entrances.Any(e =>
+                                e.IsActive && e.Latitude >= lat - dLat && e.Latitude <= lat + dLat
+                                && e.Longitude >= lng - dLng && e.Longitude <= lng + dLng))
+                            .ToListAsync(ct);
+                        var fresh = near.Where(n => !_places.Contains(n)).ToList();
+                        if (fresh.Count > 0)
+                        {
+                            var freshIds = fresh.Select(p => p.Id).ToList();
+                            var freshNotes = await _s._context.PlaceNotes.Where(n => freshIds.Contains(n.PlaceId)).ToListAsync(ct);
+                            foreach (var place in fresh)
+                            {
+                                _places.Add(place);
+                                _placeNotes[place] = freshNotes.Where(n => n.PlaceId == place.Id).OrderBy(n => n.Id).ToList();
+                            }
+                        }
+                        match = Nearest(near, lat, lng);
+                    }
+                }
+
+                if (match == null && !create) return (null, null);
+
+                // 4. New place: the patient's home if it is the address on their record, a facility otherwise.
+                if (match == null)
+                {
+                    var isHome = customer != null && (
+                        NoteText.SameStreetAddress(key, NoteText.AddressKey(customer.Address))
+                        || (hasPoint && customer.Latitude is double cLat && customer.Longitude is double cLng
+                            && RemainingDistance.HaversineMeters(lat, lng, cLat, cLng) <= HomeMeters));
+
+                    match = new Place
+                    {
+                        Kind = isHome ? PlaceKind.Home : PlaceKind.Facility,
+                        Address = Truncate(address.Trim(), 450),
+                        City = string.IsNullOrWhiteSpace(city) ? null : Truncate(city.Trim(), 100),
+                        AddressKey = key,
+                        CustomerId = isHome ? customer!.Id : null,
+                        OwnerProviderId = owner,
+                        Source = NoteSource.Import,
+                        CreatedAtUtc = _s._clock.UtcNow,
+                        CreatedByUserId = _s._currentUser.UserId,
+                    };
+
+                    if (isHome)
+                    {
+                        match.Name = Truncate($"{customer!.FullName} Home", 200);
+                    }
+                    else
+                    {
+                        // The catalog's name when a catalog entry is right here; the address otherwise.
+                        // Never the file's "place name": in the trip files it carries the patient's name.
+                        var catalog = hasPoint ? await NearestCatalogAsync(lat, lng, ct) : null;
+                        match.Name = Truncate(catalog?.Name ?? address.Trim(), 200);
+                        match.CatalogIntegratorId = catalog?.Id;
+                    }
+
+                    _s._context.Places.Add(match);
+                    Add(match);
+                }
+
+                if (!hasPoint) return (match, null);
+
+                var entrance = match.Entrances
+                    .Where(e => e.IsActive)
+                    .Select(e => (Entrance: e, Distance: Meters(e, lat, lng)))
+                    .Where(x => x.Distance <= SameEntranceMeters)
+                    .OrderBy(x => x.Distance).Select(x => x.Entrance).FirstOrDefault();
+
+                if (entrance == null && create)
+                {
+                    entrance = new PlaceEntrance { Place = match, Latitude = lat, Longitude = lng, CreatedAtUtc = _s._clock.UtcNow };
+                    _s._context.PlaceEntrances.Add(entrance); // EF puts it in match.Entrances too
+                }
+                return (match, entrance);
+            }
+
+            private async Task<CatalogIntegrator?> NearestCatalogAsync(double lat, double lng, CancellationToken ct)
+            {
+                var dLat = CatalogMeters / 111_000d;
                 var dLng = dLat / Math.Max(0.2, Math.Cos(lat * Math.PI / 180));
-                var near = await _context.Places.Include(p => p.Entrances)
-                    .Where(p => p.CustomerId == null && p.IsActive && p.Entrances.Any(e =>
-                        e.IsActive && e.Latitude >= lat - dLat && e.Latitude <= lat + dLat
-                        && e.Longitude >= lng - dLng && e.Longitude <= lng + dLng))
-                    .ToListAsync();
-                match = near
-                    .Select(p => (Place: p, Distance: p.Entrances.Where(e => e.IsActive).Min(e => Meters(e, lat, lng))))
+                var candidates = await _s._context.CatalogIntegrators.IgnoreQueryFilters().AsNoTracking()
+                    .Where(c => c.IsActive && c.Latitude != null && c.Longitude != null
+                        && c.Latitude >= lat - dLat && c.Latitude <= lat + dLat
+                        && c.Longitude >= lng - dLng && c.Longitude <= lng + dLng)
+                    .Select(c => new CatalogIntegrator { Id = c.Id, Name = c.Name, Latitude = c.Latitude, Longitude = c.Longitude })
+                    .ToListAsync(ct);
+                return candidates
+                    .Select(c => (Entry: c, Distance: RemainingDistance.HaversineMeters(lat, lng, c.Latitude!.Value, c.Longitude!.Value)))
+                    .Where(x => x.Distance <= CatalogMeters)
+                    .OrderBy(x => x.Distance).Select(x => x.Entry).FirstOrDefault();
+            }
+
+            private static Place? Nearest(IEnumerable<Place> places, double lat, double lng) =>
+                places
+                    .Select(p => (Place: p, Distance: p.Entrances.Where(e => e.IsActive).Select(e => Meters(e, lat, lng)).DefaultIfEmpty(double.MaxValue).Min()))
                     .Where(x => x.Distance <= SameEntranceMeters)
                     .OrderBy(x => x.Distance).Select(x => x.Place).FirstOrDefault();
+
+            private void Add(Place place)
+            {
+                _places.Add(place);
+                if (!_placeNotes.ContainsKey(place)) _placeNotes[place] = place.Notes.OrderBy(n => n.Id).ToList();
             }
 
-            if (match == null && !create) return (null, null);
-
-            // 4. New place: the patient's home if it is the address on their record, a facility otherwise.
-            if (match == null)
+            /// <summary>
+            /// The lines of a file comment the place and the patient do not have yet become place notes
+            /// to review. Compared with every note, removed ones included: a line the office deleted
+            /// does not come back with tomorrow's file.
+            /// </summary>
+            public void Learn(Place place, int? owner, int customerId, string? fileComment)
             {
-                var isHome = customer != null && (
-                    NoteText.SameStreetAddress(key, NoteText.AddressKey(customer.Address))
-                    || (hasPoint && customer.Latitude is double cLat && customer.Longitude is double cLng
-                        && RemainingDistance.HaversineMeters(lat, lng, cLat, cLng) <= HomeMeters));
+                if (string.IsNullOrWhiteSpace(fileComment)) return;
+                if (!_placeNotes.TryGetValue(place, out var notes)) _placeNotes[place] = notes = new List<PlaceNote>();
 
-                match = new Place
+                var known = notes.Select(n => n.Text)
+                    .Concat(_customerNotes.Where(n => n.CustomerId == customerId && n.OwnerProviderId == owner).Select(n => n.Text));
+                foreach (var line in NoteText.NewLines(fileComment, known))
                 {
-                    Kind = isHome ? PlaceKind.Home : PlaceKind.Facility,
-                    Name = Truncate(isHome
-                        ? $"{customer!.FullName} Home"
-                        : (string.IsNullOrWhiteSpace(placeName) ? address.Trim() : placeName.Trim()), 200),
-                    Address = Truncate(address.Trim(), 450),
-                    City = string.IsNullOrWhiteSpace(city) ? null : Truncate(city.Trim(), 100),
-                    AddressKey = key,
-                    CustomerId = isHome ? customer!.Id : null,
-                    Source = SourceOfCaller(),
-                    CreatedAtUtc = _clock.UtcNow,
-                    CreatedByUserId = _currentUser.UserId,
-                };
-                _context.Places.Add(match);
+                    var note = new PlaceNote { Place = place, Text = line, Source = NoteSource.Import, Status = NoteStatus.ToReview };
+                    _s.Stamp(note);
+                    _s._context.PlaceNotes.Add(note);
+                    notes.Add(note);
+                }
             }
 
-            if (!hasPoint) return (match, null);
-
-            var entrance = match.Entrances
-                .Where(e => e.IsActive)
-                .Select(e => (Entrance: e, Distance: Meters(e, lat, lng)))
-                .Where(x => x.Distance <= SameEntranceMeters)
-                .OrderBy(x => x.Distance).Select(x => x.Entrance).FirstOrDefault();
-
-            if (entrance == null && create)
+            public StopNoteSources Sources(TripStopNote stop, Place? place, int customerId, int? owner, bool includeTripNote)
             {
-                entrance = new PlaceEntrance { Place = match, Latitude = lat, Longitude = lng, CreatedAtUtc = _clock.UtcNow };
-                _context.PlaceEntrances.Add(entrance); // EF puts it in match.Entrances too
+                var placeNotes = place != null && _placeNotes.TryGetValue(place, out var list) ? list : new List<PlaceNote>();
+                var customerNotes = _customerNotes
+                    .Where(n => n.CustomerId == customerId && n.OwnerProviderId == owner && n.Status != NoteStatus.Removed)
+                    .Select(n => n.Text).ToList();
+                return BuildSources(stop, placeNotes, customerNotes, includeTripNote);
             }
-            return (match, entrance);
         }
-
-        /// <summary>Added in this save and not stored yet. Not "Id == 0": some providers hand out keys on Add.</summary>
-        private bool IsNew(object entity) => _context.Entry(entity).State == EntityState.Added;
 
         private static double Meters(PlaceEntrance e, double lat, double lng) =>
             RemainingDistance.HaversineMeters(e.Latitude, e.Longitude, lat, lng);
 
-        // =====================================================================================
-        // Composing
-        // =====================================================================================
-
-        /// <summary>What reaches the driver at one stop, read from the database (and from what is pending in this save).</summary>
-        private async Task<StopNoteSources> SourcesAsync(TripStopNote stop, int customerId, bool includeTripNote)
-        {
-            var placeId = stop.Place != null ? (IsNew(stop.Place) ? (int?)null : stop.Place.Id) : stop.PlaceId;
-            var placeNotes = new List<PlaceNote>();
-            if (placeId is int id)
-                placeNotes.AddRange(await _context.PlaceNotes.Where(n => n.PlaceId == id && n.Status != NoteStatus.Removed).ToListAsync());
-            if (stop.Place != null)
-                placeNotes.AddRange(stop.Place.Notes.Where(n => IsNew(n) && n.Status != NoteStatus.Removed));
-
-            var customerNotes = await _context.CustomerNotes
-                .Where(n => n.CustomerId == customerId && n.Status != NoteStatus.Removed)
-                .OrderBy(n => n.Id).Select(n => n.Text).ToListAsync();
-
-            return BuildSources(stop, placeNotes, customerNotes, includeTripNote);
-        }
-
         private static StopNoteSources BuildSources(TripStopNote stop, IEnumerable<PlaceNote> placeNotes, IReadOnlyList<string> customerNotes, bool includeTripNote)
         {
-            var entranceId = stop.PlaceEntrance?.Id ?? stop.PlaceEntranceId;
-            var ordered = placeNotes.OrderBy(n => n.Status).ThenBy(n => n.Id).ToList();
+            var active = placeNotes.Where(n => n.Status != NoteStatus.Removed).OrderBy(n => n.Status).ThenBy(n => n.Id).ToList();
+            bool AtThisEntrance(PlaceNote n) =>
+                (n.PlaceEntrance != null && stop.PlaceEntrance != null && ReferenceEquals(n.PlaceEntrance, stop.PlaceEntrance))
+                || (n.PlaceEntranceId != null && n.PlaceEntranceId == (stop.PlaceEntrance?.Id ?? stop.PlaceEntranceId));
             return new StopNoteSources(
                 includeTripNote ? stop.TripNote : null,
-                ordered.Where(n => n.PlaceEntranceId != null && (n.PlaceEntranceId == entranceId || (n.PlaceEntrance != null && n.PlaceEntrance == stop.PlaceEntrance)))
-                    .Select(n => n.Text).ToList(),
-                ordered.Where(n => n.PlaceEntranceId == null && n.PlaceEntrance == null).Select(n => n.Text).ToList(),
+                active.Where(n => (n.PlaceEntranceId != null || n.PlaceEntrance != null) && AtThisEntrance(n)).Select(n => n.Text).ToList(),
+                active.Where(n => n.PlaceEntranceId == null && n.PlaceEntrance == null).Select(n => n.Text).ToList(),
                 customerNotes,
                 stop.FileComment);
         }
 
-        private async Task ComposeAsync(Trip trip, IEnumerable<TripStopNote> stops)
+        /// <summary>A fingerprint that does not change between runs, unlike <see cref="string.GetHashCode()"/>.</summary>
+        public static int StableHash(string? text)
         {
-            foreach (var stop in stops)
+            unchecked
             {
-                var composed = NoteComposer.Compose(await SourcesAsync(stop, trip.CustomerId, includeTripNote: true));
-                if (stop.Side == TripSide.Pickup) trip.PickupComment = composed;
-                else trip.DropoffComment = composed;
-            }
-        }
-
-        /// <summary>
-        /// After a place's or a patient's notes change: the trips still to come that stop there get
-        /// their comment composed again. Past and closed trips keep what they carried; a pickup already
-        /// done keeps its comment. The trip's own notes are never touched.
-        /// </summary>
-        private async Task RefreshAsync(int? placeId, int? customerId)
-        {
-            var from = _clock.UtcNow.Date.AddDays(-1);
-            var query = _context.Trips.Where(t => !t.IsCancelled && t.Date >= from && !ClosedStatuses.Contains(t.Status));
-
-            if (placeId is int pid)
-            {
-                var atPlace = _context.TripStopNotes.Where(s => s.PlaceId == pid).Select(s => s.TripId);
-                query = query.Where(t => atPlace.Contains(t.Id));
-            }
-            else if (customerId is int cid)
-            {
-                query = query.Where(t => t.CustomerId == cid);
-            }
-            else return;
-
-            var trips = (await query.ToListAsync())
-                .Where(t => t.Date.Date >= _clock.TodayFor(t.ProviderId))
-                .ToList();
-            if (trips.Count == 0) return;
-
-            // Everything in a few queries, not a few per trip: a hospital can have hundreds of trips ahead.
-            var tripIds = trips.Select(t => t.Id).ToList();
-            var allStops = await _context.TripStopNotes.Include(s => s.PlaceEntrance)
-                .Where(s => tripIds.Contains(s.TripId)).ToListAsync();
-
-            foreach (var trip in trips.Where(t => allStops.Count(s => s.TripId == t.Id) < 2 || allStops.Any(s => s.TripId == t.Id && s.PlaceId == null)))
-            {
-                // A trip from before RE-054 learns its places here, without learning notes from its comment.
-                var customer = await _context.Customers.FindAsync(trip.CustomerId);
-                foreach (var stop in (await EnsureStopsAsync(trip)).Where(s => s.PlaceId == null && s.Place == null))
-                {
-                    var isPickup = stop.Side == TripSide.Pickup;
-                    var (place, entrance) = await ResolvePlaceAsync(customer,
-                        isPickup ? trip.PickupAddress : trip.DropoffAddress, isPickup ? trip.PickupCity : trip.DropoffCity,
-                        isPickup ? trip.PickupLatitude : trip.DropoffLatitude, isPickup ? trip.PickupLongitude : trip.DropoffLongitude,
-                        isPickup ? trip.Pickup : trip.Dropoff, create: true);
-                    stop.Place = place;
-                    stop.PlaceEntrance = entrance;
-                    if (!allStops.Contains(stop)) allStops.Add(stop);
-                }
-            }
-
-            var placeIds = allStops.Select(s => s.Place != null ? (IsNew(s.Place) ? (int?)null : s.Place.Id) : s.PlaceId).Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
-            var placeNotes = (await _context.PlaceNotes
-                    .Where(n => placeIds.Contains(n.PlaceId) && n.Status != NoteStatus.Removed).ToListAsync())
-                .ToLookup(n => n.PlaceId);
-            var customerIds = trips.Select(t => t.CustomerId).Distinct().ToList();
-            var customerNotes = (await _context.CustomerNotes
-                    .Where(n => customerIds.Contains(n.CustomerId) && n.Status != NoteStatus.Removed)
-                    .OrderBy(n => n.Id).ToListAsync())
-                .ToLookup(n => n.CustomerId, n => n.Text);
-
-            foreach (var trip in trips)
-            {
-                var pickupDone = trip.Status == TripStatus.InProgress;
-                foreach (var stop in allStops.Where(s => s.TripId == trip.Id || s.Trip == trip))
-                {
-                    if (pickupDone && stop.Side == TripSide.Pickup) continue;
-                    var stopPlaceId = stop.Place != null ? (IsNew(stop.Place) ? -1 : stop.Place.Id) : stop.PlaceId ?? -1;
-                    var notes = placeNotes[stopPlaceId].Concat(stop.Place?.Notes.Where(IsNew) ?? Enumerable.Empty<PlaceNote>());
-                    var composed = NoteComposer.Compose(BuildSources(stop, notes, customerNotes[trip.CustomerId].ToList(), includeTripNote: true));
-                    if (stop.Side == TripSide.Pickup) trip.PickupComment = composed;
-                    else trip.DropoffComment = composed;
-                }
+                var hash = (int)2166136261;
+                foreach (var c in text ?? string.Empty) hash = (hash ^ c) * 16777619;
+                return hash;
             }
         }
 
@@ -414,34 +518,32 @@ namespace Raphael.Api.Services.Places
             return trip;
         }
 
-        /// <summary>Loads the trip and its two ends; creates the ends (and finds the places) of a trip from before RE-054.</summary>
-        private async Task<(Trip Trip, List<TripStopNote> Stops)?> LoadWithStopsAsync(int tripId)
+        /// <summary>
+        /// The trip and its two ends, worked now if the worker has not got to it yet: whoever opens the
+        /// notes never sees a half-done state.
+        /// </summary>
+        private async Task<(Trip Trip, List<TripStopNote> Stops)?> LoadWithStopsAsync(int tripId, bool forceWork = false)
         {
             var trip = await LoadTripAsync(tripId);
             if (trip == null) return null;
 
-            var stops = await _context.TripStopNotes
-                .Include(s => s.Place).ThenInclude(p => p!.Entrances)
-                .Include(s => s.PlaceEntrance)
-                .Where(s => s.TripId == tripId).ToListAsync();
-
-            if (stops.Count < 2 || stops.Any(s => s.PlaceId == null))
+            var stops = await StopsAsync(tripId);
+            var stale = stops.Count < 2 || stops.Any(s => s.ProcessedAtUtc == null)
+                || stops.Any(s => s.ComposedHash != null
+                    && StableHash(s.Side == TripSide.Pickup ? trip.PickupComment : trip.DropoffComment) != s.ComposedHash);
+            if (forceWork || stale)
             {
-                // First time this trip is opened after RE-054. Writing here is safe: it adopts the
-                // comment as the source's text and composes the same lines plus the place's notes.
-                if (!_guard.IsReadOnly(trip))
-                {
-                    // The current comments go back in unchanged, so no trip note is rewritten.
-                    await ApplyIncomingAsync(trip, trip.PickupComment, trip.DropoffComment, CommentOrigin.Office);
-                    await _context.SaveChangesAsync();
-                    stops = await _context.TripStopNotes
-                        .Include(s => s.Place).ThenInclude(p => p!.Entrances)
-                        .Include(s => s.PlaceEntrance)
-                        .Where(s => s.TripId == tripId).ToListAsync();
-                }
+                await ProcessBatchAsync(new[] { tripId }, NotesWork.Compose, CancellationToken.None);
+                stops = await StopsAsync(tripId);
             }
             return (trip, stops);
         }
+
+        private Task<List<TripStopNote>> StopsAsync(int tripId) =>
+            _context.TripStopNotes
+                .Include(s => s.Place).ThenInclude(p => p!.Entrances)
+                .Include(s => s.PlaceEntrance)
+                .Where(s => s.TripId == tripId).ToListAsync();
 
         public async Task<TripNotesDto?> GetAsync(int tripId)
         {
@@ -456,20 +558,19 @@ namespace Raphael.Api.Services.Places
             var (trip, stops) = loaded.Value;
             _guard.EnsureTripWritable(trip, "notes");
 
-            var stop = await StopAsync(trip, stops, side);
+            var stop = StopOf(stops, side);
             var clean = Clean(text);
             stop.TripNote = clean == null ? null : Truncate(clean, NoteRules.MaxTripNoteLength);
-            await ComposeAsync(trip, new[] { stop });
             await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> AddPlaceNoteAsync(int tripId, TripSide side, NoteUpsertDto dto)
         {
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
-            var (trip, stops) = loaded.Value;
-            var stop = await StopAsync(trip, stops, side);
+            var (_, stops) = loaded.Value;
+            var stop = StopOf(stops, side);
             var place = stop.Place ?? throw new NotesValidationException("This end of the trip has no address, so it has no place to keep notes on.");
 
             var note = new PlaceNote
@@ -484,20 +585,20 @@ namespace Raphael.Api.Services.Places
             _context.PlaceNotes.Add(note);
             await _context.SaveChangesAsync();
 
-            await RefreshAsync(place.Id, null);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            await QueueUpcomingAsync(place.Id, null, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> AddCustomerNoteAsync(int tripId, NoteUpsertDto dto)
         {
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
-            var (trip, stops) = loaded.Value;
+            var (trip, _) = loaded.Value;
 
             var note = new CustomerNote
             {
                 CustomerId = trip.CustomerId,
+                OwnerProviderId = await OwnerOfAsync(trip),
                 Text = ValidText(dto.Text),
                 Source = SourceOfCaller(),
                 Status = ParseStatus(dto.Status),
@@ -506,39 +607,36 @@ namespace Raphael.Api.Services.Places
             _context.CustomerNotes.Add(note);
             await _context.SaveChangesAsync();
 
-            await RefreshAsync(null, trip.CustomerId);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            await QueueUpcomingAsync(null, trip.CustomerId, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> UpdatePlaceNoteAsync(int tripId, int noteId, NoteUpsertDto dto)
         {
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
-            var (trip, stops) = loaded.Value;
+            var (_, stops) = loaded.Value;
             var note = await PlaceNoteOfTripAsync(stops, noteId);
             if (note == null) return null;
 
             note.Text = ValidText(dto.Text);
             note.Status = ParseStatus(dto.Status);
-            if (dto.ForEntrance)
-                note.PlaceEntranceId = stops.FirstOrDefault(s => s.PlaceId == note.PlaceId)?.PlaceEntranceId ?? note.PlaceEntranceId;
-            else
-                note.PlaceEntranceId = null;
+            note.PlaceEntranceId = dto.ForEntrance
+                ? stops.FirstOrDefault(s => s.PlaceId == note.PlaceId)?.PlaceEntranceId ?? note.PlaceEntranceId
+                : null;
             Touch(note);
             await _context.SaveChangesAsync();
 
-            await RefreshAsync(note.PlaceId, null);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            await QueueUpcomingAsync(note.PlaceId, null, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> UpdateCustomerNoteAsync(int tripId, int noteId, NoteUpsertDto dto)
         {
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
-            var (trip, stops) = loaded.Value;
-            var note = await _context.CustomerNotes.FirstOrDefaultAsync(n => n.Id == noteId && n.CustomerId == trip.CustomerId && n.Status != NoteStatus.Removed);
+            var (trip, _) = loaded.Value;
+            var note = await CustomerNoteOfTripAsync(trip, noteId);
             if (note == null) return null;
 
             note.Text = ValidText(dto.Text);
@@ -546,43 +644,39 @@ namespace Raphael.Api.Services.Places
             Touch(note);
             await _context.SaveChangesAsync();
 
-            await RefreshAsync(null, trip.CustomerId);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            await QueueUpcomingAsync(null, trip.CustomerId, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> RemovePlaceNoteAsync(int tripId, int noteId)
         {
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
-            var (trip, stops) = loaded.Value;
-            var note = await PlaceNoteOfTripAsync(stops, noteId);
+            var note = await PlaceNoteOfTripAsync(loaded.Value.Stops, noteId);
             if (note == null) return null;
 
             note.Status = NoteStatus.Removed;
             Touch(note);
             await _context.SaveChangesAsync();
 
-            await RefreshAsync(note.PlaceId, null);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            await QueueUpcomingAsync(note.PlaceId, null, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> RemoveCustomerNoteAsync(int tripId, int noteId)
         {
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
-            var (trip, stops) = loaded.Value;
-            var note = await _context.CustomerNotes.FirstOrDefaultAsync(n => n.Id == noteId && n.CustomerId == trip.CustomerId && n.Status != NoteStatus.Removed);
+            var trip = loaded.Value.Trip;
+            var note = await CustomerNoteOfTripAsync(trip, noteId);
             if (note == null) return null;
 
             note.Status = NoteStatus.Removed;
             Touch(note);
             await _context.SaveChangesAsync();
 
-            await RefreshAsync(null, trip.CustomerId);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            await QueueUpcomingAsync(null, trip.CustomerId, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> PromoteTripNoteAsync(int tripId, TripSide side, PromoteTripNoteDto dto)
@@ -590,22 +684,23 @@ namespace Raphael.Api.Services.Places
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
             var (trip, stops) = loaded.Value;
-            var stop = await StopAsync(trip, stops, side);
+            var stop = StopOf(stops, side);
             if (string.IsNullOrWhiteSpace(stop.TripNote)) throw new NotesValidationException("This end of the trip has no note of its own to keep.");
 
-            var lines = string.IsNullOrWhiteSpace(dto.Text) ? NoteText.SplitLines(stop.TripNote) : new List<string> { dto.Text.Trim() };
             var toCustomer = string.Equals(dto.Target, "Customer", StringComparison.OrdinalIgnoreCase);
             if (!toCustomer && !string.Equals(dto.Target, "Place", StringComparison.OrdinalIgnoreCase))
                 throw new NotesValidationException("Target must be Place or Customer.");
             if (!toCustomer && stop.Place == null)
                 throw new NotesValidationException("This end of the trip has no address, so it has no place to keep notes on.");
 
+            var lines = string.IsNullOrWhiteSpace(dto.Text) ? NoteText.SplitLines(stop.TripNote) : new List<string> { dto.Text.Trim() };
+            var owner = await OwnerOfAsync(trip);
             foreach (var line in lines)
             {
                 var text = ValidText(line);
                 if (toCustomer)
                 {
-                    var note = new CustomerNote { CustomerId = trip.CustomerId, Text = text, Source = SourceOfCaller(), Status = NoteStatus.Active };
+                    var note = new CustomerNote { CustomerId = trip.CustomerId, OwnerProviderId = owner, Text = text, Source = SourceOfCaller(), Status = NoteStatus.Active };
                     Stamp(note);
                     _context.CustomerNotes.Add(note);
                 }
@@ -618,16 +713,16 @@ namespace Raphael.Api.Services.Places
             }
 
             // What was kept leaves the trip's own note: it now comes from the place or the patient.
-            var rest = NoteText.SplitLines(stop.TripNote).Where(l => !NoteText.IsKnown(l, lines)).ToList();
             if (!_guard.IsReadOnly(trip))
+            {
+                var rest = NoteText.SplitLines(stop.TripNote).Where(l => !NoteText.IsKnown(l, lines)).ToList();
                 stop.TripNote = rest.Count == 0 ? null : string.Join(NoteRules.Separator, rest);
+            }
             await _context.SaveChangesAsync();
 
-            if (toCustomer) await RefreshAsync(null, trip.CustomerId);
-            else await RefreshAsync(stop.Place!.Id, null);
-            if (!_guard.IsReadOnly(trip)) await ComposeAsync(trip, stops);
-            await _context.SaveChangesAsync();
-            return await ToDtoAsync(trip, stops);
+            if (toCustomer) await QueueUpcomingAsync(null, trip.CustomerId, tripId);
+            else await QueueUpcomingAsync(stop.Place!.Id, null, tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> LinkPlaceAsync(int tripId, TripSide side, int placeId)
@@ -642,12 +737,13 @@ namespace Raphael.Api.Services.Places
             if (place.CustomerId != null && place.CustomerId != trip.CustomerId)
                 throw new NotesValidationException("That place is another patient's home.");
 
-            var stop = await StopAsync(trip, stops, side);
+            var stop = StopOf(stops, side);
             var isPickup = side == TripSide.Pickup;
             var lat = isPickup ? trip.PickupLatitude : trip.DropoffLatitude;
             var lng = isPickup ? trip.PickupLongitude : trip.DropoffLongitude;
 
             stop.Place = place;
+            stop.PlaceChosenByUser = true;
             stop.PlaceEntrance = null;
             stop.PlaceEntranceId = null;
             if (lat != 0 && lng != 0)
@@ -661,10 +757,8 @@ namespace Raphael.Api.Services.Places
                 }
                 stop.PlaceEntrance = entrance;
             }
-
-            await ComposeAsync(trip, new[] { stop });
             await _context.SaveChangesAsync();
-            return await GetAsync(tripId);
+            return await RecomposeAsync(tripId);
         }
 
         public async Task<TripNotesDto?> UpdatePlaceAsync(int tripId, TripSide side, PlaceUpdateDto dto)
@@ -672,7 +766,7 @@ namespace Raphael.Api.Services.Places
             var loaded = await LoadWithStopsAsync(tripId);
             if (loaded == null) return null;
             var (trip, stops) = loaded.Value;
-            var stop = await StopAsync(trip, stops, side);
+            var stop = StopOf(stops, side);
             var place = stop.Place ?? throw new NotesValidationException("This end of the trip has no place.");
 
             if (!string.IsNullOrWhiteSpace(dto.Name)) place.Name = Truncate(dto.Name.Trim(), 200);
@@ -687,7 +781,14 @@ namespace Raphael.Api.Services.Places
 
             place.UpdatedAtUtc = _clock.UtcNow;
             place.UpdatedByUserId = _currentUser.UserId;
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                throw new NotesValidationException("There is already a place like that at this address. Use \"use another place\" to pick it.");
+            }
             return await ToDtoAsync(trip, stops);
         }
 
@@ -715,19 +816,21 @@ namespace Raphael.Api.Services.Places
         public async Task<NotesPreviewDto> PreviewAsync(NotesPreviewRequestDto request)
         {
             var customer = await _context.Customers.FindAsync(request.CustomerId);
-            var customerNotes = customer == null
-                ? new List<string>()
-                : await _context.CustomerNotes.Where(n => n.CustomerId == customer.Id && n.Status != NoteStatus.Removed)
-                    .OrderBy(n => n.Id).Select(n => n.Text).ToListAsync();
+            var owner = _currentUser.TenantId;
+            var probe = new Trip
+            {
+                CustomerId = request.CustomerId,
+                Customer = customer!,
+                PickupAddress = request.PickupAddress ?? string.Empty,
+                DropoffAddress = request.DropoffAddress ?? string.Empty,
+            };
+            var cache = await NotesCache.LoadAsync(this, new List<Trip> { probe }, new List<TripStopNote>(), CancellationToken.None);
 
             async Task<(string? Comment, string? Name)> SideAsync(string? address, double lat, double lng)
             {
-                var (place, entrance) = await ResolvePlaceAsync(customer, address, null, lat, lng, null, create: false);
-                var notes = place == null
-                    ? new List<PlaceNote>()
-                    : await _context.PlaceNotes.Where(n => n.PlaceId == place.Id && n.Status != NoteStatus.Removed).ToListAsync();
+                var (place, entrance) = await cache.ResolveAsync(owner, customer, address, null, lat, lng, create: false, CancellationToken.None);
                 var stop = new TripStopNote { PlaceId = place?.Id, PlaceEntranceId = entrance?.Id };
-                return (NoteComposer.Compose(BuildSources(stop, notes, customerNotes, includeTripNote: false)), place?.Name);
+                return (NoteComposer.Compose(cache.Sources(stop, place, request.CustomerId, owner, includeTripNote: false)), place?.Name);
             }
 
             var pickup = await SideAsync(request.PickupAddress, request.PickupLatitude, request.PickupLongitude);
@@ -806,94 +909,48 @@ namespace Raphael.Api.Services.Places
             }
         }
 
-        public async Task<PlacesSeedResultDto> SeedFromHistoryAsync(DateTime from, DateTime to, bool dryRun)
-        {
-            const int batchSize = 200;
-            var result = new PlacesSeedResultDto { From = from.Date, To = to.Date, DryRun = dryRun };
-            var today = _clock.TodayFor(null);
-
-            var ids = await _context.Trips.AsNoTracking()
-                .Where(t => t.Date >= from.Date && t.Date <= to.Date)
-                .OrderBy(t => t.Date).ThenBy(t => t.Id)
-                .Select(t => t.Id).ToListAsync();
-            result.Trips = ids.Count;
-
-            for (var i = 0; i < ids.Count; i += batchSize)
-            {
-                var batch = ids.Skip(i).Take(batchSize).ToList();
-                var trips = await _context.Trips.Include(t => t.Customer).Where(t => batch.Contains(t.Id)).ToListAsync();
-
-                foreach (var trip in trips.OrderBy(t => t.Date).ThenBy(t => t.Id))
-                {
-                    foreach (var side in new[] { TripSide.Pickup, TripSide.Dropoff })
-                    {
-                        var isPickup = side == TripSide.Pickup;
-                        var (place, _) = await ResolvePlaceAsync(trip.Customer,
-                            isPickup ? trip.PickupAddress : trip.DropoffAddress, isPickup ? trip.PickupCity : trip.DropoffCity,
-                            isPickup ? trip.PickupLatitude : trip.DropoffLatitude, isPickup ? trip.PickupLongitude : trip.DropoffLongitude,
-                            isPickup ? trip.Pickup : trip.Dropoff, create: true);
-                        if (place != null)
-                            await LearnFromFileAsync(place, trip.CustomerId, isPickup ? trip.PickupComment : trip.DropoffComment, NoteSource.History);
-                    }
-
-                    // Trips still to come start carrying the place's notes now, not at their next edit.
-                    if (!dryRun && trip.Date.Date >= today && !trip.IsCancelled && !ClosedStatuses.Contains(trip.Status))
-                    {
-                        await ApplyIncomingAsync(trip, trip.PickupComment, trip.DropoffComment, CommentOrigin.Office);
-                        result.UpcomingTripsUpdated++;
-                    }
-                }
-
-                Count(result);
-                if (dryRun)
-                {
-                    // Kept in memory so the next batch still finds what this one "created".
-                    continue;
-                }
-                await _context.SaveChangesAsync();
-                _context.ChangeTracker.Clear();
-            }
-
-            if (dryRun) _context.ChangeTracker.Clear();
-            return result;
-
-            void Count(PlacesSeedResultDto r)
-            {
-                var added = _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).Select(e => e.Entity).ToList();
-                // In a dry run the tracker keeps growing, so count once at the end of each batch from scratch.
-                var homes = added.OfType<Place>().Count(p => p.Kind == PlaceKind.Home);
-                var facilities = added.OfType<Place>().Where(p => p.Kind == PlaceKind.Facility).ToList();
-                var entrances = added.OfType<PlaceEntrance>().Count();
-                var notes = added.OfType<PlaceNote>().Count();
-                if (dryRun)
-                {
-                    r.HomesCreated = homes; r.FacilitiesCreated = facilities.Count; r.EntrancesCreated = entrances; r.NotesCreated = notes;
-                    r.FacilitySample = facilities.Select(p => p.Name).Distinct().Take(50).ToList();
-                }
-                else
-                {
-                    r.HomesCreated += homes; r.FacilitiesCreated += facilities.Count; r.EntrancesCreated += entrances; r.NotesCreated += notes;
-                    foreach (var name in facilities.Select(p => p.Name))
-                        if (r.FacilitySample.Count < 50 && !r.FacilitySample.Contains(name)) r.FacilitySample.Add(name);
-                }
-            }
-        }
-
         // =====================================================================================
         // Helpers
         // =====================================================================================
 
-        private async Task<TripStopNote> StopAsync(Trip trip, List<TripStopNote> stops, TripSide side)
+        /// <summary>Works this trip again now, and answers with its window.</summary>
+        private async Task<TripNotesDto?> RecomposeAsync(int tripId)
         {
-            var stop = stops.FirstOrDefault(s => s.Side == side);
-            if (stop != null) return stop;
-
-            // A read-only trip from before RE-054 has no rows and will not get them; its notes window
-            // still lets the office write on the place and the patient.
-            var created = (await EnsureStopsAsync(trip)).First(s => s.Side == side);
-            stops.Add(created);
-            return created;
+            await ProcessBatchAsync(new[] { tripId }, NotesWork.Compose, CancellationToken.None);
+            var trip = await LoadTripAsync(tripId);
+            return trip == null ? null : await ToDtoAsync(trip, await StopsAsync(tripId));
         }
+
+        /// <summary>
+        /// The other trips still to come at this place, or of this patient, are queued for the worker:
+        /// the window answers at once, whatever their number.
+        /// </summary>
+        private async Task QueueUpcomingAsync(int? placeId, int? customerId, int exceptTripId)
+        {
+            var from = _clock.UtcNow.Date.AddDays(-1);
+            var query = _context.Trips.Where(t => t.Id != exceptTripId && !t.IsCancelled && t.Date >= from && !ClosedStatuses.Contains(t.Status));
+            if (placeId is int pid)
+            {
+                var atPlace = _context.TripStopNotes.Where(s => s.PlaceId == pid).Select(s => s.TripId);
+                query = query.Where(t => atPlace.Contains(t.Id));
+            }
+            else if (customerId is int cid)
+            {
+                query = query.Where(t => t.CustomerId == cid);
+            }
+            else return;
+
+            _queue.Enqueue(await query.Select(t => t.Id).ToListAsync(), NotesWork.Compose);
+        }
+
+        private async Task<int?> OwnerOfAsync(Trip trip) =>
+            trip.ProviderId is int provider
+            && await _context.Providers.IgnoreQueryFilters().AnyAsync(p => p.Id == provider && p.IsTenant)
+                ? provider : null;
+
+        private static TripStopNote StopOf(List<TripStopNote> stops, TripSide side) =>
+            stops.FirstOrDefault(s => s.Side == side)
+            ?? throw new NotesValidationException("This trip's notes are not ready yet. Try again in a moment.");
 
         private async Task<PlaceNote?> PlaceNoteOfTripAsync(List<TripStopNote> stops, int noteId)
         {
@@ -901,14 +958,22 @@ namespace Raphael.Api.Services.Places
             return await _context.PlaceNotes.FirstOrDefaultAsync(n => n.Id == noteId && placeIds.Contains(n.PlaceId) && n.Status != NoteStatus.Removed);
         }
 
+        private async Task<CustomerNote?> CustomerNoteOfTripAsync(Trip trip, int noteId)
+        {
+            var owner = await OwnerOfAsync(trip);
+            return await _context.CustomerNotes.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(n => n.Id == noteId && n.CustomerId == trip.CustomerId && n.OwnerProviderId == owner && n.Status != NoteStatus.Removed);
+        }
+
         private async Task<TripNotesDto> ToDtoAsync(Trip trip, List<TripStopNote> stops)
         {
+            var owner = await OwnerOfAsync(trip);
             var placeIds = stops.Where(s => s.PlaceId != null).Select(s => s.PlaceId!.Value).Distinct().ToList();
             var placeNotes = await _context.PlaceNotes
                 .Where(n => placeIds.Contains(n.PlaceId) && n.Status != NoteStatus.Removed)
                 .OrderBy(n => n.Status).ThenBy(n => n.Id).ToListAsync();
-            var customerNotes = await _context.CustomerNotes
-                .Where(n => n.CustomerId == trip.CustomerId && n.Status != NoteStatus.Removed)
+            var customerNotes = await _context.CustomerNotes.IgnoreQueryFilters()
+                .Where(n => n.CustomerId == trip.CustomerId && n.OwnerProviderId == owner && n.Status != NoteStatus.Removed)
                 .OrderBy(n => n.Status).ThenBy(n => n.Id).ToListAsync();
 
             TripStopNotesDto Side(TripSide side)
@@ -943,7 +1008,7 @@ namespace Raphael.Api.Services.Places
                 return dto;
             }
 
-            var result = new TripNotesDto
+            return new TripNotesDto
             {
                 TripId = trip.Id,
                 CustomerId = trip.CustomerId,
@@ -952,10 +1017,9 @@ namespace Raphael.Api.Services.Places
                 Pickup = Side(TripSide.Pickup),
                 Dropoff = Side(TripSide.Dropoff),
                 CustomerNotes = customerNotes.Select(ToDto).ToList(),
+                NotesToReview = placeNotes.Count(n => n.Status == NoteStatus.ToReview)
+                    + customerNotes.Count(n => n.Status == NoteStatus.ToReview),
             };
-            result.NotesToReview = placeNotes.Count(n => n.Status == NoteStatus.ToReview)
-                + customerNotes.Count(n => n.Status == NoteStatus.ToReview);
-            return result;
         }
 
         private static NoteDto ToDto(NoteBase n) => new()

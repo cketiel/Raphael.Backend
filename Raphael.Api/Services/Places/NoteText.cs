@@ -47,7 +47,8 @@ namespace Raphael.Api.Services.Places
 
             // "# 4" and "#4" are the same unit.
             key = key.Replace("# ", "#");
-            return key.Length > 450 ? key[..450] : key;
+            return key.Length > Raphael.Shared.Entities.Places.Place.MaxAddressKeyLength
+                ? key[..Raphael.Shared.Entities.Places.Place.MaxAddressKeyLength] : key;
         }
 
         /// <summary>

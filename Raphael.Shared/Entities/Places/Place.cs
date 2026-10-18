@@ -53,8 +53,11 @@ namespace Raphael.Shared.Entities.Places
         /// <see cref="Address"/> normalised by <c>PlaceAddressKey</c>: the lookup column. Never shown.
         /// </summary>
         [Required]
-        [MaxLength(450)]
+        [MaxLength(MaxAddressKeyLength)]
         public string AddressKey { get; set; } = string.Empty;
+
+        /// <summary>400, not 450: it shares a unique index with two ints, inside SQL Server's 900-byte limit.</summary>
+        public const int MaxAddressKeyLength = 400;
 
         /// <summary>The patient whose home this is. Null on a facility.</summary>
         public int? CustomerId { get; set; }

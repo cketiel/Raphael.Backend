@@ -153,23 +153,4 @@ namespace Raphael.Shared.DTOs.Places
         public string? PickupPlaceName { get; set; }
         public string? DropoffPlaceName { get; set; }
     }
-
-    /// <summary>What the history seed did, or would do in a dry run (RE-054).</summary>
-    public class PlacesSeedResultDto
-    {
-        public DateTime From { get; set; }
-        public DateTime To { get; set; }
-        public bool DryRun { get; set; }
-        public int Trips { get; set; }
-        public int HomesCreated { get; set; }
-        public int FacilitiesCreated { get; set; }
-        public int EntrancesCreated { get; set; }
-        public int NotesCreated { get; set; }
-
-        /// <summary>Trips from today on that now carry the composed comment. Always 0 in a dry run.</summary>
-        public int UpcomingTripsUpdated { get; set; }
-
-        /// <summary>Names of the facilities found, to check the matching by eye. Homes are left out: they carry patient names.</summary>
-        public List<string> FacilitySample { get; set; } = new();
-    }
 }

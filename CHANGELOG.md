@@ -21,44 +21,44 @@ give:
 
 ## [Unreleased]
 
-**Migrations:** one, additive: `AddPlacesAndNotes` creates `Places`, `PlaceEntrances`, `PlaceNotes`,
-`CustomerNotes` and `TripStopNotes`. **No column is added to `Trips`** and no existing row is rewritten;
-`Schedules.Comment` stays, unread (see Changed). Redeploying the previous tag remains a working rollback,
-except that comments written meanwhile would again be read from `Schedules.Comment`, which is no longer kept.
-**Clients:** Desktop and Driver unchanged keep working (the comment fields they read and send are the same).
-The notes window needs the Desktop release of RE-054.
+**Migrations:** two, additive: `AddPlacesAndNotes` creates `Places`, `PlaceEntrances`, `PlaceNotes`,
+`CustomerNotes` and `TripStopNotes`; `NotesWorkerAndUniquePlaces` adds the worker's markers and the
+unique place indexes, and empties those five tables (RE-054 starts from zero). **No column is added to
+`Trips`** and no existing row is rewritten; `Schedules.Comment` stays, unread (see Changed).
+**Clients:** Desktop and Driver unchanged keep working (the comment fields they read and send are the
+same). The notes window needs the Desktop release of RE-054.
+**Config:** new section `Notes` (`Notes__Enabled=false` switches the notes worker off without a deploy).
 
 ### Added (RE-054 — place and patient notes)
-- **Places.** Every trip saved finds or creates the place of each end: the patient's home, or a facility
-  (hospital, clinic…) shared by every patient that goes there, with one entrance per point trips actually
-  stop at. Found in SQL by normalised address and by the coordinates the trip carries — **never a call
-  to Google**.
-- **Notes**, one line each, on a place, on one of its entrances, or on the patient (language, condition…;
-  plain text, no effect on routing). Source (`Import`, `Dispatcher`, `Driver`, `History`) and status
-  (`Active`, `ToReview`, `Removed` — removed is kept, never erased).
-- **The comment the driver reads is composed**: this trip's own note, the entrance, the place, the patient,
-  and whatever the file said that no note covers yet. When a note changes, the trips from today on that
-  stop there are composed again; past and closed trips keep what they carried, and a pickup already done
-  keeps its comment.
-- **Files learn**: the lines of an imported, booked or integrated comment that are new become place
-  notes `ToReview` — once; a line the office removed does not come back.
-- `api/trips/{tripId}/notes` (GET; trip note; promote; place and patient notes add/edit/remove; link and
-  rename the place). JWT, Desktop and Driver; a driver only reaches the trips of their own routes.
+- **Places**: the patient's home, or a facility shared by every patient that goes there, with one
+  entrance per point trips stop at. Created from zero as trips come in, never seeded. Found in SQL by
+  normalised address and by the trip's coordinates — **never a call to Google**. A new facility takes
+  the catalog's name when a catalog entry is within 60 m, its address otherwise; never the file's
+  "place name" (it carries the patient's name). Always renamable. Unique indexes keep two processes
+  from creating the same place.
+- **Notes**, one line each, on a place, an entrance or the patient (plain text, no effect on routing),
+  with source and status; removed notes are kept.
+- **The notes worker** (background, one at a time, batches of 50 with one load of places and notes):
+  finds the places of a trip, learns the new lines of its file as notes to review (once; removed lines do
+  not come back) and composes the comment the driver reads. Fed by a queue in memory that imports,
+  bookings, the integration API, saves and finishing a trip write to **after** their own save — it never
+  runs inside them, and cannot fail them. A nightly pass at 01:00 (broker's clock) catches what the
+  queue lost. Logged with counts and times only.
+- `api/trips/{tripId}/notes` (notes window: Desktop and Driver; a driver only on their own routes).
   `GET api/places`, `POST api/places/notes-preview` (Desktop).
-- `TripReadDto.NotesToReview` on the day and range lists.
-- `POST api/admin/places/seed-from-history?from&to&dryRun` (platform admin): seeds places and notes to
-  review from the trip history, month by month, dry run by default, safe to run twice.
+- `TripReadDto.NotesToReview` on the day and range lists (a failure counting it never fails the list).
+- Trip import logs its row counts and duration, to measure it.
 
 ### Changed (RE-054)
 - **The route's stops read the comment from the trip**: `ScheduleDto.Comment` is the same field, but
   `Schedules.Comment` is no longer copied at routing nor kept in step on edits (`database-review` will
-  drop it).
+  drop it). Routing has no notes logic.
 - **The Rider app, clinics (Booking) and the integration API get only the comment they or the file
   sent**, never the office's notes (PHI). A trip from before RE-054 keeps the comment it had.
 
 ### Fixed (RE-054)
-- **A re-import erased what the office had added to a trip's comments**: the file's text was written
-  over them. Now it only replaces the file's own text.
+- **A re-import erased what the office had added to a trip's comments.** The file's text is now kept
+  apart and only that is replaced.
 
 ---
 

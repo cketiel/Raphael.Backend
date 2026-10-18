@@ -30,11 +30,13 @@ namespace Raphael.Api.Services
         private readonly ILogger<TripService> _logger;
         private readonly Trips.ITripChangeGuard _guard;
         private readonly Places.ITripNotesService _notes;
+        private readonly Places.ITripNotesQueue _notesQueue;
 
-        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger, Trips.ITripChangeGuard guard, Places.ITripNotesService notes)
+        public TripService(RaphaelContext context, ICurrentUserService currentUserService, NotificationService notificationService, ITripNotificationPublisher tripNotifications, IOperationClock clock, ILogger<TripService> logger, Trips.ITripChangeGuard guard, Places.ITripNotesService notes, Places.ITripNotesQueue notesQueue)
         {
             _guard = guard;
             _notes = notes;
+            _notesQueue = notesQueue;
             _context = context;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
@@ -257,9 +259,9 @@ namespace Raphael.Api.Services
             trip.Authorization = dto.Authorization;
             trip.IsCancelled = false;
 
-            // RE-054: what the clinic wrote is kept as its own text and learnt as notes to review;
-            // the driver reads it composed with the place's and the patient's notes.
-            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.External);
+            // RE-054: the clinic's text is kept apart, so a later booking update never erases what the
+            // office added. No notes work here: the notes worker does it after this is saved.
+            await Places.TripFileComments.StashAsync(_context, trip, trip.Id == 0, dto.PickupComment, dto.DropoffComment);
 
             // Only when the portal says so (PortalTripDto.SetProvider); the controller has checked
             // the clinic may give trips to this Provider.
@@ -288,6 +290,8 @@ namespace Raphael.Api.Services
             {
                 await _tripNotifications.TripAssignedAsync(trip, givenTo);
             }
+
+            _notesQueue.Enqueue(trip.Id, Places.NotesWork.Compose); // RE-054: after the save, never inside it
 
             // If there is no TripId (Manual), we assign the auto-generated ID.
             if (string.IsNullOrEmpty(trip.TripId))
@@ -615,8 +619,8 @@ namespace Raphael.Api.Services
             trip.Type = dto.Type ?? TripType.Appointment;
             trip.Authorization = dto.Authorization;
 
-            // RE-054: the integrator's text is kept as theirs, and is all they get back.
-            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.External);
+            // RE-054: the integrator's text is kept as theirs, and is all they get back. No notes work here.
+            await Places.TripFileComments.StashAsync(_context, trip, isNew, dto.PickupComment, dto.DropoffComment);
 
             // --- ATTACHMENT (UPSERT / EXPLICIT DELETE) ---
 
@@ -675,6 +679,7 @@ namespace Raphael.Api.Services
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            _notesQueue.Enqueue(trip.Id, Places.NotesWork.Compose); // RE-054: after the commit, never inside it
 
             return isNew ? IntegrationSyncStatus.Created : IntegrationSyncStatus.Updated;
         }
@@ -939,6 +944,7 @@ namespace Raphael.Api.Services
                 : _currentUserService.UserName!;
 
             var result = new TripImportResultDto { Timestamp = _clock.UtcNow };
+            var watch = System.Diagnostics.Stopwatch.StartNew();
 
             // Read once for the chunk rather than per row: it is the same value for all of them.
             var fundingSourceExists = await _context.FundingSources
@@ -1054,6 +1060,10 @@ namespace Raphael.Api.Services
             result.Message = result.Success
                 ? $"{stored} trips imported ({result.CreatedCount} new, {result.UpdatedCount} updated)."
                 : $"{stored} trips were imported and {result.FailedCount} were rejected. See Results for the reason on each.";
+
+            // Counts and time only: what RE-054's import has to be measured against. No row data.
+            _logger.LogInformation("Trip import: {Rows} row(s), {Created} new, {Updated} updated, {Failed} failed, in {ElapsedMs} ms",
+                request.Items?.Count ?? 0, result.CreatedCount, result.UpdatedCount, result.FailedCount, watch.ElapsedMilliseconds);
 
             return result;
         }
@@ -1188,9 +1198,10 @@ namespace Raphael.Api.Services
             trip.Dropoff = item.Dropoff;
             trip.PickupPhone = item.PickupPhone;
             trip.DropoffPhone = item.DropoffPhone;
-            // RE-054: the file's comment is kept as the file's and nothing else. It used to be
-            // written over the trip's comment, so a re-import erased what the office had added.
-            await _notes.ApplyIncomingAsync(trip, item.PickupComment, item.DropoffComment, Places.CommentOrigin.External);
+            // RE-054: the file's comment is kept as the file's. It used to be written over the trip's
+            // comment, so a re-import erased what the office had added. Two plain writes, no lookups:
+            // the notes worker finds the places and learns the lines after the file is in.
+            await Places.TripFileComments.StashAsync(_context, trip, isNew, item.PickupComment, item.DropoffComment);
 
             _context.TripHistories.Add(new TripHistory
             {
@@ -1207,6 +1218,7 @@ namespace Raphael.Api.Services
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+            _notesQueue.Enqueue(trip.Id, Places.NotesWork.Compose); // RE-054: after the commit, never inside it
 
             if (stagedSpaceTypeKey != null)
             {
@@ -1625,8 +1637,10 @@ namespace Raphael.Api.Services
                 Type = dto.Type,
                 Pickup = dto.Pickup,
                 PickupPhone = dto.PickupPhone,
+                PickupComment = dto.PickupComment,
                 Dropoff = dto.Dropoff,
                 DropoffPhone = dto.DropoffPhone,
+                DropoffComment = dto.DropoffComment,
                 TripId = dto.TripId,
                 Authorization = dto.Authorization,
                 Distance = dto.Distance,
@@ -1665,9 +1679,8 @@ namespace Raphael.Api.Services
                 tellTenant = provider.IsTenant ? provider.Id : null;
             }
 
-            // RE-054: what the office typed beyond the notes of the place and the patient is this
-            // trip's own note; the comment stored is the composed one.
-            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.Office);
+            // RE-054: the comment is the office's, as always; the notes worker composes it after the save.
+            Places.TripFileComments.StashOffice(_context, trip);
 
             try
             {
@@ -1703,6 +1716,7 @@ namespace Raphael.Api.Services
                 if (tellTenant is int tenant)
                     await _tripNotifications.TripAssignedAsync(trip, tenant);
 
+                _notesQueue.Enqueue(trip.Id, Places.NotesWork.Compose); // RE-054: after the save
                 return trip;
             }
             catch (DbUpdateException ex)
@@ -1812,8 +1826,10 @@ namespace Raphael.Api.Services
             trip.Type = dto.Type;
             trip.Pickup = dto.Pickup;
             trip.PickupPhone = dto.PickupPhone;
+            trip.PickupComment = dto.PickupComment;
             trip.Dropoff = dto.Dropoff;
             trip.DropoffPhone = dto.DropoffPhone;
+            trip.DropoffComment = dto.DropoffComment;
             trip.TripId = dto.TripId;
             trip.Authorization = dto.Authorization;
             trip.Distance = dto.Distance;
@@ -1842,9 +1858,6 @@ namespace Raphael.Api.Services
             // RE-050: the Provider changes only when the Desktop asks for it (SetProvider).
             int? tellTenant = dto.SetProvider ? await ApplyProviderAssignmentAsync(trip, dto.ProviderId) : null;
 
-            // RE-054: after the addresses, which decide the places.
-            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.Office);
-
             if (contactsChanged) await PropagateContactsToStopsAsync(trip);
 
             try
@@ -1852,6 +1865,7 @@ namespace Raphael.Api.Services
                 await _context.SaveChangesAsync();
                 if (tellTenant is int tenant)
                     await _tripNotifications.TripAssignedAsync(trip, tenant);
+                _notesQueue.Enqueue(trip.Id, Places.NotesWork.Compose); // RE-054: after the save
                 return true;
             }
             catch (DbUpdateException ex)
@@ -1902,10 +1916,18 @@ namespace Raphael.Api.Services
 
             // RE-054: the grids flag trips whose notes a file has added to and nobody has looked at.
             // Not for a clinic or an external Provider: the notes are the office's.
+            // A failure here only costs the orange icon, never the day's list.
             if (_currentUserService.IntegratorId == null && !_currentUserService.IsExternalProvider)
             {
-                var toReview = await _notes.CountNotesToReviewAsync(trips.Select(t => t.Id).ToList());
-                foreach (var trip in trips) trip.NotesToReview = toReview.GetValueOrDefault(trip.Id);
+                try
+                {
+                    var toReview = await _notes.CountNotesToReviewAsync(trips.Select(t => t.Id).ToList());
+                    foreach (var trip in trips) trip.NotesToReview = toReview.GetValueOrDefault(trip.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Notes to review could not be counted for the trip list");
+                }
             }
 
             if (fundingSourceIds.Count == 0) return trips;
@@ -2603,11 +2625,13 @@ namespace Raphael.Api.Services
             trip.FromTime = dto.FromTime;
             trip.PickupPhone = dto.PickupPhone;
             trip.DropoffPhone = dto.DropoffPhone;
-            await _notes.ApplyIncomingAsync(trip, dto.PickupComment, dto.DropoffComment, Places.CommentOrigin.Office);
+            trip.PickupComment = dto.PickupComment;
+            trip.DropoffComment = dto.DropoffComment;
 
             if (contactsChanged) await PropagateContactsToStopsAsync(trip);
 
             await _context.SaveChangesAsync();
+            _notesQueue.Enqueue(trip.Id, Places.NotesWork.Compose); // RE-054: after the save
             return true;
         }
 
